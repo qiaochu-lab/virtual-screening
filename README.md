@@ -35,13 +35,42 @@ the models.
 ## What's here
 
 ```
-eval/
-├── metrics.py                Metric implementations
-├── score_ligunity.py         Read raw model outputs → compute metrics → compare against published values
+eval/                         Unified metric layer
+├── metrics.py                EF / BEDROC / AUROC / recall / bootstrap CI
+│                             + ranking metrics (Spearman / R² / pairwise / Kendall)
+├── score_ligunity.py         Raw model outputs → metrics → compare against published values
 ├── test_metrics.py           Boundary-case unit tests
 ├── test_against_rdkit.py     Cross-validation against RDKit
 └── test_ranking_metrics.py   Ranking-metric tests (cross-validated against scipy)
+
+t3/                           Time-split generalization benchmark  → see t3/README.md
+├── build/                    Time split, difficulty layers, eval set construction
+├── structure/                PDB metadata, chain mapping, pocket extraction, structure prediction
+├── runners/                  Per-model adapters (official code + official weights)
+└── analysis/                 Metrics, stratified controls, robustness checks
 ```
+
+## The T3 benchmark
+
+Published numbers for these models are measured on benchmarks that (a) use
+synthetic decoys with a known shortcut, (b) participated in the authors' own
+checkpoint selection, and (c) contain no temporal holdout.
+
+`t3/` builds an evaluation set from ChEMBL/BindingDB records deposited **after**
+the models' training cutoff (2024-12), split into four layers by how novel the
+target is — from "seen target, new ligand" to "unseen target, unseen family".
+Data postdating the cutoff cannot have been trained on, and cannot have
+participated in checkpoint selection.
+
+Absolute numbers are **not** comparable to published values, since the decoy
+construction deliberately differs from DUD-E's. What is comparable is the
+**decay across layers within one fixed setup** — which is what the benchmark is
+designed to measure.
+
+See [`t3/README.md`](t3/README.md) for the design, the pipeline, and four
+implementation details that are easy to get wrong (chain assignment in
+multi-protein complexes, co-crystal ligand selection, domain truncation, and
+enrichment cutoff rounding).
 
 ### Metrics
 
