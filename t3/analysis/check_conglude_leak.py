@@ -9,7 +9,7 @@ L3/L4 按定义是「训练集里没有的新靶点」，若大量出现在 ConG
 就是污染的直接证据。
 """
 import json, os, glob
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 D = f"{B}/tmp/conglude_train/LB_train_val/info"
 
 train_up = set()

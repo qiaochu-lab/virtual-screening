@@ -17,7 +17,7 @@ import argparse
 import os
 import re
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 
 T3_METHODS = '''
     # ===== 本项目新增：T3 时间外推评测 =====

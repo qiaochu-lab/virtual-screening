@@ -22,7 +22,7 @@ import os
 import numpy as np
 from scipy import stats
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 MIN_ACT = 10
 
 

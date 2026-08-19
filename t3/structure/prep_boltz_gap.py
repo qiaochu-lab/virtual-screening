@@ -11,7 +11,7 @@
 import json
 import os
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 OUT = f"{B}/boltz_gap"
 LIMIT = 1170
 SHARDS = 4                      # 最多用 4 张卡

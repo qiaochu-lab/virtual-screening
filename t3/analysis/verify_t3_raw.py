@@ -10,7 +10,7 @@ import argparse, os, shutil
 import numpy as np
 
 ap = argparse.ArgumentParser()
-ap.add_argument("--raw", default="/data/yicheng/xqc/vs-benchmark/results/t3_raw")
+ap.add_argument("--raw", default="/data/work/vs-benchmark/results/t3_raw")
 a = ap.parse_args()
 
 if not os.path.isdir(a.raw):

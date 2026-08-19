@@ -1,4 +1,4 @@
-"""从 BindingDB 抽取时间切分后的候选数据（切分点 ≤2024-12，代哥 2026-08-12 确认）。
+"""从 BindingDB 抽取时间切分后的候选数据（切分点 ≤2024-12，2026-08-12 定稿）。
 
 口径
 ----
@@ -11,9 +11,9 @@
 import csv, json, math, sys
 from collections import defaultdict
 
-SRC = "/data/yicheng/xqc/vs-benchmark/data/raw/bindingdb/BindingDB_All.tsv"
-OUT = "/data/yicheng/xqc/vs-benchmark/data/t3/bindingdb_2025plus.jsonl"
-TRAIN = "/data/yicheng/xqc/vs-benchmark/code/LigUnity/test_datasets/train_label_blend_seq_full.json"
+SRC = "/data/work/vs-benchmark/data/raw/bindingdb/BindingDB_All.tsv"
+OUT = "/data/work/vs-benchmark/data/t3/bindingdb_2025plus.jsonl"
+TRAIN = "/data/work/vs-benchmark/code/LigUnity/test_datasets/train_label_blend_seq_full.json"
 
 train_up = {a["uniprot"] for a in json.load(open(TRAIN)) if a.get("uniprot")}
 print(f"LigUnity 训练集 UniProt: {len(train_up):,}", flush=True)

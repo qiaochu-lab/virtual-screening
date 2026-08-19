@@ -6,7 +6,7 @@ test_fep_target 里的 `res.max(axis=0)` 逐字一致，所以可以无损复原
 """
 import glob, os
 import numpy as np
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 
 for m in sorted(os.listdir(f"{B}/results/fep")):
     root = f"{B}/results/fep/{m}/FEP"

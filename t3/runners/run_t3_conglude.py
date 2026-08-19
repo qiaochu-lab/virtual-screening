@@ -36,9 +36,9 @@ from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 CG = f"{B}/code/conglude"
-PY = "/data/yicheng/xqc/envs/conglude/bin/python"
+PY = "/data/work/envs/conglude/bin/python"
 PDB_URL = "https://files.rcsb.org/download/{}.pdb"
 
 
@@ -127,7 +127,7 @@ def run_and_collect(layer, ds_dir, ds_rel, out_dir, per_target, gpu):
     if os.path.exists(res_root):
         shutil.rmtree(res_root)
     env = dict(os.environ,
-               LD_LIBRARY_PATH="/data/yicheng/xqc/envs/conglude/lib",
+               LD_LIBRARY_PATH="/data/work/envs/conglude/lib",
                CUDA_VISIBLE_DEVICES=str(gpu))
     # 必须传 ./data/... 形式的相对路径：predict.py 对不以 data/ 开头的路径
     # 会自作主张改用 <dataset_dir>/ConGLUDe/data 作为数据根目录

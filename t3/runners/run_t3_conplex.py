@@ -17,8 +17,8 @@ import sys
 
 import numpy as np
 
-B = "/data/yicheng/xqc/vs-benchmark"
-ENV = "/data/yicheng/xqc/envs/conplex/bin/conplex-dti"
+B = "/data/work/vs-benchmark"
+ENV = "/data/work/envs/conplex/bin/conplex-dti"
 CKPT = f"{B}/ckpt/conplex/BindingDB_ExperimentalValidModel.pt"
 
 

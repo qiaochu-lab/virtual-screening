@@ -62,8 +62,7 @@ tasks/                  ⭐ one document per task — the place to start
 ├── T3-time-split.md         main result: post-cutoff generalization
 ├── T4-target-fishing.md     planned, not started
 ├── T5-structure-robustness.md 🔬 structure-source and pocket-cutoff controls
-├── T6-physics.md            🔬 physics complementarity — the collaboration task
-└── scripts/                 the analysis scripts behind every number above
+└── T6-physics.md            🔬 physics complementarity — the collaboration task
 
 results/                machine-readable results
 ├── T3_main.csv              9 models × 4 layers × 5 metrics
@@ -72,14 +71,20 @@ results/                machine-readable results
 ├── T2_on_FEP.csv            affinity ranking on the 16 FEP systems
 └── T5_pocket_threshold.csv  4 / 6 / 8 Å comparison
 
-t3/                     dataset construction pipeline → t3/README.md
+t1/                     standard-benchmark runs + training-similarity ablation
+t3/                     the time-split dataset and every model run on it
 ├── build/                   time split, difficulty layers, eval set
 ├── structure/               PDB metadata, chain mapping, pocket extraction
-├── runners/                 per-model adapters
-└── analysis/                stratified controls, robustness checks
-
-eval/                   unified metric layer → eval/README.md
+├── runners/                 per-model adapters and the patches they needed
+└── analysis/                main table, class breakdown, robustness controls
+physics/                🔬 FEP benchmark and Boltz-2 — T2/T6 physics arm
+eval/                   unified metric layer (80 tests)
+env/                    per-model environment construction, with version traps
 ```
+
+Every task document ends with a **Code** table mapping each claim in it to the
+script that produced it — the intended way in is task doc → the one script
+behind the number you care about.
 
 ## Models evaluated
 
@@ -108,7 +113,7 @@ anything.
 
 ## A note on paths
 
-Scripts contain a hardcoded working directory (`B = "/data/yicheng/xqc/..."`)
+Scripts contain a hardcoded working directory (`B = "/data/work/..."`)
 from the machine they ran on. They are published as a record of what was
 actually executed rather than as a turnkey package — change `B` at the top to
 run them elsewhere. Every script's docstring states what the step is for and

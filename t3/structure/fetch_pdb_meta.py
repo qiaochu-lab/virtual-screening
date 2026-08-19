@@ -5,7 +5,7 @@
 """
 import json, os, time, urllib.parse, urllib.request
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 OUT = f"{B}/data/t3/pdb_meta.json"
 
 cov = json.load(open(f"{B}/data/t3/new_target_structure_coverage.json"))

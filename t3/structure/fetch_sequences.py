@@ -9,7 +9,7 @@ import time
 import urllib.parse
 import urllib.request
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 OUT = f"{B}/data/t3/sequences.json"
 BATCH = 100
 

@@ -9,7 +9,7 @@
 import json, os, time, urllib.parse, urllib.request
 from collections import defaultdict
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 OUT = f"{B}/boltz_batch"
 os.makedirs(OUT, exist_ok=True)
 

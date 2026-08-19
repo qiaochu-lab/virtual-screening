@@ -31,7 +31,7 @@ import re
 import numpy as np
 from scipy import stats
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 
 
 def load_boltz():

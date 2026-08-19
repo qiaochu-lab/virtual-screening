@@ -31,7 +31,7 @@ import urllib.parse
 import urllib.request
 from collections import Counter
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 LIMIT, PAD, MIN_LEN = 1170, 30, 150
 OUT = f"{B}/data/t3/domain_truncation.json"
 

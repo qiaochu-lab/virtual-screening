@@ -26,7 +26,7 @@ from rdkit import Chem, RDLogger
 
 RDLogger.DisableLog("rdApp.*")
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 FEP = f"{B}/code/LigUnity/test_datasets/FEP"
 OUT = f"{B}/boltz_fep"
 SHARDS = 3          # 用空闲的 GPU 4/6/7

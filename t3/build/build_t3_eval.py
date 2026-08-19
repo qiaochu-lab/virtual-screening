@@ -27,7 +27,7 @@ import os
 import random
 from collections import defaultdict
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 OUT = f"{B}/data/t3/eval"
 PAFF_CUT = 6.0
 RATIO = 50

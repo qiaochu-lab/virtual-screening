@@ -31,9 +31,23 @@ The interface is deliberately minimal: a physics method contributes one float
 array per target (plus the label array), and [`../eval/`](../eval/) computes
 every metric from that. Nothing in the metric layer is model-specific.
 
-## Scripts
+## Where the code is
 
-[`scripts/`](scripts/) holds the analysis code behind the numbers in these
-documents — one script per claim, each with a docstring explaining what the
-check is for and how to read its output. Dataset-construction code lives in
-[`../t3/`](../t3/).
+Each document ends with a **Code** table linking every claim in it to the script
+that produced it. The scripts live next to what they operate on rather than in
+one bucket:
+
+| Directory | Contents |
+|---|---|
+| [`../t1/`](../t1/) | standard-benchmark launches, training-similarity ablation |
+| [`../t3/build/`](../t3/build/) | time split, difficulty layers, eval-set construction |
+| [`../t3/structure/`](../t3/structure/) | PDB metadata, chain mapping, pocket extraction at four thresholds |
+| [`../t3/runners/`](../t3/runners/) | per-model adapters, and the patches each repo needed |
+| [`../t3/analysis/`](../t3/analysis/) | main table, class breakdown, robustness controls |
+| [`../physics/`](../physics/) | 🔬 FEP benchmark, Boltz-2 affinity, physics comparisons |
+| [`../eval/`](../eval/) | metric implementations and their tests |
+| [`../env/`](../env/) | per-model environment construction |
+
+Every script carries a docstring saying what the check is for and **how to read
+its output**, including what a null result would mean — written before the
+output existed.

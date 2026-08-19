@@ -13,7 +13,7 @@ import json, os
 import numpy as np
 from scipy import stats
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 ref = json.load(open(f"{B}/data/t3/fep_reference.json"))
 phys = {**ref["jacs"], **ref["merck"]}
 JACS = set(ref["jacs"])

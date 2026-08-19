@@ -19,7 +19,7 @@ import sys
 
 import numpy as np
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 sys.path.insert(0, B)
 from eval.metrics import enrichment_factor, roc_auc, bedroc  # noqa: E402
 

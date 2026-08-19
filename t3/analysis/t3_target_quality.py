@@ -1,6 +1,6 @@
 """按结构质量给 T3 靶点分级，并给出「高质量子集」。
 
-来源：导师 2026-08-19 的要求——
+来源：项目要求——
 「最好保留的数据是有结构（rcsb 有蛋白晶体结构）或者结构预测比较精准的
 （iptm ptm plddt 比较高），以及多样性，要涉及到激酶、gpcr、表观等等」
 
@@ -28,7 +28,7 @@ from collections import Counter, defaultdict
 import lmdb
 import numpy as np
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 PLDDT_MIN, IPTM_MIN = 0.70, 0.60
 
 
@@ -122,7 +122,7 @@ def main():
         if n:
             print("%-5s %8d %8d %8d %8d %9.1f%%" % (L, c["A"], c["B"], c["C"], n, hq/n*100))
 
-    # 高质量子集的类别覆盖 —— 导师同时要求多样性
+    # 高质量子集的类别覆盖 —— 质量之外还要求类别多样性
     print("\n" + "=" * 66)
     print("高质量子集（A+B）的靶点类别覆盖")
     print("=" * 66)

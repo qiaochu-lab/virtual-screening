@@ -4,8 +4,8 @@
 # 只把 --test-task 换成 T3、加 --t3-root、并把 batch 从 256 降到 8
 # （T3 分子最大 336 个原子，DEKOIS 才 50，UniMol 注意力 O(n^2) 会 OOM）。
 set -u
-export PATH=/data/yicheng/xqc/envs/ligunity/bin:$PATH
-B=/data/yicheng/xqc/vs-benchmark
+export PATH=/data/work/envs/ligunity/bin:$PATH
+B=/data/work/vs-benchmark
 V=$1; GPU=$2
 C=$B/ckpt/ligunity/LigUnity_VS/${V}_vs/checkpoint_avg_41-50.pt
 OUT=$B/results/t3_raw/ligunity_${V}

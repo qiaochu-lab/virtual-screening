@@ -38,8 +38,8 @@ python ./unimol/test.py ./test_datasets --user-dir ./unimol --valid-subset test 
   --path <ckpt> --max-pocket-atoms 511 --test-task DUDE
 ```
 
-Then `tasks/scripts/score_t3.py` (same scorer, different `--root`) recomputes
-all metrics from the raw scores.
+Then [`t3/analysis/score_t3.py`](../t3/analysis/score_t3.py) (same scorer,
+different `--root`) recomputes all metrics from the raw scores.
 
 ## Results so far
 
@@ -61,10 +61,11 @@ paper to **0.0%**, which independently validates the score-saving patch.
    decoy bias. ⚠️ This is *consistent with* the 2019 hidden-bias report but is
    **not independent evidence** — LIT-PCBA is also harder for unrelated reasons
    (larger libraries, lower active ratios, noisier HTS actives).
-2. A model author confirmed that DUD-E and LIT-PCBA are hard to optimize
-   simultaneously, and the released checkpoint was "basically a compromise
-   choice". So these benchmarks participated in model selection — which is the
-   motivation for T3.
+2. **The released checkpoints were selected against these same benchmarks.**
+   DUD-E and LIT-PCBA are difficult to optimize simultaneously, so a public
+   checkpoint represents a trade-off chosen with the benchmark scores visible.
+   Evaluating it on those benchmarks therefore measures the trade-off as much as
+   the model — which is the motivation for T3.
 
 ## To finish
 
@@ -78,3 +79,27 @@ targets. Co-folding (Boltz-2) takes minutes per complex — completely infeasibl
 Docking is possible but the scoring functions are weak. If attempted, do it on a
 **subset** (20–30 targets) to answer "is physics also good at enrichment, or
 only at ranking?"
+
+## Code
+
+| What | File |
+|---|---|
+| Launch DrugCLIP on DUD-E / LIT-PCBA | [`t1/run_drugclip.sh`](../t1/run_drugclip.sh) |
+| Launch BindCLIP (both weights) | [`t1/run_bindclip.sh`](../t1/run_bindclip.sh), [`t1/run_bindclip_pcba.sh`](../t1/run_bindclip_pcba.sh) |
+| Launch on DEKOIS | [`t1/run_dekois.sh`](../t1/run_dekois.sh) |
+| Metrics from raw scores, auto-compared to published values | [`eval/score_ligunity.py`](../eval/score_ligunity.py) |
+| Metric definitions and their validation | [`eval/`](../eval/) |
+
+**Related ablation — performance vs. distance to the training set.** Not part of
+T1 proper, but it uses T1's scores and explains part of the spread:
+
+| What | File |
+|---|---|
+| EF vs. sequence identity to the nearest training protein | [`t1/t1_sim.py`](../t1/t1_sim.py), [`t1/t1_sim3.py`](../t1/t1_sim3.py) |
+| Union of all evaluated models' training sets | [`t1/build_train_union.py`](../t1/build_train_union.py) |
+| How much the layer labels shift if a different model's training set is used | [`t1/quantify_train_union.py`](../t1/quantify_train_union.py) |
+| Pair-level contamination check (target+ligand already in training) | [`t1/check_pair_contamination.py`](../t1/check_pair_contamination.py) |
+
+Removing training-similar proteins costs 28–45% of EF1%. Both `t1_sim` scripts
+bootstrap **at the target level**, not the molecule level — pooling molecules
+across targets would understate the variance and silently change what EF means.

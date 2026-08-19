@@ -9,7 +9,7 @@
 """
 import json, os
 import numpy as np
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 
 S = {}
 for tag, f in [("6Å", "summary.json"), ("4Å", "summary_4a.json"), ("8Å", "summary_8a.json")]:

@@ -139,7 +139,17 @@ that. Nothing about it is model-specific.
 
 ## Scripts
 
-`t6_boltz_affinity.py` (cross-target correlation) ·
-`prep_boltz_fep.py`, `fep_truncate.py`, `run_boltz_fep.sh` (per-ligand run) ·
-`score_fep.py`, `fep_recover_preds.py`, `fep_vs_t3_same_targets.py`,
-`fep_compare_physics.py` — all in [`scripts/`](scripts/)
+All of it lives in [`physics/`](../physics/):
+
+| What | File |
+|---|---|
+| Cross-target Boltz-2 affinity correlation (the +0.404 above) | [`t6_boltz_affinity.py`](../physics/t6_boltz_affinity.py) |
+| Build Boltz-2 inputs for the 461 FEP complexes | [`prep_boltz_fep.py`](../physics/prep_boltz_fep.py) |
+| Truncate systems over the 1170-residue limit to the binding domain | [`fep_truncate.py`](../physics/fep_truncate.py) |
+| Launch the per-ligand run (3 shards) | [`run_boltz_fep.sh`](../physics/run_boltz_fep.sh) |
+| Run the retrieval models on the same systems | [`run_fep.sh`](../physics/run_fep.sh), [`patch_fep_save.py`](../physics/patch_fep_save.py) |
+| Score, and recover scores from embeddings where needed | [`score_fep.py`](../physics/score_fep.py), [`fep_recover_preds.py`](../physics/fep_recover_preds.py) |
+| Paired test isolating ligand composition from target familiarity | [`fep_vs_t3_same_targets.py`](../physics/fep_vs_t3_same_targets.py) |
+| Compare against the published physics reference | [`fep_compare_physics.py`](../physics/fep_compare_physics.py) |
+| Pockets a physics method would consume, at four thresholds | [`t3/structure/extract_pocket*.py`](../t3/structure/) |
+| Metrics any new scoring method plugs into | [`eval/metrics.py`](../eval/metrics.py) |

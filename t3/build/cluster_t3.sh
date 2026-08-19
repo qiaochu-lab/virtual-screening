@@ -1,10 +1,10 @@
 #!/bin/bash
 set -e
-B=/data/yicheng/xqc/vs-benchmark
-M=/data/yicheng/anconda/envs/dplm_surf_tools/bin/mmseqs
+B=/data/work/vs-benchmark
+M=/opt/conda/envs/dplm_surf_tools/bin/mmseqs
 W=$B/data/t3/cluster
 mkdir -p $W/tmp
-/data/yicheng/xqc/envs/ligunity/bin/python -c "
+/data/work/envs/ligunity/bin/python -c "
 import json
 s = json.load(open('$B/data/t3/sequences.json'))
 with open('$W/t3.fasta','w') as f:

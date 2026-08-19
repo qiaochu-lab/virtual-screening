@@ -2,8 +2,8 @@
 # 按指定口袋阈值跑三个 UniMol 模型。$1 = 阈值整数（4 / 6 / 8）
 # 只用 GPU 5、6：三个任务里两个共用 6 卡（单任务实测 4-11 GB，24 GB 够）。
 set -u
-export PATH=/data/yicheng/xqc/envs/ligunity/bin:$PATH
-B=/data/yicheng/xqc/vs-benchmark
+export PATH=/data/work/envs/ligunity/bin:$PATH
+B=/data/work/vs-benchmark
 T=$1
 ROOT=$B/data/T3_${T}A
 L=$B/results/logs

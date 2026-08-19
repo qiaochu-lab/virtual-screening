@@ -21,7 +21,7 @@ import json
 import numpy as np
 from scipy import stats
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 MIN_REPORT = 8          # 低于此只列 n，不报指标
 
 

@@ -31,7 +31,7 @@ import numpy as np
 from rdkit import Chem, RDLogger
 
 RDLogger.DisableLog("rdApp.*")
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 
 
 def load_pockets(threshold):

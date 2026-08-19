@@ -7,7 +7,7 @@
 import glob, json, os
 import numpy as np
 from scipy import stats
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 D = f"{B}/tmp/conglude_train/LB_train_val/info"
 
 seen = set()

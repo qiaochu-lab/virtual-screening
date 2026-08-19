@@ -12,7 +12,7 @@ import json, os
 import numpy as np
 from scipy import stats
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 JACS = {"bace","cdk2","jnk1","mcl1","p38","ptp1b","thrombin","tyk2"}
 
 rows = {}

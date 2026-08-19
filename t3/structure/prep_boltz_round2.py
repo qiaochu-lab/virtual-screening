@@ -15,7 +15,7 @@ from rdkit import Chem, RDLogger
 
 RDLogger.DisableLog("rdApp.*")
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 OUT = f"{B}/boltz_r2"
 SHARDS = 4
 MAX_LIG_ATOMS = 128          # Boltz-2 亲和力模块上限

@@ -111,3 +111,18 @@ structure-based scoring depends on the same pocket definition, and we now have
 the same 1,044 targets prepared at 4/5/6/8 Å with validated residue-level
 extraction. If a docking or FEP setup needs a pocket definition, these are
 already built and the sensitivity is quantified.
+
+## Code
+
+| What | File |
+|---|---|
+| Build pockets at 4 / 5 / 6 / 8 Å | [`t3/structure/extract_pocket.py`](../t3/structure/extract_pocket.py) (predicted), [`extract_pocket_pdb.py`](../t3/structure/extract_pocket_pdb.py) (experimental, chain-aware) |
+| Re-run the models at the other thresholds | [`t3/runners/run_t3_thr.sh`](../t3/runners/run_t3_thr.sh), [`run_t3_unimol_5a.sh`](../t3/runners/run_t3_unimol_5a.sh) |
+| Threshold curve: pocket sizes, cap-overflow rates, and the 4/6/8 Å table | [`t3/analysis/t5_threshold_curve.py`](../t3/analysis/t5_threshold_curve.py) |
+| Truncation-artefact control (over-cap vs under-cap at 8 Å) | [`t3/analysis/t5_cap_stratify.py`](../t3/analysis/t5_cap_stratify.py) |
+| Experimental vs predicted structure comparison | [`t3/analysis/t5_structure_source.py`](../t3/analysis/t5_structure_source.py) |
+| Structure-confidence grading used to define "high quality" | [`t3/analysis/t3_target_quality.py`](../t3/analysis/t3_target_quality.py) |
+
+Each script's docstring states **how to read a null result** before showing any
+numbers — written that way deliberately, so the interpretation was fixed before
+the output existed.

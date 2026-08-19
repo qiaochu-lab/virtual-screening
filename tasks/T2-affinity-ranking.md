@@ -43,9 +43,9 @@ model score against measured pAffinity **within each target**, then averages
 over targets.
 
 ```bash
-python tasks/scripts/score_t2.py --models <m1> <m2> ...     # on T3 data
-python tasks/scripts/score_fep.py                           # on FEP data
-python tasks/scripts/fep_compare_physics.py                 # vs physics reference
+python t3/analysis/score_t2.py --models <m1> <m2> ...   # on T3 data
+python physics/score_fep.py                             # on FEP data
+python physics/fep_compare_physics.py                   # vs the physics reference
 ```
 
 ## Results
@@ -155,3 +155,24 @@ skips ligand pairs whose measured difference falls inside experimental error
 (~0.3–0.5 log units). Raw Spearman punishes a model for failing to order pairs
 that are indistinguishable in the assay, which may be part of why T3 reads as
 zero.
+
+---
+
+## Code
+
+| What | File |
+|---|---|
+| Ranking metrics on T3 data (per-target Spearman/Kendall/Pearson, then averaged) | [`t3/analysis/score_t2.py`](../t3/analysis/score_t2.py) |
+| Run the models on the 16 FEP systems | [`physics/run_fep.sh`](../physics/run_fep.sh) |
+| Make the FEP task persist raw scores | [`physics/patch_fep_save.py`](../physics/patch_fep_save.py) |
+| Recover scores from stored embeddings where a run predates the patch | [`physics/fep_recover_preds.py`](../physics/fep_recover_preds.py) |
+| Score the FEP systems | [`physics/score_fep.py`](../physics/score_fep.py) |
+| **The paired test on the 14 shared targets** — the experiment that corrected the conclusion | [`physics/fep_vs_t3_same_targets.py`](../physics/fep_vs_t3_same_targets.py) |
+| Compare against the published physics reference | [`physics/fep_compare_physics.py`](../physics/fep_compare_physics.py) |
+| Metric implementations (`spearman`, `kendall_tau`, `r2_score`, `pairwise_accuracy`) | [`eval/metrics.py`](../eval/metrics.py) |
+
+Two of these exist because of a reporting problem rather than a modelling one:
+`patch_fep_save.py` adds one line so raw scores survive, and
+`fep_recover_preds.py` reconstructs them as `pocket_emb @ mol_emb.T` followed by
+a max over pockets — byte-identical to the official computation, so nothing had
+to be re-run.

@@ -22,9 +22,9 @@ import sys
 
 import numpy as np
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 SP = f"{B}/code/panspecies-dti"
-EMBED = "/data/yicheng/xqc/envs/sprint/bin/ultrafast-embed"
+EMBED = "/data/work/envs/sprint/bin/ultrafast-embed"
 
 
 def _embed_once(data_file, moltype, out_path, ckpt, gpu, batch=32):

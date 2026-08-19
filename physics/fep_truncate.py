@@ -7,7 +7,7 @@ Protein kinase 结构域注释定位，比按长度乱截可靠。
 不按构建体长度。）
 """
 import json, re, time, urllib.parse, urllib.request
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 PAD, LIMIT = 30, 1170
 
 need = {"P08581": "cmet", "P29597": "tyk2"}   # c-Met, TYK2

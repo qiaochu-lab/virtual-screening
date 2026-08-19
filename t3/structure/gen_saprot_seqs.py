@@ -22,7 +22,7 @@ import os
 import sys
 from multiprocessing import Pool
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 FOLDSEEK = f"{B}/tools/foldseek/bin/foldseek"
 sys.path.insert(0, f"{B}/code/panspecies-dti")
 # get_struc_seq 在 utils/structure_to_saprot.py 里，不是包内模块，得单独加路径

@@ -18,7 +18,7 @@ from rdkit import Chem, RDLogger
 from rdkit.Chem.Scaffolds import MurckoScaffold
 RDLogger.DisableLog("rdApp.*")
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 TD = f"{B}/code/LigUnity/test_datasets"
 T3 = f"{B}/data/t3"
 

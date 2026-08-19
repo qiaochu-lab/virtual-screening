@@ -25,7 +25,7 @@ import urllib.request
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 OUT = f"{B}/data/t3/target_class.json"
 ROOT = "https://www.ebi.ac.uk/chembl/api/data"
 

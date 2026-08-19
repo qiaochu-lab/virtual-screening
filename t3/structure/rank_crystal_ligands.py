@@ -32,7 +32,7 @@ from rdkit.Chem import AllChem
 
 RDLogger.DisableLog("rdApp.*")
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 META = f"{B}/data/t3/pdb_meta.json"
 CHAINMAP = f"{B}/data/t3/pdb_chain_map.json"
 OUT = f"{B}/data/t3/crystal_ligand_candidates.json"

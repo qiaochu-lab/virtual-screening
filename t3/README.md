@@ -11,11 +11,10 @@ and DEKOIS. Three problems with using those to judge generalization:
 1. **DUD-E's decoys are synthetic** — property-matched, topologically dissimilar
    molecules. A 2019 analysis showed this leaves a shortcut: a model can score
    well by looking at the ligand alone, ignoring the protein.
-2. **The benchmarks participated in model selection.** One model author confirmed
-   to us that DUD-E and LIT-PCBA are hard to optimize simultaneously, so the
-   released checkpoint was "basically a compromise choice". Scoring that
-   checkpoint on the same benchmarks measures the authors' trade-off as much as
-   the model.
+2. **The benchmarks participated in model selection.** DUD-E and LIT-PCBA are
+   difficult to optimize simultaneously, so a released checkpoint represents a
+   trade-off chosen with those benchmark scores in view. Evaluating it on the
+   same benchmarks measures that selection as much as the model.
 3. **No temporal holdout.** Targets and ligands in existing benchmarks may all
    have been visible during training.
 
@@ -143,7 +142,7 @@ each decision is for and what breaks without it.
 
 ## A note on paths
 
-The scripts contain a hardcoded working directory (`B = "/data/yicheng/xqc/..."`)
+The scripts contain a hardcoded working directory (`B = "/data/work/..."`)
 from the machine they were run on. They are published as a record of exactly what
 was executed rather than as a turnkey package — change `B` at the top of each
 script to run them elsewhere. Docstrings state the intent of each step, so the

@@ -12,7 +12,7 @@ import time
 import urllib.parse
 import urllib.request
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 T = json.load(open(f"{B}/data/t3/domain_truncation.json"))["truncation"]
 accs = sorted(T)
 

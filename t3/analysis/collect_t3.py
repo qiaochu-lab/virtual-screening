@@ -1,6 +1,6 @@
 """把各模型落在 t3_raw 下的原始打分归集到统一结果目录。"""
 import argparse, os, shutil
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 ap = argparse.ArgumentParser()
 ap.add_argument("--raw", default=f"{B}/results/t3_raw")
 ap.add_argument("--suffix", default="", help="模型名后缀，如 _5a 用于区分 5Å 对照")

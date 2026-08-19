@@ -13,7 +13,7 @@ import json, os
 import numpy as np
 from scipy import stats
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 # FEP.json 是 [uniprot, pdb, ...] 的列表；靶点名（pocket）在 fep_labels.json 里
 fep_ups = {e["uniprot"]: e["pockets"][0]
            for e in json.load(open(f"{B}/code/LigUnity/test_datasets/FEP/fep_labels.json"))}

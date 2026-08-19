@@ -15,7 +15,7 @@ UniMol 注意力 O(n^2)，沿用写死的 64 会 CUDA OOM（DrugCLIP 上已实�
 """
 import re
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 P = f"{B}/code/LigUnity/unimol/tasks/test_task.py"
 X = f"{B}/code/LigUnity/unimol/test.py"
 

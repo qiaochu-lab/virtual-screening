@@ -55,3 +55,13 @@ make our numbers interpretable rather than free-floating.
 ❌ **Not applicable.** Target fishing requires scoring one molecule against
 thousands of targets. Physics methods cost minutes per complex; the cost model
 does not work in this direction at all.
+
+## Code
+
+Nothing specific to T4 yet. What it would build on:
+
+| Input it would reuse | Where |
+|---|---|
+| Per-target score arrays for all 9 models | produced by [`t3/runners/`](../t3/runners/), scored by [`t3/analysis/score_t3.py`](../t3/analysis/score_t3.py) |
+| Molecule → true-target mapping | already implicit in [`t3/build/build_t3_eval.py`](../t3/build/build_t3_eval.py) (a decoy for one target is an active for another) |
+| Metrics (top-k recall exists; MRR would be added) | [`eval/metrics.py`](../eval/metrics.py) |

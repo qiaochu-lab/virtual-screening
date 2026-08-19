@@ -10,9 +10,9 @@
 """
 import json, math, os, sqlite3
 
-DB = "/data/yicheng/xqc/vs-benchmark/data/raw/chembl37/chembl_37/chembl_37_sqlite/chembl_37.db"
-TD = "/data/yicheng/xqc/vs-benchmark/code/LigUnity/test_datasets"
-OUT = "/data/yicheng/xqc/vs-benchmark/data/t3/chembl37_2025plus.jsonl"
+DB = "/data/work/vs-benchmark/data/raw/chembl37/chembl_37/chembl_37_sqlite/chembl_37.db"
+TD = "/data/work/vs-benchmark/code/LigUnity/test_datasets"
+OUT = "/data/work/vs-benchmark/data/t3/chembl37_2025plus.jsonl"
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 
 lab = json.load(open(f"{TD}/train_label_blend_seq_full.json"))

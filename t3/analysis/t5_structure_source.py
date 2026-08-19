@@ -12,7 +12,7 @@ data/T3_6A/manifest.json 里，直接按来源切一刀即可，不用额外算�
 import json, os
 import numpy as np
 from scipy import stats
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs-benchmark"
 
 man = json.load(open(f"{B}/data/T3_6A/manifest.json"))
 src = {}
