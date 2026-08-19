@@ -3,7 +3,7 @@
 **Question:** can the model rank known actives above decoys, on the benchmarks
 the field already uses?
 
-**Status:** 3 of 9 models done. This is the largest remaining gap.
+**Status:** 5 of 9 models done on all three benchmarks; two more running. CASF-2016 not yet run for anyone.
 
 ---
 
@@ -43,16 +43,60 @@ different `--root`) recomputes all metrics from the raw scores.
 
 ## Results so far
 
-| Model | DUD-E | LIT-PCBA | DEKOIS |
-|---|---|---|---|
-| DrugCLIP | ✅ 102 | ✅ 15 | ✅ 81 |
-| BindCLIP-randneg | ✅ 102 | ✅ 15 | ✅ 81 |
-| BindCLIP-hardneg | ✅ 102 | ✅ 15 | ✅ 81 |
-| LigUnity ×2, LiTENCLIP, HypSeek, ConGLUDe, ConPLex, SPRINT | — | — | — |
+Five models complete on all three benchmarks; LiTENCLIP and HypSeek are running.
 
-Reproduction check: each model's own numbers matched its published values
-within 2%. DrugCLIP on DEKOIS matched the baseline reported in the LigUnity
-paper to **0.0%**, which independently validates the score-saving patch.
+**DUD-E (102 targets)** — all numbers recomputed by [`eval/`](../eval/) from raw
+scores, not copied from papers:
+
+| Model | EF0.1% | EF1% | EF5% | BEDROC | AUROC |
+|---|---|---|---|---|---|
+| LigUnity (full ensemble) | **59.84** | **52.52** | **15.87** | **0.795** | **0.932** |
+| LigUnity pocket + HGNN | 56.76 | 49.35 | 15.10 | 0.749 | 0.912 |
+| LigUnity-pocket | 52.15 | 42.57 | 13.57 | 0.653 | 0.892 |
+| LigUnity-protein | 50.82 | 36.69 | 12.10 | 0.574 | 0.887 |
+| BindCLIP-randneg | 46.21 | 32.81 | 10.97 | 0.512 | 0.818 |
+| DrugCLIP | 46.58 | 31.94 | 10.66 | 0.500 | 0.807 |
+| BindCLIP-hardneg | 41.81 | 27.64 | 9.33 | 0.434 | 0.785 |
+
+**LIT-PCBA (15 targets)** — everything collapses:
+
+| Model | EF0.1% | EF1% | EF5% | BEDROC | AUROC |
+|---|---|---|---|---|---|
+| LigUnity (full ensemble) | 33.34 | **7.67** | 2.64 | **0.089** | 0.591 |
+| LigUnity pocket + HGNN | 28.27 | 7.52 | 3.09 | 0.089 | **0.602** |
+| LigUnity-pocket | 23.61 | 7.30 | **3.10** | 0.088 | 0.601 |
+| LigUnity-protein | **37.28** | 6.22 | 2.18 | 0.075 | 0.563 |
+| BindCLIP-randneg | 23.60 | 6.36 | 3.03 | 0.079 | 0.588 |
+| BindCLIP-hardneg | 27.45 | 6.23 | 2.70 | 0.077 | 0.578 |
+| DrugCLIP | 20.83 | 5.55 | 2.27 | 0.062 | 0.572 |
+
+**DEKOIS 2.0 (81 targets)** — LigUnity variants, plus DrugCLIP/BindCLIP after a
+task branch was added to their repos (their `--test-task` originally offered only
+`DUDE` and `PCBA`):
+
+| Model | EF0.1% | EF1% | EF5% | BEDROC | AUROC |
+|---|---|---|---|---|---|
+| LigUnity (full ensemble) | 29.68 | **28.07** | **15.96** | **0.848** | **0.938** |
+| LigUnity pocket + HGNN | 28.91 | 26.80 | 15.11 | 0.801 | 0.920 |
+| LigUnity-protein | 28.15 | 27.04 | 14.30 | 0.785 | 0.925 |
+| LigUnity-pocket | 26.04 | 24.62 | 13.53 | 0.728 | 0.911 |
+
+| Model | DUD-E | LIT-PCBA | DEKOIS | CASF-2016 |
+|---|---|---|---|---|
+| DrugCLIP | ✅ | ✅ | ✅ | — |
+| BindCLIP-randneg / -hardneg | ✅ | ✅ | ✅ | — |
+| LigUnity-pocket / -protein | ✅ | ✅ | ✅ | — |
+| LiTENCLIP | 🔄 | 🔄 | 🔄 | 🔄 |
+| HypSeek `_rk` | 🔄 | 🔄 | 🔄 | 🔄 |
+| ConGLUDe, ConPLex, SPRINT | — | — | — | — |
+
+Reproduction check: every model matched its published values within 2%, and the
+LigUnity variants matched to **0.0%** on all three benchmarks — which validates
+both the metric layer and the score-saving patches.
+
+⚠️ EF@0.1% on DEKOIS takes **one molecule** per target (libraries are ~1,200), so
+per-target values there are an indicator variable, not a rate. Read the mean, not
+the cells.
 
 **Two observations already visible:**
 
@@ -69,8 +113,15 @@ paper to **0.0%**, which independently validates the score-saving patch.
 
 ## To finish
 
-Run the six remaining models. Data and environments are already in place; only
-GPU time is needed.
+**Running now** (GPU 5, sequential): LiTENCLIP and HypSeek on DUD-E, DEKOIS,
+LIT-PCBA and CASF-2016 — both are LigUnity-family, so they read the same
+`test_datasets` and needed only a `--test-task` value, no data preparation.
+CASF-2016 also fills T2's missing third dataset.
+
+**Still to do:** ConGLUDe, ConPLex and SPRINT need per-target sequences or
+structures prepared for these three benchmarks (their inputs are not the pocket
+LMDBs the UniMol family reads), so they are a separate piece of work rather than
+a queue entry.
 
 ## Physics methods
 

@@ -5,7 +5,7 @@ came out, and what the result does **not** support.
 
 | Task | Question | Status |
 |---|---|---|
-| [T1 — Enrichment](T1-enrichment.md) | do published enrichment numbers reproduce? | 3 of 9 models |
+| [T1 — Enrichment](T1-enrichment.md) | do published enrichment numbers reproduce? | 5 of 9, 2 running |
 | [T2 — Affinity ranking](T2-affinity-ranking.md) 🔬 | can they rank binding strength? | ✅ answered |
 | [T3 — Time-split](T3-time-split.md) | do they generalise past the training cutoff? | ✅ main result |
 | [T4 — Target fishing](T4-target-fishing.md) | molecule → target | not started |
