@@ -25,6 +25,14 @@ what question it asks, what data it uses, how it was run, and what came out.
 
 🔬 = has a **"where physics fits"** section with concrete entry points.
 
+**Reviewing rather than running?** Three pages carry the caveats:
+
+| | |
+|---|---|
+| [`LIMITATIONS.md`](LIMITATIONS.md) | every known reason a number here could be wrong, ordered by how much it moves the headline claims |
+| [`PATCHES.md`](PATCHES.md) | what had to be changed in third-party code, and the bugs in **our own** code — including two that produced a wrong conclusion before being caught |
+| [`MODELS.md`](MODELS.md) | exact checkpoints, why each variant, interface quirks |
+
 ## Headline findings
 
 1. **All nine models lose 64–77% of EF1% on post-cutoff targets.** Absolute
@@ -88,17 +96,21 @@ behind the number you care about.
 
 ## Models evaluated
 
-| Model | Representation | Training data | Status |
-|---|---|---|---|
-| DrugCLIP | pocket (3D) | DrugCLIP set | ✅ |
-| BindCLIP-randneg / -hardneg | pocket (3D) | DrugCLIP set | ✅ |
-| LigUnity-pocket / -protein | pocket / sequence | LigUnity set | ✅ |
-| LiTENCLIP | pocket (3D) | LigUnity set | ✅ |
-| HypSeek (`_rk`) | hyperbolic embedding | LigUnity set | ✅ |
-| ConGLUDe | sequence + graph | own | ✅ |
-| ConPLex | sequence | own | ✅ (negative control) |
-| SPRINT | SaProt structure-aware sequence | own | ⚠️ L3/L4 only |
-| Boltz-2 | co-folding + affinity head | own | physics arm |
+Nine retrieval models plus Boltz-2 as the physics arm, all with official code and
+official weights. Which exact checkpoint, why that variant, and the interface
+quirks of each: **[`MODELS.md`](MODELS.md)**.
+
+| Model | Protein side | Training data |
+|---|---|---|
+| DrugCLIP, BindCLIP-randneg, BindCLIP-hardneg | 3D pocket | DrugCLIP set (4,098 UniProt) |
+| LigUnity-pocket / -protein, LiTENCLIP, HypSeek | 3D pocket / sequence / hyperbolic | PocketAffDB (2,196 UniProt) |
+| ConGLUDe | sequence + structure graph | own |
+| ConPLex | sequence only — **negative control** | BindingDB |
+| SPRINT | SaProt structure-aware sequence | own |
+| Boltz-2 | co-folding + affinity head | own |
+
+Only **two** distinct training sets cover the seven pocket-family models, and
+that split predicts the performance tiers better than architecture does.
 
 ## Reading the numbers
 

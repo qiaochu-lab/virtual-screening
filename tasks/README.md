@@ -14,6 +14,10 @@ came out, and what the result does **not** support.
 
 🔬 marks a task with a **"where physics fits"** section.
 
+Before quoting any number from these documents, read
+[`../LIMITATIONS.md`](../LIMITATIONS.md) — it is ordered by how much each caveat
+moves the headline claims, and the first two affect the main result directly.
+
 ## For physics collaborators
 
 Read in this order:
