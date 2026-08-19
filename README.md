@@ -1,167 +1,118 @@
-# Virtual Screening Benchmark — Unified Evaluation
+# Virtual Screening Benchmark
 
-A single, validated implementation of virtual-screening metrics, intended for
-head-to-head comparison of pocket–ligand contrastive retrieval models
-(DrugCLIP-family: DrugCLIP, BindCLIP, LigUnity, …).
+A head-to-head benchmark of large-scale pocket–ligand retrieval models
+(DrugCLIP-family), across six tasks, under one unified metric implementation.
 
-## Why this exists
+Nine models are evaluated with their **own official code and official weights**.
+Only the metric computation is shared, so differences in the tables are
+attributable to the models.
 
-Published numbers for the same model on the same benchmark **do not agree across
-papers**. Concretely, DrugCLIP's EF1% on DUD-E is reported as
+**New here?** Start with [`tasks/`](tasks/) — one document per task, each stating
+what question it asks, what data it uses, how it was run, and what came out.
 
-| Source | DUD-E EF1% |
-|---|---|
-| DrugCLIP paper | 31.99 |
-| Re-run reported in the BindCLIP paper | 30.52 |
+---
 
-a ~5% discrepancy for an identical model on an identical dataset. Each paper
-ships its own metric code, and the implementations differ in ways that are easy
-to overlook — tie handling, how the top-N cutoff is rounded, whether targets are
-averaged individually or pooled.
+## Task status
 
-If a comparison table is assembled by copying numbers out of papers, the
-differences in that table conflate **model quality** with **metric implementation**.
+| Task | Question | Status | Doc |
+|---|---|---|---|
+| **T1** Enrichment | Do published enrichment numbers reproduce on standard benchmarks? | 3 of 9 models | [T1](tasks/T1-enrichment.md) |
+| **T2** Affinity ranking | Can these models rank binding strength, not just separate binders from non-binders? | ✅ answered — **no, across chemical series** | [T2](tasks/T2-affinity-ranking.md) 🔬 |
+| **T3** Time-split | Do they generalise to targets that appeared after training? | ✅ main result, 9 models × 4 layers | [T3](tasks/T3-time-split.md) |
+| **T4** Target fishing | Run retrieval backwards: molecule → target | not started (deprioritised) | [T4](tasks/T4-target-fishing.md) |
+| **T5** Structure robustness | Do the conclusions survive changing structure source and pocket definition? | ✅ two controls done | [T5](tasks/T5-structure-robustness.md) 🔬 |
+| **T6** Physics complementarity | Can physics methods supply the ranking ability retrieval lacks? | premise established, head-to-head running | [T6](tasks/T6-physics.md) 🔬 |
 
-The approach here is therefore:
+🔬 = has a **"where physics fits"** section with concrete entry points.
 
-```
-each model  ──►  dump raw per-molecule scores  ──►  one metrics implementation  ──►  comparison table
-```
+## Headline findings
 
-Models are run with their own official code and official weights; only the metric
-computation is unified. Any remaining difference in the table is attributable to
-the models.
+1. **All nine models lose 64–77% of EF1% on post-cutoff targets.** Absolute
+   performance differs fivefold between the best and worst model; the *decay* is
+   nearly identical. This is a property of the method class, not of any one
+   model. → [T3](tasks/T3-time-split.md)
 
-## What's here
+2. **Ranking ability depends on chemical-series composition, not target
+   familiarity.** On FEP benchmarks (congeneric analogues) Spearman ≈ +0.4; on
+   T3 (cross-database chemistry) ≈ 0. A paired test on the *same 14 targets*
+   gives +0.413 vs −0.004, p = 0.0001 — which rules out "the model knows these
+   targets" and points at the data. The models learn local SAR, not absolute
+   binding strength. → [T2](tasks/T2-affinity-ranking.md)
 
-```
-eval/                         Unified metric layer
-├── metrics.py                EF / BEDROC / AUROC / recall / bootstrap CI
-│                             + ranking metrics (Spearman / R² / pairwise / Kendall)
-├── score_ligunity.py         Raw model outputs → metrics → compare against published values
-├── test_metrics.py           Boundary-case unit tests
-├── test_against_rdkit.py     Cross-validation against RDKit
-└── test_ranking_metrics.py   Ranking-metric tests (cross-validated against scipy)
+3. **Model ranking reverses by target class.** Sequence-only models win on
+   kinases; geometry-aware models win on other enzymes. Reporting only the
+   overall mean is misleading. → [T3](tasks/T3-time-split.md)
 
-t3/                           Time-split generalization benchmark  → see t3/README.md
-├── build/                    Time split, difficulty layers, eval set construction
-├── structure/                PDB metadata, chain mapping, pocket extraction, structure prediction
-├── runners/                  Per-model adapters (official code + official weights)
-└── analysis/                 Metrics, stratified controls, robustness checks
-```
+4. **Insensitive to structure source, extremely sensitive to pocket
+   definition.** Predicted structures substitute for experimental ones with no
+   significant difference (p = 0.28–0.74); moving the pocket cutoff from 6 Å to
+   4 Å or 8 Å costs 31–75%, with 6 Å winning 12 of 12 cells. → [T5](tasks/T5-structure-robustness.md)
 
-## The T3 benchmark
+5. **Training data explains performance tiers better than architecture.** The
+   three models trained on LigUnity's data all land at L1 EF1% 32–39; the three
+   on DrugCLIP's data all land at 17–19 — across differences in retrieval
+   augmentation and molecular encoder. → [T3](tasks/T3-time-split.md)
 
-Published numbers for these models are measured on benchmarks that (a) use
-synthetic decoys with a known shortcut, (b) participated in the authors' own
-checkpoint selection, and (c) contain no temporal holdout.
-
-`t3/` builds an evaluation set from ChEMBL/BindingDB records deposited **after**
-the models' training cutoff (2024-12), split into four layers by how novel the
-target is — from "seen target, new ligand" to "unseen target, unseen family".
-Data postdating the cutoff cannot have been trained on, and cannot have
-participated in checkpoint selection.
-
-Absolute numbers are **not** comparable to published values, since the decoy
-construction deliberately differs from DUD-E's. What is comparable is the
-**decay across layers within one fixed setup** — which is what the benchmark is
-designed to measure.
-
-See [`t3/README.md`](t3/README.md) for the design, the pipeline, and four
-implementation details that are easy to get wrong (chain assignment in
-multi-protein complexes, co-crystal ligand selection, domain truncation, and
-enrichment cutoff rounding).
-
-### Metrics
-
-**Screening / enrichment** (binary active-vs-decoy labels):
-
-| Function | Notes |
-|---|---|
-| `enrichment_factor(scores, labels, fraction)` | EF at any fraction, including **EF@0.1%** which the reference implementations do not expose |
-| `roc_auc(scores, labels)` | Mann–Whitney U form; handles ties correctly by construction |
-| `bedroc(scores, labels, alpha=80.5)` | Truchon & Bayly (2007) |
-| `top_k_recall(scores, labels, k)` | |
-| `bootstrap_ci(fn, scores, labels)` | Bootstrap confidence intervals for any of the above |
-
-**Affinity ranking** (continuous measured affinity as ground truth):
-
-| Function | Notes |
-|---|---|
-| `spearman(pred, true)` | |
-| `pearson(pred, true)` / `r2_score(pred, true)` | R² is squared Pearson *r*, not `1 - SS_res/SS_tot` — model scores and measured affinities are on different scales |
-| `pairwise_accuracy(pred, true, tol)` | `tol` skips pairs whose measured difference falls within experimental error |
-| `kendall_tau(pred, true)` | |
-
-## Validation
-
-The implementation is checked at three levels.
-
-**1. Definitions follow the literature.** BEDROC per Truchon & Bayly (2007) with
-α = 80.5; AUROC via the Mann–Whitney U identity.
-
-**2. Bit-level agreement with the reference implementation.** The official code of
-the models in scope computes metrics with `rdkit.ML.Scoring.Scoring`.
-`test_against_rdkit.py` compares against RDKit across several dataset sizes and
-active ratios; agreement is within 1e-6.
-
-**3. Published values are reproduced on real data.** Running these metrics on raw
-scores produced by each model's official code reproduces the values reported in
-the corresponding papers (deviation ≤ 2%).
-
-```bash
-python -m pytest eval/ -q      # 80 tests
-```
-
-## Two implementation details worth knowing
-
-**Top-N cutoff uses `ceil`, not `round`.** RDKit's `CalcEnrichment` computes
-`numPerFrac = [math.ceil(numMol * f) for f in fractions]`. An earlier version here
-used `round`, and the synthetic tests passed anyway — they used dataset sizes of
-300/500/1000/2000, for which `n * fraction` is an integer at every fraction tested,
-so the two rounding modes coincide. The discrepancy only surfaced on real data
-(a DUD-E target with 2343 molecules: `2343 × 1% = 23.43`, so `round` → 23 while
-`ceil` → 24), where it affected 37 of 102 targets.
-
-*Synthetic tests that only use round-number sizes do not exercise rounding logic.*
-The test cases now include realistic sizes (2343, 9448, 1207, 4247).
-
-**Ties are resolved by average rank** (`scipy.stats.rankdata(method="average")`).
-Score ties are common in virtual screening, and relying on `argsort` stability
-makes results depend on the sorting algorithm — on tied data this can change EF@1%
-by several fold.
-
-## Expected input format
-
-Per target, two arrays:
+## Repository layout
 
 ```
-saved_preds.npy    float, one score per molecule (higher = more likely active)
-saved_labels.npy   int,   1 = active, 0 = inactive/decoy
+tasks/                  ⭐ one document per task — the place to start
+├── T1-enrichment.md         standard benchmarks (DUD-E / LIT-PCBA / DEKOIS)
+├── T2-affinity-ranking.md   🔬 affinity ranking + where physics enters
+├── T3-time-split.md         main result: post-cutoff generalization
+├── T4-target-fishing.md     planned, not started
+├── T5-structure-robustness.md 🔬 structure-source and pocket-cutoff controls
+├── T6-physics.md            🔬 physics complementarity — the collaboration task
+└── scripts/                 the analysis scripts behind every number above
+
+results/                machine-readable results
+├── T3_main.csv              9 models × 4 layers × 5 metrics
+├── T3_targets.csv           per-target detail (class, layer, structure source)
+├── T2_on_T3.csv             affinity ranking on T3 data
+├── T2_on_FEP.csv            affinity ranking on the 16 FEP systems
+└── T5_pocket_threshold.csv  4 / 6 / 8 Å comparison
+
+t3/                     dataset construction pipeline → t3/README.md
+├── build/                   time split, difficulty layers, eval set
+├── structure/               PDB metadata, chain mapping, pocket extraction
+├── runners/                 per-model adapters
+└── analysis/                stratified controls, robustness checks
+
+eval/                   unified metric layer → eval/README.md
 ```
 
-Some model implementations print aggregate metrics without persisting per-molecule
-scores; those need a small patch to save the arrays before unified evaluation is
-possible.
+## Models evaluated
 
-```bash
-python eval/score_ligunity.py <results_dir> [--ref ensemble|seq|drugclip|bindclip] [--bootstrap]
-```
+| Model | Representation | Training data | Status |
+|---|---|---|---|
+| DrugCLIP | pocket (3D) | DrugCLIP set | ✅ |
+| BindCLIP-randneg / -hardneg | pocket (3D) | DrugCLIP set | ✅ |
+| LigUnity-pocket / -protein | pocket / sequence | LigUnity set | ✅ |
+| LiTENCLIP | pocket (3D) | LigUnity set | ✅ |
+| HypSeek (`_rk`) | hyperbolic embedding | LigUnity set | ✅ |
+| ConGLUDe | sequence + graph | own | ✅ |
+| ConPLex | sequence | own | ✅ (negative control) |
+| SPRINT | SaProt structure-aware sequence | own | ⚠️ L3/L4 only |
+| Boltz-2 | co-folding + affinity head | own | physics arm |
 
-## Caveat on EF@0.1%
+## Reading the numbers
 
-The number of molecules taken at 0.1% depends on library size:
+**T3 absolute values are not comparable to published values.** The decoy
+construction deliberately differs from DUD-E's property-matched scheme — that
+scheme is precisely the bias under examination. What *is* comparable is the
+**decay from L1 to L4 within this fixed setup**, which is what T3 measures.
 
-| Benchmark | Molecules per target | Molecules at 0.1% |
-|---|---|---|
-| DEKOIS 2.0 | 1207–1240 | **1** |
-| DUD-E | 2343–52056 | 2–52 |
-| LIT-PCBA | 4247–361997 | 4–362 |
+**Every model's per-molecule scores are on disk**, so any new metric or any new
+scoring method can be dropped into the same comparison without re-running
+anything.
 
-On DEKOIS, EF@0.1% degenerates to "was the top-ranked molecule active" — a
-per-target indicator with high variance. The mean over targets remains a valid
-statistic, but per-target values should not be interpreted individually, and
-confidence intervals should always be reported alongside.
+## A note on paths
+
+Scripts contain a hardcoded working directory (`B = "/data/yicheng/xqc/..."`)
+from the machine they ran on. They are published as a record of what was
+actually executed rather than as a turnkey package — change `B` at the top to
+run them elsewhere. Every script's docstring states what the step is for and
+what breaks without it, so the logic transfers even where the paths do not.
 
 ## License
 
