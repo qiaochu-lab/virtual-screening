@@ -147,7 +147,9 @@ applying to the *targets*, not to the weights.
 
 ## 13. Coverage gaps
 
-- **T1: 3 of 9 models run.** The enrichment table is not yet a comparison.
+- **T1: 5 of 9 models run** (LiTENCLIP and HypSeek in progress). ConGLUDe,
+  ConPLex and SPRINT need their inputs prepared for these benchmarks and are
+  not queued.
 - **T4: not started.**
 - **T5: apo structures and MD conformers not tested** — only experimental vs
   predicted holo, and pocket cutoff.
