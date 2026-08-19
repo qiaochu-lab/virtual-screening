@@ -38,7 +38,7 @@ python ./unimol/test.py ./test_datasets --user-dir ./unimol --valid-subset test 
   --path <ckpt> --max-pocket-atoms 511 --test-task DUDE
 ```
 
-Then [`t3/analysis/score_t3.py`](../t3/analysis/score_t3.py) (same scorer,
+Then [`timesplit/analysis/score_t3.py`](../timesplit/analysis/score_t3.py) (same scorer,
 different `--root`) recomputes all metrics from the raw scores.
 
 ## Results so far
@@ -84,9 +84,9 @@ only at ranking?"
 
 | What | File |
 |---|---|
-| Launch DrugCLIP on DUD-E / LIT-PCBA | [`t1/run_drugclip.sh`](../t1/run_drugclip.sh) |
-| Launch BindCLIP (both weights) | [`t1/run_bindclip.sh`](../t1/run_bindclip.sh), [`t1/run_bindclip_pcba.sh`](../t1/run_bindclip_pcba.sh) |
-| Launch on DEKOIS | [`t1/run_dekois.sh`](../t1/run_dekois.sh) |
+| Launch DrugCLIP on DUD-E / LIT-PCBA | [`standard/run_drugclip.sh`](../standard/run_drugclip.sh) |
+| Launch BindCLIP (both weights) | [`standard/run_bindclip.sh`](../standard/run_bindclip.sh), [`standard/run_bindclip_pcba.sh`](../standard/run_bindclip_pcba.sh) |
+| Launch on DEKOIS | [`standard/run_dekois.sh`](../standard/run_dekois.sh) |
 | Metrics from raw scores, auto-compared to published values | [`eval/score_ligunity.py`](../eval/score_ligunity.py) |
 | Metric definitions and their validation | [`eval/`](../eval/) |
 
@@ -95,10 +95,10 @@ T1 proper, but it uses T1's scores and explains part of the spread:
 
 | What | File |
 |---|---|
-| EF vs. sequence identity to the nearest training protein | [`t1/t1_sim.py`](../t1/t1_sim.py), [`t1/t1_sim3.py`](../t1/t1_sim3.py) |
-| Union of all evaluated models' training sets | [`t1/build_train_union.py`](../t1/build_train_union.py) |
-| How much the layer labels shift if a different model's training set is used | [`t1/quantify_train_union.py`](../t1/quantify_train_union.py) |
-| Pair-level contamination check (target+ligand already in training) | [`t1/check_pair_contamination.py`](../t1/check_pair_contamination.py) |
+| EF vs. sequence identity to the nearest training protein | [`standard/t1_sim.py`](../standard/t1_sim.py), [`standard/t1_sim3.py`](../standard/t1_sim3.py) |
+| Union of all evaluated models' training sets | [`standard/build_train_union.py`](../standard/build_train_union.py) |
+| How much the layer labels shift if a different model's training set is used | [`standard/quantify_train_union.py`](../standard/quantify_train_union.py) |
+| Pair-level contamination check (target+ligand already in training) | [`standard/check_pair_contamination.py`](../standard/check_pair_contamination.py) |
 
 Removing training-similar proteins costs 28–45% of EF1%. Both `t1_sim` scripts
 bootstrap **at the target level**, not the molecule level — pooling molecules

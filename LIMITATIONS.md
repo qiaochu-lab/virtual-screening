@@ -15,7 +15,7 @@ database record does not mean the measurement is new: the pair may have been
 measured years earlier and only re-entered, or entered a second database.
 
 Pair-level check against the training sets
-([`t1/check_pair_contamination.py`](t1/check_pair_contamination.py)):
+([`standard/check_pair_contamination.py`](standard/check_pair_contamination.py)):
 
 | Layer | Records | (target, ligand) pair already in training | Molecule seen (with a different target) |
 |---|---|---|---|
@@ -37,7 +37,7 @@ time split.
 "Target seen / unseen" is judged against **LigUnity's** training set (2,196
 UniProt). DrugCLIP and BindCLIP were trained on a different set (16,744 PDB
 pockets → 4,098 UniProt; overlap with LigUnity's only 881)
-([`t1/quantify_train_union.py`](t1/quantify_train_union.py)):
+([`standard/quantify_train_union.py`](standard/quantify_train_union.py)):
 
 | Layer | Eval targets | Also in DrugCLIP's training set |
 |---|---|---|
@@ -60,8 +60,8 @@ For ConGLUDe the overlap was measurable another way and is large: **37–43% of
 L3/L4 targets appear in its training data**. It was checked whether that
 mattered — seen and unseen targets are statistically indistinguishable
 (p = 0.90), so contamination does not explain its results
-([`t3/analysis/check_conglude_leak.py`](t3/analysis/check_conglude_leak.py),
-[`conglude_leak_effect.py`](t3/analysis/conglude_leak_effect.py)). "Not
+([`timesplit/analysis/check_conglude_leak.py`](timesplit/analysis/check_conglude_leak.py),
+[`conglude_leak_effect.py`](timesplit/analysis/conglude_leak_effect.py)). "Not
 detectable" is not "not present".
 
 ## 4. T3 absolute numbers cannot be compared to published values
@@ -80,7 +80,7 @@ ligand may be one of the test actives — the pocket is pre-shaped to fit what t
 model is being asked to find. This favours structure-based models specifically
 in the layers where they score highest.
 
-Measured, not assumed ([`t3/analysis/stratify_pocketfit.py`](t3/analysis/stratify_pocketfit.py)):
+Measured, not assumed ([`timesplit/analysis/stratify_pocketfit.py`](timesplit/analysis/stratify_pocketfit.py)):
 the effect is real (L2, p = 0.0008) and appears **only** in structure models —
 the sequence-only negative control (ConPLex) shows nothing. Correcting for it
 moves the decay from −72% to −67%. The conclusion stands; the magnitude shifts.

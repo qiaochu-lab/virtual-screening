@@ -151,5 +151,5 @@ All of it lives in [`physics/`](../physics/):
 | Score, and recover scores from embeddings where needed | [`score_fep.py`](../physics/score_fep.py), [`fep_recover_preds.py`](../physics/fep_recover_preds.py) |
 | Paired test isolating ligand composition from target familiarity | [`fep_vs_t3_same_targets.py`](../physics/fep_vs_t3_same_targets.py) |
 | Compare against the published physics reference | [`fep_compare_physics.py`](../physics/fep_compare_physics.py) |
-| Pockets a physics method would consume, at four thresholds | [`t3/structure/extract_pocket*.py`](../t3/structure/) |
+| Pockets a physics method would consume, at four thresholds | [`timesplit/structure/extract_pocket*.py`](../timesplit/structure/) |
 | Metrics any new scoring method plugs into | [`eval/metrics.py`](../eval/metrics.py) |

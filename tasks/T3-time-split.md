@@ -66,7 +66,7 @@ residue-level at 6 Å, validated against the authors' own published pockets with
 **100% coordinate overlap** on five DUD-E targets.
 
 Full construction pipeline and the four things that are easy to get wrong:
-[`t3/README.md`](../t3/README.md).
+[`timesplit/README.md`](../timesplit/README.md).
 
 ## Results
 
@@ -144,38 +144,38 @@ infeasible; docking is possible but only worth doing on a subset.
 
 ## Code
 
-Dataset construction is documented separately in [`t3/README.md`](../t3/README.md).
+Dataset construction is documented separately in [`timesplit/README.md`](../timesplit/README.md).
 The short map:
 
 | Stage | Files |
 |---|---|
-| Time split from the source databases | [`t3/build/chembl_timesplit.py`](../t3/build/chembl_timesplit.py), [`t3/build/bdb_timesplit.py`](../t3/build/bdb_timesplit.py) |
-| Merge, dedup, assign L1–L4 | [`t3/build/build_t3.py`](../t3/build/build_t3.py), [`t3/build/cluster_t3.sh`](../t3/build/cluster_t3.sh) |
-| Eval set: actives + cross-target decoys at 1:50 | [`t3/build/build_t3_eval.py`](../t3/build/build_t3_eval.py) |
-| 3D conformers for the UniMol-family models | [`t3/build/gen_conformers.py`](../t3/build/gen_conformers.py), [`t3/build/resume_conformers.py`](../t3/build/resume_conformers.py) |
-| Structures: PDB metadata, chain map, co-crystal choice, pocket extraction | [`t3/structure/`](../t3/structure/) |
+| Time split from the source databases | [`timesplit/build/chembl_timesplit.py`](../timesplit/build/chembl_timesplit.py), [`timesplit/build/bdb_timesplit.py`](../timesplit/build/bdb_timesplit.py) |
+| Merge, dedup, assign L1–L4 | [`timesplit/build/build_t3.py`](../timesplit/build/build_t3.py), [`timesplit/build/cluster_t3.sh`](../timesplit/build/cluster_t3.sh) |
+| Eval set: actives + cross-target decoys at 1:50 | [`timesplit/build/build_t3_eval.py`](../timesplit/build/build_t3_eval.py) |
+| 3D conformers for the UniMol-family models | [`timesplit/build/gen_conformers.py`](../timesplit/build/gen_conformers.py), [`timesplit/build/resume_conformers.py`](../timesplit/build/resume_conformers.py) |
+| Structures: PDB metadata, chain map, co-crystal choice, pocket extraction | [`timesplit/structure/`](../timesplit/structure/) |
 
 Running the models:
 
 | Model | Files |
 |---|---|
-| DrugCLIP / BindCLIP | [`t3/runners/run_t3_unimol.sh`](../t3/runners/run_t3_unimol.sh), input build [`t3/runners/build_t3_unimol.py`](../t3/runners/build_t3_unimol.py) |
-| LigUnity / LiTENCLIP / HypSeek | [`t3/runners/run_t3_ligunity.sh`](../t3/runners/run_t3_ligunity.sh), [`run_t3_litenclip.sh`](../t3/runners/run_t3_litenclip.sh), [`run_t3_hypseek.sh`](../t3/runners/run_t3_hypseek.sh) |
-| Task registration patches for those three repos | [`t3/runners/patch_ligunity_t3.py`](../t3/runners/patch_ligunity_t3.py), [`patch_t3_task.py`](../t3/runners/patch_t3_task.py) |
-| ConGLUDe / ConPLex / SPRINT | [`t3/runners/run_t3_conglude.py`](../t3/runners/run_t3_conglude.py), [`run_t3_conplex.py`](../t3/runners/run_t3_conplex.py), [`run_t3_sprint.py`](../t3/runners/run_t3_sprint.py) |
-| The hardcoded-`bsz=64` fix (see below) | [`t3/runners/fix_bsz.py`](../t3/runners/fix_bsz.py) |
+| DrugCLIP / BindCLIP | [`timesplit/runners/run_t3_unimol.sh`](../timesplit/runners/run_t3_unimol.sh), input build [`timesplit/runners/build_t3_unimol.py`](../timesplit/runners/build_t3_unimol.py) |
+| LigUnity / LiTENCLIP / HypSeek | [`timesplit/runners/run_t3_ligunity.sh`](../timesplit/runners/run_t3_ligunity.sh), [`run_t3_litenclip.sh`](../timesplit/runners/run_t3_litenclip.sh), [`run_t3_hypseek.sh`](../timesplit/runners/run_t3_hypseek.sh) |
+| Task registration patches for those three repos | [`timesplit/runners/patch_ligunity_t3.py`](../timesplit/runners/patch_ligunity_t3.py), [`patch_t3_task.py`](../timesplit/runners/patch_t3_task.py) |
+| ConGLUDe / ConPLex / SPRINT | [`timesplit/runners/run_t3_conglude.py`](../timesplit/runners/run_t3_conglude.py), [`run_t3_conplex.py`](../timesplit/runners/run_t3_conplex.py), [`run_t3_sprint.py`](../timesplit/runners/run_t3_sprint.py) |
+| The hardcoded-`bsz=64` fix (see below) | [`timesplit/runners/fix_bsz.py`](../timesplit/runners/fix_bsz.py) |
 
 Analysis — one script per claim in this document:
 
 | Claim | File |
 |---|---|
-| Main table (9 models × 4 layers × 5 metrics) | [`t3/analysis/score_t3.py`](../t3/analysis/score_t3.py), [`collect_t3.py`](../t3/analysis/collect_t3.py) |
-| Raw-output integrity check after a duplicate launch | [`t3/analysis/verify_t3_raw.py`](../t3/analysis/verify_t3_raw.py) |
-| Target-class annotation and per-class table | [`t3/analysis/annotate_target_class3.py`](../t3/analysis/annotate_target_class3.py), [`report_by_class.py`](../t3/analysis/report_by_class.py) |
-| Pocket-fit confound, stratified + negative control | [`t3/analysis/stratify_pocketfit.py`](../t3/analysis/stratify_pocketfit.py) |
-| ConGLUDe training-set overlap, and whether it mattered | [`t3/analysis/check_conglude_leak.py`](../t3/analysis/check_conglude_leak.py), [`conglude_leak_effect.py`](../t3/analysis/conglude_leak_effect.py) |
-| Structure-quality grading (A/B/C) and the high-quality subset | [`t3/analysis/t3_target_quality.py`](../t3/analysis/t3_target_quality.py), [`score_hq.py`](../t3/analysis/score_hq.py) |
-| Export the CSVs in [`results/`](../results/) | [`t3/analysis/export_results.py`](../t3/analysis/export_results.py) |
+| Main table (9 models × 4 layers × 5 metrics) | [`timesplit/analysis/score_t3.py`](../timesplit/analysis/score_t3.py), [`collect_t3.py`](../timesplit/analysis/collect_t3.py) |
+| Raw-output integrity check after a duplicate launch | [`timesplit/analysis/verify_t3_raw.py`](../timesplit/analysis/verify_t3_raw.py) |
+| Target-class annotation and per-class table | [`timesplit/analysis/annotate_target_class3.py`](../timesplit/analysis/annotate_target_class3.py), [`report_by_class.py`](../timesplit/analysis/report_by_class.py) |
+| Pocket-fit confound, stratified + negative control | [`timesplit/analysis/stratify_pocketfit.py`](../timesplit/analysis/stratify_pocketfit.py) |
+| ConGLUDe training-set overlap, and whether it mattered | [`timesplit/analysis/check_conglude_leak.py`](../timesplit/analysis/check_conglude_leak.py), [`conglude_leak_effect.py`](../timesplit/analysis/conglude_leak_effect.py) |
+| Structure-quality grading (A/B/C) and the high-quality subset | [`timesplit/analysis/t3_target_quality.py`](../timesplit/analysis/t3_target_quality.py), [`score_hq.py`](../timesplit/analysis/score_hq.py) |
+| Export the CSVs in [`results/`](../results/) | [`timesplit/analysis/export_results.py`](../timesplit/analysis/export_results.py) |
 
 **One bug worth reading the fix for.** `fix_bsz.py` repairs a `bsz = 64` that was
 copied along with the surrounding code from the DEKOIS task, which made

@@ -62,6 +62,6 @@ Nothing specific to T4 yet. What it would build on:
 
 | Input it would reuse | Where |
 |---|---|
-| Per-target score arrays for all 9 models | produced by [`t3/runners/`](../t3/runners/), scored by [`t3/analysis/score_t3.py`](../t3/analysis/score_t3.py) |
-| Molecule → true-target mapping | already implicit in [`t3/build/build_t3_eval.py`](../t3/build/build_t3_eval.py) (a decoy for one target is an active for another) |
+| Per-target score arrays for all 9 models | produced by [`timesplit/runners/`](../timesplit/runners/), scored by [`timesplit/analysis/score_t3.py`](../timesplit/analysis/score_t3.py) |
+| Molecule → true-target mapping | already implicit in [`timesplit/build/build_t3_eval.py`](../timesplit/build/build_t3_eval.py) (a decoy for one target is an active for another) |
 | Metrics (top-k recall exists; MRR would be added) | [`eval/metrics.py`](../eval/metrics.py) |

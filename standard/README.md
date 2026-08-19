@@ -1,4 +1,4 @@
-# t1/ — standard-benchmark runs and the training-similarity ablation
+# standard/ — standard-benchmark runs and the training-similarity ablation
 
 Launch scripts for DUD-E / LIT-PCBA / DEKOIS, plus the analysis of how much
 performance depends on proximity to the training set. See

@@ -21,8 +21,8 @@ is impossible without them.
 
 | Repo | Patch | What it adds |
 |---|---|---|
-| DrugCLIP, BindCLIP | [`t3/runners/patch_t3_task.py`](t3/runners/patch_t3_task.py) | `saved_preds.npy` + `saved_labels.npy` per target |
-| LigUnity, LiTENCLIP, HypSeek | [`t3/runners/patch_ligunity_t3.py`](t3/runners/patch_ligunity_t3.py) | same, plus registration of the T3 task |
+| DrugCLIP, BindCLIP | [`timesplit/runners/patch_t3_task.py`](timesplit/runners/patch_t3_task.py) | `saved_preds.npy` + `saved_labels.npy` per target |
+| LigUnity, LiTENCLIP, HypSeek | [`timesplit/runners/patch_ligunity_t3.py`](timesplit/runners/patch_ligunity_t3.py) | same, plus registration of the T3 task |
 | the FEP branch of those three | [`physics/patch_fep_save.py`](physics/patch_fep_save.py) | one line; the branch stored only embeddings |
 
 Validation that the patch is faithful: DrugCLIP on DEKOIS reproduces the
@@ -35,7 +35,7 @@ official computation.
 
 ### `bsz = 64` hardcoded, `--batch-size` inert
 
-[`t3/runners/fix_bsz.py`](t3/runners/fix_bsz.py)
+[`timesplit/runners/fix_bsz.py`](timesplit/runners/fix_bsz.py)
 
 The T3 task code was adapted from the DEKOIS task and carried its `bsz = 64`
 along, so the command-line batch size did nothing. Symptom: constant OOM on
@@ -54,12 +54,12 @@ choosing an insertion point.
 
 The README states rows are proteins; the code computes `ligands @ proteins.T`.
 Following the README gives an `IndexError` (or, with square inputs, silently
-transposed results). [`t3/runners/run_t3_conglude.py`](t3/runners/run_t3_conglude.py)
+transposed results). [`timesplit/runners/run_t3_conglude.py`](timesplit/runners/run_t3_conglude.py)
 asserts the shape explicitly rather than trusting either source.
 
 ### SPRINT: three fixes, one unsolved
 
-[`t3/runners/run_t3_sprint.py`](t3/runners/run_t3_sprint.py)
+[`timesplit/runners/run_t3_sprint.py`](timesplit/runners/run_t3_sprint.py)
 
 1. **Hardcoded HuggingFace URL** — unreachable from this machine; redirected to
    a mirror via `HF_ENDPOINT`.
@@ -75,12 +75,12 @@ asserts the shape explicitly rather than trusting either source.
 Also worth recording: SPRINT is **not** a sequence-only model. It consumes
 SaProt structure-aware sequences (amino acid + foldseek 3Di tokens), so it needs
 the same structures as the pocket models —
-[`t3/structure/gen_saprot_seqs.py`](t3/structure/gen_saprot_seqs.py).
+[`timesplit/structure/gen_saprot_seqs.py`](timesplit/structure/gen_saprot_seqs.py).
 
 ### Conformer generation: three failure modes
 
-[`t3/build/gen_conformers.py`](t3/build/gen_conformers.py),
-[`resume_conformers.py`](t3/build/resume_conformers.py)
+[`timesplit/build/gen_conformers.py`](timesplit/build/gen_conformers.py),
+[`resume_conformers.py`](timesplit/build/resume_conformers.py)
 
 1. 12 molecules produced **empty InChIKeys** → `lmdb.BadValsizeError` on a
    zero-length key. Fallback to an md5 of the SMILES.
@@ -142,7 +142,7 @@ become "the pocket" of subunit B. Protein atoms must be restricted to the
 target's own chains, and if the ligand does not contact them, that (PDB, ligand)
 pair is invalid for that target — the next candidate has to be tried. Fixing this
 removed **153 targets** that previously had bogus pockets.
-[`t3/structure/extract_pocket_pdb.py`](t3/structure/extract_pocket_pdb.py)
+[`timesplit/structure/extract_pocket_pdb.py`](timesplit/structure/extract_pocket_pdb.py)
 
 **Co-crystal ligand selection.** Ranking candidates by raw Tanimoto lets a 138 Da
 fragment win by a 0.02 margin and define a pocket covering a fraction of the real
@@ -151,20 +151,20 @@ mark the transmembrane face. The working rule buckets similarity into 0.1 bins,
 prefers a drug-like MW window within a bucket, and blocks ions, buffers,
 lanthanide phasing atoms, lipids, detergents and glycans — while **keeping**
 nucleotide cofactors, since for kinases and methyltransferases those are the drug
-site. [`t3/structure/rank_crystal_ligands.py`](t3/structure/rank_crystal_ligands.py)
+site. [`timesplit/structure/rank_crystal_ligands.py`](timesplit/structure/rank_crystal_ligands.py)
 
 **Domain truncation followed construct length, not binding sites.** Picking the
 widest PDB construct for over-length proteins is unrelated to where ligands bind:
 validation against UniProt annotations found **33% of truncations contained no
 annotated site**. Ranking candidate regions by site coverage first brings that to
-0%. [`t3/structure/truncate_domains2.py`](t3/structure/truncate_domains2.py),
-[`validate_truncation.py`](t3/structure/validate_truncation.py)
+0%. [`timesplit/structure/truncate_domains2.py`](timesplit/structure/truncate_domains2.py),
+[`validate_truncation.py`](timesplit/structure/validate_truncation.py)
 
 ### Operational
 
 **A duplicate launch put six processes on three GPUs** (a manual start plus the
 same script started by a tmux session). Three were killed, and
-[`t3/analysis/verify_t3_raw.py`](t3/analysis/verify_t3_raw.py) was written to
+[`timesplit/analysis/verify_t3_raw.py`](timesplit/analysis/verify_t3_raw.py) was written to
 check every raw output for truncation or interleaved writes. Zero corruption
 found — but the check exists because the possibility was real.
 

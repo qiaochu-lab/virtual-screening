@@ -63,36 +63,47 @@ what question it asks, what data it uses, how it was run, and what came out.
 
 ## Repository layout
 
-```
-tasks/                  ⭐ one document per task — the place to start
-├── T1-enrichment.md         standard benchmarks (DUD-E / LIT-PCBA / DEKOIS)
-├── T2-affinity-ranking.md   🔬 affinity ranking + where physics enters
-├── T3-time-split.md         main result: post-cutoff generalization
-├── T4-target-fishing.md     planned, not started
-├── T5-structure-robustness.md 🔬 structure-source and pocket-cutoff controls
-└── T6-physics.md            🔬 physics complementarity — the collaboration task
+**Task numbers appear only in `tasks/`.** Code directories are named after what
+they operate on, so nothing pretends to be "task N" — a task document's Code
+table is what maps a claim to the script behind it. This matters because several
+tasks own no code of their own: T2 re-scores arrays that T1 and T3 already
+produced, and T5 is the T3 pipeline re-run at other pocket cutoffs.
 
-results/                machine-readable results
+```
+tasks/         ⭐ start here — one document per task
+├── T1-enrichment.md            standard benchmarks (DUD-E / LIT-PCBA / DEKOIS)
+├── T2-affinity-ranking.md      🔬 can they rank binding strength?
+├── T3-time-split.md            main result: post-cutoff generalization
+├── T4-target-fishing.md        planned, not started
+├── T5-structure-robustness.md  🔬 structure-source and pocket-cutoff controls
+└── T6-physics.md               🔬 physics complementarity — the collaboration task
+
+standard/      DUD-E · LIT-PCBA · DEKOIS runs, and the training-similarity ablation
+timesplit/     the self-built time-split benchmark — dataset and all model runs
+├── build/         time split, difficulty layers, eval-set construction
+├── structure/     PDB metadata, chain mapping, pocket extraction at 4/5/6/8 Å
+├── runners/       per-model adapters and the patches each repo needed
+└── analysis/      main table, class breakdown, robustness controls
+physics/       🔬 FEP benchmark and Boltz-2 — the physics arm behind T2 and T6
+
+eval/          unified metric layer (80 tests)
+env/           per-model environment construction, with the version traps
+results/       machine-readable CSVs
 ├── T3_main.csv              9 models × 4 layers × 5 metrics
 ├── T3_targets.csv           per-target detail (class, layer, structure source)
-├── T2_on_T3.csv             affinity ranking on T3 data
+├── T2_on_T3.csv             affinity ranking on time-split data
 ├── T2_on_FEP.csv            affinity ranking on the 16 FEP systems
 └── T5_pocket_threshold.csv  4 / 6 / 8 Å comparison
-
-t1/                     standard-benchmark runs + training-similarity ablation
-t3/                     the time-split dataset and every model run on it
-├── build/                   time split, difficulty layers, eval set
-├── structure/               PDB metadata, chain mapping, pocket extraction
-├── runners/                 per-model adapters and the patches they needed
-└── analysis/                main table, class breakdown, robustness controls
-physics/                🔬 FEP benchmark and Boltz-2 — T2/T6 physics arm
-eval/                   unified metric layer (80 tests)
-env/                    per-model environment construction, with version traps
 ```
 
-Every task document ends with a **Code** table mapping each claim in it to the
-script that produced it — the intended way in is task doc → the one script
-behind the number you care about.
+Which task each directory serves:
+
+| Directory | Feeds |
+|---|---|
+| `standard/` | T1, and the T2 scores on standard benchmarks |
+| `timesplit/` | T3 (build + run + analyse), T5 (same pipeline, other cutoffs), T2 (re-scores its outputs), T4 (would reuse them) |
+| `physics/` | T2 (FEP benchmark) and T6 (Boltz-2, physics comparison) |
+| `eval/` | every task — one metric implementation for all of them |
 
 ## Models evaluated
 

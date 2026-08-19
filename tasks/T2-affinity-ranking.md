@@ -43,7 +43,7 @@ model score against measured pAffinity **within each target**, then averages
 over targets.
 
 ```bash
-python t3/analysis/score_t2.py --models <m1> <m2> ...   # on T3 data
+python timesplit/analysis/score_t2.py --models <m1> <m2> ...   # on T3 data
 python physics/score_fep.py                             # on FEP data
 python physics/fep_compare_physics.py                   # vs the physics reference
 ```
@@ -162,7 +162,7 @@ zero.
 
 | What | File |
 |---|---|
-| Ranking metrics on T3 data (per-target Spearman/Kendall/Pearson, then averaged) | [`t3/analysis/score_t2.py`](../t3/analysis/score_t2.py) |
+| Ranking metrics on T3 data (per-target Spearman/Kendall/Pearson, then averaged) | [`timesplit/analysis/score_t2.py`](../timesplit/analysis/score_t2.py) |
 | Run the models on the 16 FEP systems | [`physics/run_fep.sh`](../physics/run_fep.sh) |
 | Make the FEP task persist raw scores | [`physics/patch_fep_save.py`](../physics/patch_fep_save.py) |
 | Recover scores from stored embeddings where a run predates the patch | [`physics/fep_recover_preds.py`](../physics/fep_recover_preds.py) |

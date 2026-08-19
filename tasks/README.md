@@ -43,11 +43,11 @@ one bucket:
 
 | Directory | Contents |
 |---|---|
-| [`../t1/`](../t1/) | standard-benchmark launches, training-similarity ablation |
-| [`../t3/build/`](../t3/build/) | time split, difficulty layers, eval-set construction |
-| [`../t3/structure/`](../t3/structure/) | PDB metadata, chain mapping, pocket extraction at four thresholds |
-| [`../t3/runners/`](../t3/runners/) | per-model adapters, and the patches each repo needed |
-| [`../t3/analysis/`](../t3/analysis/) | main table, class breakdown, robustness controls |
+| [`../standard/`](../standard/) | standard-benchmark launches, training-similarity ablation |
+| [`../timesplit/build/`](../timesplit/build/) | time split, difficulty layers, eval-set construction |
+| [`../timesplit/structure/`](../timesplit/structure/) | PDB metadata, chain mapping, pocket extraction at four thresholds |
+| [`../timesplit/runners/`](../timesplit/runners/) | per-model adapters, and the patches each repo needed |
+| [`../timesplit/analysis/`](../timesplit/analysis/) | main table, class breakdown, robustness controls |
 | [`../physics/`](../physics/) | 🔬 FEP benchmark, Boltz-2 affinity, physics comparisons |
 | [`../eval/`](../eval/) | metric implementations and their tests |
 | [`../env/`](../env/) | per-model environment construction |

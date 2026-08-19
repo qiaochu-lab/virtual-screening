@@ -1,7 +1,9 @@
 # physics/ — physics-based methods and the FEP benchmark
 
 Everything that produces a *physical* quantity, or compares one against the
-retrieval models. Read [`../tasks/T6-physics.md`](../tasks/T6-physics.md) first
+retrieval models. It is a directory of its own rather than living under a task,
+because it serves two: the FEP benchmark supplies T2's within-series ranking
+numbers, and the same code plus Boltz-2 is the whole of T6. Read [`../tasks/T6-physics.md`](../tasks/T6-physics.md) first
 for what the numbers mean; this file is the code map.
 
 ## The FEP benchmark

@@ -1,7 +1,11 @@
-# T3 — Time-Split Generalization Benchmark
+# timesplit/ — the time-split generalization benchmark
 
 A benchmark for testing whether pocket–ligand retrieval models generalize to
-targets that appeared **after** their training data was assembled.
+targets that appeared **after** their training data was assembled. This is the
+dataset and the model runs; the results and their interpretation are in
+[`../tasks/T3-time-split.md`](../tasks/T3-time-split.md), and the pocket-cutoff
+and structure-source controls built on the same pipeline are in
+[`../tasks/T5-structure-robustness.md`](../tasks/T5-structure-robustness.md).
 
 ## Why this exists
 

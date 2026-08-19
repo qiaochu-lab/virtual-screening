@@ -29,7 +29,7 @@ The UniMol-family models additionally load the shared pretrained encoders
 | PocketAffDB | **2,196 UniProt** | LigUnity ×2, LiTENCLIP, HypSeek |
 
 Overlap between them: **881 UniProt**. Union: 5,413.
-([`t1/build_train_union.py`](t1/build_train_union.py))
+([`standard/build_train_union.py`](standard/build_train_union.py))
 
 LiTENCLIP's `test_datasets/` are symlinks into LigUnity's, so the two share the
 training files byte-for-byte — which is why T3's cutoff date is valid for both
@@ -56,7 +56,7 @@ Using `_rk` is also what makes one T2 result interpretable — a checkpoint chos
 proteins. Only the plain `_vs` was run. The release notes state that DUD-E /
 DEKOIS / LIT-PCBA test proteins were removed from training, which is why the
 similarity ablation measures distance to the *nearest remaining* training protein
-rather than to the target itself ([`t1/t1_sim3.py`](t1/t1_sim3.py)).
+rather than to the target itself ([`standard/t1_sim3.py`](standard/t1_sim3.py)).
 
 **BindCLIP's two weights differ in negative sampling** (random vs hard
 negatives), not in architecture or data — a controlled pair, useful for reading
@@ -69,7 +69,7 @@ confound was isolated.
 
 **SPRINT is not a sequence-only model**, despite reading like one. It consumes
 SaProt structure-aware sequences, so it needs the same structures as the pocket
-models ([`t3/structure/gen_saprot_seqs.py`](t3/structure/gen_saprot_seqs.py)) and
+models ([`timesplit/structure/gen_saprot_seqs.py`](timesplit/structure/gen_saprot_seqs.py)) and
 belongs on the structure side of any comparison.
 
 ## Interface quirks that cost time

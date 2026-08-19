@@ -116,12 +116,12 @@ already built and the sensitivity is quantified.
 
 | What | File |
 |---|---|
-| Build pockets at 4 / 5 / 6 / 8 Å | [`t3/structure/extract_pocket.py`](../t3/structure/extract_pocket.py) (predicted), [`extract_pocket_pdb.py`](../t3/structure/extract_pocket_pdb.py) (experimental, chain-aware) |
-| Re-run the models at the other thresholds | [`t3/runners/run_t3_thr.sh`](../t3/runners/run_t3_thr.sh), [`run_t3_unimol_5a.sh`](../t3/runners/run_t3_unimol_5a.sh) |
-| Threshold curve: pocket sizes, cap-overflow rates, and the 4/6/8 Å table | [`t3/analysis/t5_threshold_curve.py`](../t3/analysis/t5_threshold_curve.py) |
-| Truncation-artefact control (over-cap vs under-cap at 8 Å) | [`t3/analysis/t5_cap_stratify.py`](../t3/analysis/t5_cap_stratify.py) |
-| Experimental vs predicted structure comparison | [`t3/analysis/t5_structure_source.py`](../t3/analysis/t5_structure_source.py) |
-| Structure-confidence grading used to define "high quality" | [`t3/analysis/t3_target_quality.py`](../t3/analysis/t3_target_quality.py) |
+| Build pockets at 4 / 5 / 6 / 8 Å | [`timesplit/structure/extract_pocket.py`](../timesplit/structure/extract_pocket.py) (predicted), [`extract_pocket_pdb.py`](../timesplit/structure/extract_pocket_pdb.py) (experimental, chain-aware) |
+| Re-run the models at the other thresholds | [`timesplit/runners/run_t3_thr.sh`](../timesplit/runners/run_t3_thr.sh), [`run_t3_unimol_5a.sh`](../timesplit/runners/run_t3_unimol_5a.sh) |
+| Threshold curve: pocket sizes, cap-overflow rates, and the 4/6/8 Å table | [`timesplit/analysis/t5_threshold_curve.py`](../timesplit/analysis/t5_threshold_curve.py) |
+| Truncation-artefact control (over-cap vs under-cap at 8 Å) | [`timesplit/analysis/t5_cap_stratify.py`](../timesplit/analysis/t5_cap_stratify.py) |
+| Experimental vs predicted structure comparison | [`timesplit/analysis/t5_structure_source.py`](../timesplit/analysis/t5_structure_source.py) |
+| Structure-confidence grading used to define "high quality" | [`timesplit/analysis/t3_target_quality.py`](../timesplit/analysis/t3_target_quality.py) |
 
 Each script's docstring states **how to read a null result** before showing any
 numbers — written that way deliberately, so the interpretation was fixed before
