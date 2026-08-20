@@ -3,7 +3,7 @@
 **Question:** can the model rank known actives above decoys, on the benchmarks
 the field already uses?
 
-**Status:** 5 of 9 models complete on all three benchmarks, 2 more partly done. CASF-2016 pending for everyone.
+**Status:** 7 of 9 models complete on all three benchmarks. CASF-2016 done for LigUnity ×2, blocked by a fork bug for the other two.
 
 ---
 
@@ -64,7 +64,8 @@ scores, not copied from papers:
 
 | Model | EF0.1% | EF1% | EF5% | BEDROC | AUROC |
 |---|---|---|---|---|---|
-| LigUnity (full ensemble) | 33.34 | **7.67** | 2.64 | **0.089** | 0.591 |
+| **HypSeek `_rk`** | 25.48 | **8.34** | **3.47** | **0.098** | **0.613** |
+| LigUnity (full ensemble) | 33.34 | 7.67 | 2.64 | 0.089 | 0.591 |
 | LiTENCLIP | 27.77 | 6.56 | 2.86 | 0.076 | **0.612** |
 | LigUnity pocket + HGNN | 28.27 | 7.52 | 3.09 | 0.089 | **0.602** |
 | LigUnity-pocket | 23.61 | 7.30 | **3.10** | 0.088 | 0.601 |
@@ -84,14 +85,16 @@ task branch was added to their repos (their `--test-task` originally offered onl
 | LigUnity pocket + HGNN | 28.91 | 26.80 | 15.11 | 0.801 | 0.920 |
 | LigUnity-protein | 28.15 | 27.04 | 14.30 | 0.785 | 0.925 |
 | LigUnity-pocket | 26.04 | 24.62 | 13.53 | 0.728 | 0.911 |
+| LiTENCLIP | 25.47 | 23.97 | 13.84 | 0.712 | 0.909 |
 
 | Model | DUD-E | LIT-PCBA | DEKOIS | CASF-2016 |
 |---|---|---|---|---|
 | DrugCLIP | ✅ | ✅ | ✅ | — |
 | BindCLIP-randneg / -hardneg | ✅ | ✅ | ✅ | — |
 | LigUnity-pocket / -protein | ✅ | ✅ | ✅ | — |
-| LiTENCLIP | ✅ | ✅ | ⚠️ 12/81 | ⬜ |
-| HypSeek `_rk` | ✅ | ⬜ | ✅ | ⬜ |
+| LiTENCLIP | ✅ | ✅ | ✅ | ❌ fork bug |
+| HypSeek `_rk` | ✅ | ✅ | ✅ | ❌ fork bug |
+| LigUnity-pocket / -protein (CASF) | | | | ✅ |
 | ConGLUDe, ConPLex, SPRINT | — | — | — | — |
 
 Reproduction check: every model matched its published values within 2%, and the
@@ -130,11 +133,25 @@ different reasons:
   LIT-PCBA's largest target (361,997 molecules) asks for **488 GiB**. All rows
   were identical and a `max` was taken over them, so removing the replication is
   value-identical — the DUD-E and DEKOIS numbers above are unaffected.
-- **CASF for both** failed on a hardcoded absolute path — `open("/casf_label_seq.json")`
-  with the `{self.args.data}/` prefix missing. LigUnity's original is correct; both
-  forks carry the typo.
+- **CASF for both** is still blocked. The hardcoded `open("/casf_label_seq.json")`
+  was only the first layer; underneath, both forks' `inference_pdbbind` calls
+  `model.forward()` with a signature their own model class does not have —
+  LiTENCLIP raises `missing 1 required positional argument: 'mol_src_coord'`,
+  HypSeek raises `not enough values to unpack (expected 4, got 3)`. This code
+  path was evidently never run by the authors. Fixing it means reading each
+  model's `forward` and re-deriving which outputs are the pocket and ligand
+  embeddings — doable, not yet done. LigUnity's own CASF branch is correct and
+  ran fine.
 
-Both fixes are applied ([`standard/patch_forks_t1.py`](../standard/patch_forks_t1.py)).
+The first two fixes are applied
+([`standard/patch_forks_t1.py`](../standard/patch_forks_t1.py)); the LIT-PCBA fix
+is what let HypSeek finish, and its DUD-E/DEKOIS numbers are unaffected by it.
+
+One more output quirk, worth knowing if you re-score: HypSeek's LIT-PCBA branch
+saves embeddings but no `saved_preds.npy`, and names the pocket array
+`saved_pocket_embed.npy` where the rest of the family uses
+`saved_target_embed.npy`. Scores are recomputed with the same rule the official
+code uses — `(pocket @ mol.T).max(axis=0)`.
 
 **Still to do:** ConGLUDe, ConPLex and SPRINT need per-target sequences or
 structures prepared for these three benchmarks (their inputs are not the pocket

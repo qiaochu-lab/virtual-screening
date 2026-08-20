@@ -172,16 +172,17 @@ applying to the *targets*, not to the weights.
 
 ## 13. Coverage gaps
 
-- **T1: 5 of 9 models run** (LiTENCLIP and HypSeek in progress). ConGLUDe,
-  ConPLex and SPRINT need their inputs prepared for these benchmarks and are
-  not queued.
+- **T1: 7 of 9 models run.** ConGLUDe, ConPLex and SPRINT need their inputs
+  (sequences, structures, 3Di tokens) prepared for these benchmarks and are not
+  queued. CASF-2016 exists for LigUnity ×2 only — the two forks' CASF code path
+  calls their own model with the wrong signature.
 - **T4: not started.**
 - **T5: apo structures and MD conformers not tested** — only experimental vs
   predicted holo, and pocket cutoff.
 - **T2: CASF-2016 present but not run.**
-- **T6: the head-to-head physics run is still in flight**; the +0.404 currently
-  reported is cross-target, not within-target, and is range-restricted
-  (representative ligands are each target's strongest, which depresses it).
+- **T6: the head-to-head is done** (461/461 ligands, Boltz-2 mean ρ +0.615), but
+  only one physics-side method has been run. Docking and an actual free-energy
+  method are still absent, and the cascade-rerank experiment has not started.
 
 ## 14. Boltz-2 structural limits
 

@@ -16,7 +16,7 @@ what question it asks, what data it uses, how it was run, and what came out.
 
 | Task | Question | Status | Doc |
 |---|---|---|---|
-| **T1** Enrichment | Do published enrichment numbers reproduce on standard benchmarks? | 5 of 9 models, 2 running | [T1](tasks/T1-enrichment.md) |
+| **T1** Enrichment | Do published enrichment numbers reproduce on standard benchmarks? | 7 of 9 models | [T1](tasks/T1-enrichment.md) |
 | **T2** Affinity ranking | Can these models rank binding strength, not just separate binders from non-binders? | ✅ answered — **no, across chemical series** | [T2](tasks/T2-affinity-ranking.md) 🔬 |
 | **T3** Time-split | Do they generalise to targets that appeared after training? | ✅ main result, 9 models × 4 layers | [T3](tasks/T3-time-split.md) |
 | **T4** Target fishing | Run retrieval backwards: molecule → target | not started (deprioritised) | [T4](tasks/T4-target-fishing.md) |
