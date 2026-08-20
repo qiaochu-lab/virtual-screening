@@ -28,7 +28,7 @@ from the same training run** — `_vs.pt` selected on CASF BEDROC (screening) an
 |---|---|---|---|
 | **T3** (self-built) | 1,044 targets | **Cross-series** — pulled from databases, many scaffolds per target | ✅ 9 models |
 | **FEP** (JACS 8 + Merck 8) | 16 systems, 461 ligands | **Within-series** — same scaffold, substituent changes | ✅ 3 models |
-| **CASF-2016** | 50 clusters × 5 ligands | Within-target, cross-scaffold | ⬜ data present, not run |
+| **CASF-2016** | 285 complexes, 55 usable targets × ~5 | Within-target, **cross-scaffold** | ✅ LigUnity ×2 |
 
 FEP set = Wang et al. 2015 (BACE, CDK2, JNK1, MCL1, p38, PTP1B, thrombin, TYK2)
 + Schindler et al. 2020 (CDK8, c-Met, Eg5, HIF-2α, PFKFB3, SHP-2, SYK, TNKS2).
@@ -77,7 +77,35 @@ targets with span ≥2 changes nothing.
 
 Per-system: [`results/T2_on_FEP.csv`](../results/T2_on_FEP.csv).
 
-### The two are reconciled by a paired test
+### On CASF-2016 — non-zero, and it complicates the story
+
+CASF-2016 sits between the other two: same target, but the five ligands per
+cluster are **different scaffolds**. Scored from the paired pocket/ligand
+embeddings ([`timesplit/analysis/score_casf.py`](../timesplit/analysis/score_casf.py)):
+
+| Model | scoring power (ρ over 285) | Pearson r | **ranking power** (mean ρ within target) | targets |
+|---|---|---|---|---|
+| LigUnity-pocket | 0.360 | 0.316 | **0.424** | 55 |
+| LigUnity-protein | 0.221 | 0.193 | 0.282 | 55 |
+
+**This does not fit "cross-scaffold ⇒ zero".** Different scaffolds within one
+target, and ranking power is as high as on the congeneric FEP series. So scaffold
+diversity alone cannot be what kills ranking on T3.
+
+⚠️ Three reasons not to over-read it: CASF complexes come from PDBbind, which
+overlaps these models' training data, so this is close to in-distribution;
+upstream authors select checkpoints on CASF (HypSeek's `_vs` weight is chosen on
+CASF BEDROC), so it is a tuning set for the field; and five ligands per cluster
+makes each per-target Spearman very coarse.
+
+**What it points at.** With scaffold diversity ruled out as a sufficient
+explanation, the remaining difference between CASF/FEP and T3 is **label
+quality**: CASF and FEP affinities are curated and internally consistent, while
+T3 pools Ki / Kd / IC50 / EC50 across labs and assay formats. That is directly
+testable without a GPU — restrict T3 to one assay type and one source, re-score
+from the stored predictions, and see whether the correlation moves. Not yet done.
+
+### The two extremes are reconciled by a paired test
 
 Same 14 targets present in **both** datasets, same model:
 
