@@ -67,41 +67,48 @@ protocols and are **not** comparable:
 | Boltz-2 | ρ = +0.404 | **cross-target** absolute affinity |
 | FEP+ | r ≈ 0.6–0.8 | literature, FEP benchmarks |
 
-Running: **Boltz-2 per-ligand on the same 16 FEP systems, 461 complexes**.
-Structures are 455/461 done; the affinity stage is at 243/461 after two shards
-crashed on a record whose structure step had been skipped (see
-[`../physics/resume_boltz_fep.sh`](../physics/resume_boltz_fep.sh)).
+**Done — 461/461 complexes.** Boltz-2 scored per ligand on all 16 systems, the
+same ligands the retrieval models were scored on, the same metric:
 
-**Preview at ~55% coverage** ([`../physics/score_boltz_fep.py`](../physics/score_boltz_fep.py)) —
-each system's row is final once its own ligands are done, but the completed
-subset is not a random sample of ligands, so treat these as provisional:
+| System | n | **Boltz-2 ρ** | LigUnity-pocket | LigUnity-protein | LiTENCLIP |
+|---|---|---|---|---|---|
+| mcl1 | 42 | **+0.885** | +0.750 | +0.799 | +0.724 |
+| cmet | 24 | **+0.883** | −0.072 | +0.537 | +0.512 |
+| ptp1b | 23 | **+0.823** | +0.372 | +0.182 | +0.026 |
+| jnk1 | 21 | **+0.806** | +0.662 | +0.338 | −0.307 |
+| tyk2 | 16 | **+0.806** | +0.462 | +0.382 | +0.406 |
+| cdk8 | 32 | **+0.799** | +0.510 | +0.314 | +0.475 |
+| cdk2 | 16 | **+0.782** | −0.276 | +0.296 | +0.506 |
+| syk | 44 | **+0.778** | +0.422 | +0.292 | +0.301 |
+| tnks2 | 27 | **+0.737** | +0.496 | +0.327 | +0.708 |
+| thrombin | 11 | +0.691 | **+0.782** | +0.700 | +0.318 |
+| p38 | 34 | **+0.503** | +0.194 | +0.129 | −0.252 |
+| eg5 | 28 | **+0.494** | +0.286 | +0.396 | +0.452 |
+| hif2a | 41 | +0.433 | **+0.473** | +0.415 | +0.370 |
+| shp2 | 26 | +0.332 | **+0.735** | +0.620 | +0.549 |
+| pfkfb3 | 40 | +0.168 | **+0.505** | +0.158 | +0.111 |
+| bace | 36 | **−0.081** | −0.032 | +0.444 | −0.488 |
+| **mean** | | **+0.615** | +0.392 | +0.396 | +0.276 |
 
-| System | n | coverage | **Boltz-2 ρ** | LigUnity-pocket | LigUnity-protein | LiTENCLIP |
-|---|---|---|---|---|---|---|
-| mcl1 | 20 | 48% | **+0.868** | +0.750 | +0.799 | +0.724 |
-| tnks2 | 15 | 56% | **+0.839** | +0.496 | +0.327 | +0.708 |
-| cmet | 14 | 58% | **+0.838** | −0.072 | +0.537 | +0.512 |
-| syk | 25 | 57% | **+0.829** | +0.422 | +0.292 | +0.301 |
-| ptp1b | 14 | 61% | **+0.807** | +0.372 | +0.182 | +0.026 |
-| cdk8 | 14 | 44% | **+0.787** | +0.510 | +0.314 | +0.475 |
-| shp2 | 12 | 46% | +0.224 | **+0.735** | +0.620 | +0.549 |
-| bace | 19 | 53% | **−0.228** | −0.032 | +0.444 | −0.488 |
+Per-system CSV: [`results/T6_FEP_boltz.csv`](../results/T6_FEP_boltz.csv).
 
-Boltz-2 leads on most systems, and loses on SHP-2 — the same system where the
-published physics reference also loses to retrieval. Complementary, not
-dominant, is so far the right description. When it lands, this table
-becomes valid — same systems, same ligands, same metric:
+**Boltz-2 mean Spearman +0.615, median +0.757, correct direction on 15 of 16.**
+In Kendall τ — the metric the published physics reference reports — it is
+**+0.474 mean, +0.569 median, against Uni-FEP's 0.503**. A co-folding model with
+an affinity head lands within noise of a free-energy method, at a fraction of the
+cost per ligand.
 
-| Method | Within-target ρ, 16 FEP systems |
-|---|---|
-| LigUnity-protein | +0.396 (16/16 correct sign) |
-| LigUnity-pocket | +0.392 |
-| LiTENCLIP | +0.276 |
-| **Boltz-2** | **pending** |
-| FEP+ | literature r ≈ 0.6–0.8 |
+**But it does not dominate.** LigUnity-pocket beats it on 5 of 16 systems,
+LigUnity-protein on 3, LiTENCLIP on 1 — and the systems where retrieval wins
+(SHP-2, PFKFB3, HIF-2α, thrombin, BACE) overlap with the ones where the
+published physics reference also loses to retrieval. Two families with different
+failure modes is exactly the premise T6 was set up to test, and it now has direct
+evidence rather than an argument from three incomparable numbers.
 
-Preparation detail: systems exceeding Boltz-2's 1170-residue limit are truncated
-to the kinase/binding domain (`fep_truncate.py`), which keeps the site intact.
+⚠️ Read with three caveats: the FEP systems are congeneric series, so this says
+nothing about cross-series ranking; Boltz-2's affinity head was trained on
+public affinity data whose overlap with these classic systems is not
+characterised; and BACE at −0.081 shows the failure is not graceful when it comes.
 
 ## Three ways to combine, and which is worth doing
 

@@ -138,7 +138,7 @@ Note `eval/metrics.py::r2_score` deliberately returns **Pearson r²**, not
 | LigUnity-protein | 0.284 | not computable |
 | LiTENCLIP | 0.200 | not computable |
 | **Uni-FEP** (reference, published) | **0.503** | 0.65–1.79 |
-| **Boltz-2** | running | **computable** |
+| **Boltz-2** | **0.474** (mean over 16 systems) | **computable** |
 
 ⚠️ The reference row is **Uni-FEP**, not Schrödinger FEP+ — same family of
 free-energy methods, so the magnitude is indicative, but do not cite it as

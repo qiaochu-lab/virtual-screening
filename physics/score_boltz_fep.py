@@ -73,8 +73,12 @@ def retrieval():
     return out
 
 
+KEN = {}
+
+
 def main():
     T, P, R = truth(), preds(), retrieval()
+    global KEN
     models = sorted({m for v in R.values() for m in v})
     hdr = "".join(f"{m[:16]:>17s}" for m in models)
     print("Boltz-2 逐配体 vs 检索模型（同一批体系、同一批配体）")
@@ -94,6 +98,7 @@ def main():
         yv = np.array([y_all[i] for i in idx])
         pv = -np.array([got[i] for i in idx])          # 取负号同向
         rho = stats.spearmanr(pv, yv).statistic
+        KEN[s] = stats.kendalltau(pv, yv).statistic
         cells = "".join((f"{R[s][m]:+.3f}".rjust(17) if m in R.get(s, {}) else "—".rjust(17))
                         for m in models)
         flag = "" if cov >= MIN_COV else "  ← 覆盖不足，未计入平均"
@@ -110,6 +115,14 @@ def main():
             v = [R[s][m] for s, _ in done if m in R.get(s, {})]
             if v:
                 print(f"  同口径对照 {m:<26s} 平均 {np.mean(v):+.3f}（n={len(v)}）")
+    if done:
+        k = np.array([KEN[s] for s, _ in done if s in KEN])
+        print(f"\n  Kendall τ 平均 {k.mean():+.3f}   中位 {np.median(k):+.3f}"
+              "    ← 与 Uni-FEP 文献值 0.503 同口径")
+        for m in models:
+            wins = sum(1 for s, r in done
+                       if m in R.get(s, {}) and R[s][m] > r)
+            print(f"  {m:<26s} 在 {wins}/{len(done)} 个体系上反超 Boltz-2")
     if partial:
         print(f"\n还没跑完的 {len(partial)} 个体系（数字仅供参考，会变）: "
               + ", ".join(f"{s} {r:+.2f}" for s, r in partial))

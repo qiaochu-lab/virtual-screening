@@ -8,9 +8,11 @@
 set -u
 B=/data/work/vs-benchmark
 LOG=$B/results/logs/wait_and_run.log
+# 只在 4-7 里找空卡：0-3 是留给别人的，这条是硬规矩。
+# （第一版没写这个限制，等待器真的抢过 0/1/2 —— 当时卡是空的，但仍然越界了。）
 free_gpus() {
   nvidia-smi --query-gpu=index,memory.used --format=csv,noheader,nounits |
-    awk -F', ' '$2 < 1000 {print $1}'
+    awk -F', ' '$1 >= 4 && $2 < 1000 {print $1}'
 }
 prev=""
 while true; do
