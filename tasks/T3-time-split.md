@@ -142,6 +142,33 @@ infeasible; docking is possible but only worth doing on a subset.
 
 ---
 
+## Robustness check added after the fact — contamination
+
+The time split does not guarantee novelty: 20.9% of L1's (target, ligand) pairs
+already exist in the training set. Rather than caveat it, the contaminated
+actives were deleted and all nine models re-scored
+([`../timesplit/analysis/score_t3_clean.py`](../timesplit/analysis/score_t3_clean.py)).
+
+**Seven of nine models get a *larger* decay after cleaning** (e.g. DrugCLIP
+−63.9% → −64.3%, HypSeek −80.0% → −80.4%) — the seen pairs were ranked slightly
+worse than average, not better. The two sequence-only models move the other way
+(ConPLex −73.3% → −69.4%), which is the direction contamination predicts, but by
+a few points rather than a category.
+
+Full table and interpretation: [`../LIMITATIONS.md`](../LIMITATIONS.md) §1.
+
+Two implementation notes, since this kind of re-scoring is easy to get wrong:
+
+- **No inference was re-run.** Every model's per-molecule scores are on disk, so
+  cleaning is a matter of dropping indices and recomputing. This is why keeping
+  raw scores rather than aggregate metrics matters.
+- **Molecule order differs by model.** The UniMol family reads an LMDB built by
+  `build_t3_unimol.py`, which silently skips molecules with no conformer; the
+  other three iterate the eval JSONL directly. The script detects which ordering
+  matches the array length and **skips the target if neither does** rather than
+  guessing — mislabelling which molecule is contaminated would be worse than not
+  checking.
+
 ## Code
 
 Dataset construction is documented separately in [`timesplit/README.md`](../timesplit/README.md).

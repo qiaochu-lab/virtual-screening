@@ -8,7 +8,7 @@ Ordered by how much they affect the headline claims.
 
 ---
 
-## 1. The control layer is contaminated; the decay is partly overstated
+## 1. The control layer is contaminated — measured, and it does not move the result
 
 T3's layers come from a **time split** — records deposited after 2024-12. A 2025
 database record does not mean the measurement is new: the pair may have been
@@ -24,13 +24,38 @@ Pair-level check against the training sets
 | L3 | 7,698 | 0 | 5.7% |
 | L4 | 49,070 | 0 | 6.2% |
 
-**Consequence:** L1 is inflated, so **the L1→L4 decay of 64–77% is an upper
-bound**. L2→L4 is clean (0.01% vs 0%) and shows the same qualitative pattern,
-which is why the finding survives — but the exact percentage should be quoted
-with this caveat.
+**So the contaminated actives were deleted and every model re-scored**
+([`timesplit/analysis/score_t3_clean.py`](timesplit/analysis/score_t3_clean.py) —
+no GPU needed, the per-molecule scores are on disk; ~3,900 actives removed from
+L1 per model, roughly a third of them):
 
-Not yet done: rebuilding L1 with a content-level set difference on top of the
-time split.
+| Model | L1 EF1% before → after | L1→L4 decay before → after |
+|---|---|---|
+| DrugCLIP | 18.80 → 18.99 | −63.9% → **−64.3%** |
+| BindCLIP-randneg | 19.12 → 19.28 | −70.3% → −70.5% |
+| BindCLIP-hardneg | 17.81 → 17.78 | −66.3% → −66.2% |
+| LigUnity-pocket | 35.24 → 35.97 | −76.2% → −76.7% |
+| LigUnity-protein | 39.18 → 39.90 | −77.4% → −77.9% |
+| LiTENCLIP | 32.37 → 32.86 | −73.9% → −74.3% |
+| HypSeek `_rk` | 36.63 → 37.53 | −80.0% → −80.4% |
+| ConGLUDe | 13.63 → **12.99** | −71.6% → **−70.2%** |
+| ConPLex | 7.66 → **6.67** | −73.3% → **−69.4%** |
+
+**The headline decay survives.** For the seven structure-based models the
+contaminated pairs were, if anything, ranked slightly *worse* than average —
+removing them nudges L1 up and the decay grows. Only the two weakest,
+sequence-based models were genuinely helped by them, and even there the decay
+moves by 1.4–3.9 points, not by a category.
+
+That split is itself informative: the pairs were identified against LigUnity's
+training set, so they are genuinely seen data for the LigUnity-family models —
+and those models show no memorisation benefit on them. The models that *do*
+benefit are the ones that never saw them, which points at the molecules being
+intrinsically easy (well-studied, prototypical actives) rather than at leakage.
+
+⚠️ Residual caveat: contamination is measured against the **one** training set we
+have in usable form. Records that predate the cutoff in some other database, or
+in the three undisclosed training sets, are not covered.
 
 ## 2. Layer labels are defined by one model's training set
 

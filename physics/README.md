@@ -33,6 +33,7 @@ rank at all.
 | `run_boltz_fep.sh` | launch Boltz-2, 3 shards |
 | `resume_boltz_fep.sh` | resume the affinity stage after a crash — the stage reads `pre_affinity_*.npz` for every record, so one complex whose structure step was skipped takes the whole shard down |
 | `wait_and_run.sh` | wait for GPUs to free on a shared machine, then start the resumes (caps itself well under the 4-GPU limit) |
+| `score_boltz_fep.py` | per-system Spearman for Boltz-2 on the FEP set, side by side with the retrieval models — safe to run mid-flight, since each system's row is final once that system's ligands are done |
 | `t6_boltz_affinity.py` | cross-target correlation of Boltz-2's affinity head against measured pAffinity |
 
 ## Two conventions that cause sign errors

@@ -67,8 +67,29 @@ protocols and are **not** comparable:
 | Boltz-2 | ρ = +0.404 | **cross-target** absolute affinity |
 | FEP+ | r ≈ 0.6–0.8 | literature, FEP benchmarks |
 
-Running now: **Boltz-2 per-ligand on the same 16 FEP systems, 461 complexes**,
-3 shards on GPUs 4/6/7. Roughly a third complete. When it lands, this table
+Running: **Boltz-2 per-ligand on the same 16 FEP systems, 461 complexes**.
+Structures are 455/461 done; the affinity stage is at 243/461 after two shards
+crashed on a record whose structure step had been skipped (see
+[`../physics/resume_boltz_fep.sh`](../physics/resume_boltz_fep.sh)).
+
+**Preview at ~55% coverage** ([`../physics/score_boltz_fep.py`](../physics/score_boltz_fep.py)) —
+each system's row is final once its own ligands are done, but the completed
+subset is not a random sample of ligands, so treat these as provisional:
+
+| System | n | coverage | **Boltz-2 ρ** | LigUnity-pocket | LigUnity-protein | LiTENCLIP |
+|---|---|---|---|---|---|---|
+| mcl1 | 20 | 48% | **+0.868** | +0.750 | +0.799 | +0.724 |
+| tnks2 | 15 | 56% | **+0.839** | +0.496 | +0.327 | +0.708 |
+| cmet | 14 | 58% | **+0.838** | −0.072 | +0.537 | +0.512 |
+| syk | 25 | 57% | **+0.829** | +0.422 | +0.292 | +0.301 |
+| ptp1b | 14 | 61% | **+0.807** | +0.372 | +0.182 | +0.026 |
+| cdk8 | 14 | 44% | **+0.787** | +0.510 | +0.314 | +0.475 |
+| shp2 | 12 | 46% | +0.224 | **+0.735** | +0.620 | +0.549 |
+| bace | 19 | 53% | **−0.228** | −0.032 | +0.444 | −0.488 |
+
+Boltz-2 leads on most systems, and loses on SHP-2 — the same system where the
+published physics reference also loses to retrieval. Complementary, not
+dominant, is so far the right description. When it lands, this table
 becomes valid — same systems, same ligands, same metric:
 
 | Method | Within-target ρ, 16 FEP systems |
