@@ -3,7 +3,7 @@
 **Question:** can the model rank known actives above decoys, on the benchmarks
 the field already uses?
 
-**Status:** 5 of 9 models done on all three benchmarks; two more running. CASF-2016 not yet run for anyone.
+**Status:** 5 of 9 models complete on all three benchmarks, 2 more partly done. CASF-2016 pending for everyone.
 
 ---
 
@@ -50,9 +50,11 @@ scores, not copied from papers:
 
 | Model | EF0.1% | EF1% | EF5% | BEDROC | AUROC |
 |---|---|---|---|---|---|
-| LigUnity (full ensemble) | **59.84** | **52.52** | **15.87** | **0.795** | **0.932** |
+| **HypSeek `_rk`** | **59.87** | **56.39** | **17.87** | **0.884** | **0.967** |
+| LigUnity (full ensemble) | 59.84 | 52.52 | 15.87 | 0.795 | 0.932 |
 | LigUnity pocket + HGNN | 56.76 | 49.35 | 15.10 | 0.749 | 0.912 |
 | LigUnity-pocket | 52.15 | 42.57 | 13.57 | 0.653 | 0.892 |
+| LiTENCLIP | 52.22 | 43.95 | 14.29 | 0.677 | 0.903 |
 | LigUnity-protein | 50.82 | 36.69 | 12.10 | 0.574 | 0.887 |
 | BindCLIP-randneg | 46.21 | 32.81 | 10.97 | 0.512 | 0.818 |
 | DrugCLIP | 46.58 | 31.94 | 10.66 | 0.500 | 0.807 |
@@ -63,6 +65,7 @@ scores, not copied from papers:
 | Model | EF0.1% | EF1% | EF5% | BEDROC | AUROC |
 |---|---|---|---|---|---|
 | LigUnity (full ensemble) | 33.34 | **7.67** | 2.64 | **0.089** | 0.591 |
+| LiTENCLIP | 27.77 | 6.56 | 2.86 | 0.076 | **0.612** |
 | LigUnity pocket + HGNN | 28.27 | 7.52 | 3.09 | 0.089 | **0.602** |
 | LigUnity-pocket | 23.61 | 7.30 | **3.10** | 0.088 | 0.601 |
 | LigUnity-protein | **37.28** | 6.22 | 2.18 | 0.075 | 0.563 |
@@ -76,7 +79,8 @@ task branch was added to their repos (their `--test-task` originally offered onl
 
 | Model | EF0.1% | EF1% | EF5% | BEDROC | AUROC |
 |---|---|---|---|---|---|
-| LigUnity (full ensemble) | 29.68 | **28.07** | **15.96** | **0.848** | **0.938** |
+| **HypSeek `_rk`** | **29.49** | **28.83** | **17.24** | **0.889** | **0.964** |
+| LigUnity (full ensemble) | 29.68 | 28.07 | 15.96 | 0.848 | 0.938 |
 | LigUnity pocket + HGNN | 28.91 | 26.80 | 15.11 | 0.801 | 0.920 |
 | LigUnity-protein | 28.15 | 27.04 | 14.30 | 0.785 | 0.925 |
 | LigUnity-pocket | 26.04 | 24.62 | 13.53 | 0.728 | 0.911 |
@@ -86,8 +90,8 @@ task branch was added to their repos (their `--test-task` originally offered onl
 | DrugCLIP | ✅ | ✅ | ✅ | — |
 | BindCLIP-randneg / -hardneg | ✅ | ✅ | ✅ | — |
 | LigUnity-pocket / -protein | ✅ | ✅ | ✅ | — |
-| LiTENCLIP | 🔄 | 🔄 | 🔄 | 🔄 |
-| HypSeek `_rk` | 🔄 | 🔄 | 🔄 | 🔄 |
+| LiTENCLIP | ✅ | ✅ | ⚠️ 12/81 | ⬜ |
+| HypSeek `_rk` | ✅ | ⬜ | ✅ | ⬜ |
 | ConGLUDe, ConPLex, SPRINT | — | — | — | — |
 
 Reproduction check: every model matched its published values within 2%, and the
@@ -113,10 +117,24 @@ the cells.
 
 ## To finish
 
-**Running now** (GPU 5, sequential): LiTENCLIP and HypSeek on DUD-E, DEKOIS,
+**Partly done, resuming.** LiTENCLIP and HypSeek were queued on DUD-E, DEKOIS,
 LIT-PCBA and CASF-2016 — both are LigUnity-family, so they read the same
 `test_datasets` and needed only a `--test-task` value, no data preparation.
-CASF-2016 also fills T2's missing third dataset.
+CASF-2016 also fills T2's missing third dataset. Three gaps remain, for three
+different reasons:
+
+- **LiTENCLIP × DEKOIS** stopped at 12 of 81 targets when the run was killed
+  externally. Nothing wrong with it; needs re-running.
+- **HypSeek × LIT-PCBA** hit a real bug: the code replicated the single protein
+  embedding once per ligand and then formed `[N_lig, N_lig]`, which for
+  LIT-PCBA's largest target (361,997 molecules) asks for **488 GiB**. All rows
+  were identical and a `max` was taken over them, so removing the replication is
+  value-identical — the DUD-E and DEKOIS numbers above are unaffected.
+- **CASF for both** failed on a hardcoded absolute path — `open("/casf_label_seq.json")`
+  with the `{self.args.data}/` prefix missing. LigUnity's original is correct; both
+  forks carry the typo.
+
+Both fixes are applied ([`standard/patch_forks_t1.py`](../standard/patch_forks_t1.py)).
 
 **Still to do:** ConGLUDe, ConPLex and SPRINT need per-target sequences or
 structures prepared for these three benchmarks (their inputs are not the pocket

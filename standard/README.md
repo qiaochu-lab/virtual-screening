@@ -6,6 +6,8 @@ performance depends on proximity to the training set. See
 
 | File | What it does |
 |---|---|
+| `run_t1_rest.sh` | LiTENCLIP and HypSeek on DUD-E / DEKOIS / LIT-PCBA / CASF, one GPU, sequential |
+| `patch_forks_t1.py` | two fork bugs that blocked those runs: a hardcoded `/casf_label_seq.json`, and an `[N_lig, N_lig]` allocation that needs 488 GiB on LIT-PCBA's largest target |
 | `run_drugclip.sh` | DrugCLIP on DUD-E and LIT-PCBA |
 | `run_bindclip.sh`, `run_bindclip_pcba.sh` | BindCLIP, both released weights |
 | `run_dekois.sh` | DEKOIS 2.0 |

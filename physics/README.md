@@ -31,6 +31,8 @@ rank at all.
 | `prep_boltz_fep.py` | Boltz-2 inputs for all 461 complexes |
 | `fep_truncate.py` | truncate systems over Boltz-2's 1170-residue limit to the binding domain |
 | `run_boltz_fep.sh` | launch Boltz-2, 3 shards |
+| `resume_boltz_fep.sh` | resume the affinity stage after a crash — the stage reads `pre_affinity_*.npz` for every record, so one complex whose structure step was skipped takes the whole shard down |
+| `wait_and_run.sh` | wait for GPUs to free on a shared machine, then start the resumes (caps itself well under the 4-GPU limit) |
 | `t6_boltz_affinity.py` | cross-target correlation of Boltz-2's affinity head against measured pAffinity |
 
 ## Two conventions that cause sign errors
