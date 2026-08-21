@@ -28,7 +28,7 @@ from the same training run** — `_vs.pt` selected on CASF BEDROC (screening) an
 |---|---|---|---|
 | **T3** (self-built) | 1,044 targets | **Cross-series** — pulled from databases, many scaffolds per target | ✅ 9 models |
 | **FEP** (JACS 8 + Merck 8) | 16 systems, 461 ligands | **Within-series** — same scaffold, substituent changes | ✅ 3 models |
-| **CASF-2016** | 285 complexes, 55 usable targets × ~5 | Within-target, **cross-scaffold** | ✅ LigUnity ×2 |
+| **CASF-2016** | 285 complexes, 55 usable targets × ~5 | Within-target, **cross-scaffold** | ✅ 4 models |
 
 FEP set = Wang et al. 2015 (BACE, CDK2, JNK1, MCL1, p38, PTP1B, thrombin, TYK2)
 + Schindler et al. 2020 (CDK8, c-Met, Eg5, HIF-2α, PFKFB3, SHP-2, SYK, TNKS2).
@@ -115,8 +115,14 @@ Same target, five **different scaffolds** per cluster
 
 | Model | scoring power (ρ over 285) | Pearson r | ranking power (mean ρ within target) | targets |
 |---|---|---|---|---|
-| LigUnity-pocket | 0.360 | 0.316 | **0.424** | 55 |
+| **HypSeek `_rk`** | **0.627** | **0.622** | **0.549** | 55 |
+| LiTENCLIP | 0.364 | 0.356 | 0.371 | 55 |
+| LigUnity-pocket | 0.360 | 0.316 | 0.424 | 55 |
 | LigUnity-protein | 0.221 | 0.193 | 0.282 | 55 |
+
+**HypSeek `_rk` leads by a wide margin here too** — 0.627 scoring power against
+LigUnity-pocket's 0.360. Together with its first place on all three screening
+benchmarks and on T3 ranking, one checkpoint now leads every axis we measure.
 
 ⚠️ CASF complexes come from PDBbind, which overlaps these models' training data,
 and the field selects checkpoints on CASF — so this is close to in-distribution.
