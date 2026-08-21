@@ -121,7 +121,7 @@ nothing about cross-series ranking; Boltz-2's affinity head was trained on
 public affinity data whose overlap with these classic systems is not
 characterised; and BACE at −0.081 shows the failure is not graceful when it comes.
 
-## Three ways to combine, and which is worth doing
+## Cascade rerank — run, and the answer is "not yet"
 
 | Mode | How | Cost |
 |---|---|---|
@@ -129,16 +129,49 @@ characterised; and BACE at −0.081 shows the failure is not graceful when it co
 | **cascade rerank** | retrieval takes top-N → physics reorders | **low — only top-N** |
 | rank fusion | weighted merge of both rankings | trivial — scores already on disk |
 
-**Cascade rerank is the one with practical value**, because it is what a real
-screening campaign does (cheap filter, expensive confirm) and its cost scales
-with N rather than library size. Rank fusion is nearly free and worth reporting
-as a baseline.
+**The experiment.** 20 L4 targets (unseen after the cutoff), chosen for
+structure quality A/B and spread across target classes; LigUnity-protein's
+**top-50** per target; Boltz-2 affinity on all 981 complexes, 977 returned
+(99.6%). MSAs were reused from the T3 structure run, so no MSA-server calls.
+Scored inside the shortlist only ([`../physics/score_rerank.py`](../physics/score_rerank.py),
+per-target CSV [`../results/T6_rerank.csv`](../results/T6_rerank.csv)):
 
-**Open gap:** cascade rerank on T3 needs a physics score for each target's top-N
-ligands — 1,044 targets × top-20 ≈ 20,000 complexes. Boltz-2 is too expensive at
-that scale. **Docking (Vina / smina / GNINA) is the realistic choice**, and the
-pockets are already extracted at four thresholds, so a collaborator can start
-from prepared inputs rather than from PDB files.
+| Ordering | P@5 | P@10 | mean rank of actives | AUROC in shortlist |
+|---|---|---|---|---|
+| retrieval (baseline) | 0.420 | 0.410 | 27.7 | **0.478** |
+| Boltz-2 rerank | 0.440 | 0.350 | **20.9** | **0.617** |
+| rank fusion | 0.420 | 0.430 | 24.6 | 0.550 |
+
+Restricted to ligands inside Boltz-2's ≤56-heavy-atom training range (9 targets):
+retrieval 0.467 / 0.456 / 25.2 / 0.511; rerank 0.511 / 0.411 / 20.2 / 0.625.
+
+**What it shows.**
+
+1. **The retrieval score carries no usable signal inside its own top-50** —
+   AUROC 0.478, i.e. at or just below chance. It separates actives from decoys
+   across the whole library, then goes flat. That is a specific, useful failure
+   mode to know about.
+2. **Boltz-2 does carry signal there** — AUROC 0.617, and it lifts the average
+   active up the list by ~7 places.
+3. **But it does not improve the very top.** P@10 goes *down* (0.410 → 0.350).
+   Better overall ordering, no better first ten — exactly the "AUROC up, P@k
+   flat" case the scoring script was written to distinguish.
+4. **Nothing is statistically significant** (paired over 10 targets, p = 0.27
+   to 0.92). This is a direction, not a result.
+
+**Three limits, and they are the reason to redo it.**
+
+- **Only 10 of 20 targets are usable.** The rest had shortlists that were almost
+  all actives, leaving nothing to rank.
+- **The shortlists are active-rich (27%)**, because targets were selected for
+  having ≥15 actives. A real campaign's top-50 holds one or two actives, which
+  is precisely where reranking has room to help. This design made the baseline
+  hard to beat for the wrong reason.
+- **n = 10 targets** cannot support a significance claim either way.
+
+**The redo that would settle it:** 40–60 targets chosen for *sparse* shortlists
+(1–3 actives in the top-50), which is both realistic and where the measurement
+has headroom. Same pipeline, same cost per complex.
 
 ## Falsifiability, agreed in advance
 
