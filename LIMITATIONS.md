@@ -214,6 +214,11 @@ before it is quoted.
 Multiple comparisons across models × layers × classes are corrected with
 Benjamini–Hochberg (step-up). Bootstrap confidence intervals resample **targets**,
 not molecules — pooling molecules across targets understates variance and
-changes what EF means. Where a table reports a mean without an interval, the
-interval is available from [`eval/metrics.py::bootstrap_ci`](eval/metrics.py)
-but was not run for that cell.
+changes what EF means.
+
+Intervals now exist for the whole main table
+([`results/T3_main_ci.csv`](results/T3_main_ci.csv)) and they carry a warning:
+**at L4 the top four models' intervals overlap almost entirely**, so their
+ordering is not resolvable. Quote the decay within a model, and the gap between
+the strong group and the weak one; do not quote "model A beats model B at L4".
+L3 (48 targets) should not be used for model comparison at all.

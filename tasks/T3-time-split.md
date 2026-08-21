@@ -142,6 +142,35 @@ infeasible; docking is possible but only worth doing on a subset.
 
 ---
 
+## Confidence intervals — the L4 ordering is not resolvable
+
+Target-level bootstrap, 2,000 resamples, EF1%
+([`../timesplit/analysis/bootstrap_t3.py`](../timesplit/analysis/bootstrap_t3.py),
+full table in [`../results/T3_main_ci.csv`](../results/T3_main_ci.csv)):
+
+| Model | L1 | L4 |
+|---|---|---|
+| LigUnity-protein | 39.18 [37.58, 40.84] | 8.83 [6.86, 10.95] |
+| HypSeek `_rk` | 36.63 [34.82, 38.33] | 7.34 [5.60, 9.19] |
+| LigUnity-pocket | 35.24 [33.29, 37.16] | 8.39 [6.54, 10.39] |
+| LiTENCLIP | 32.37 [30.35, 34.25] | 8.46 [6.65, 10.34] |
+| BindCLIP-randneg | 19.12 [17.28, 21.00] | 5.68 [4.23, 7.18] |
+| DrugCLIP | 18.80 [16.96, 20.67] | 6.78 [5.26, 8.37] |
+| ConGLUDe | 13.63 [12.02, 15.37] | 3.87 [2.76, 5.11] |
+| ConPLex | 7.66 [6.56, 8.82] | 2.04 [1.42, 2.73] |
+
+**At L1 the two training-data tiers separate cleanly** — the PocketAffDB group
+(32–39) and the DrugCLIP group (17–19) do not come close to overlapping.
+
+**At L4 they do not.** The top four models' intervals overlap almost completely
+(6.9–11.0 vs 5.6–9.2 vs 6.5–10.4 vs 6.7–10.3), and DrugCLIP's interval overlaps
+all of them. Ranking models by their L4 point estimates is not supported by the
+data; what *is* supported is the size of the drop within each model, and the
+separation between the strong group and ConGLUDe/ConPLex.
+
+L3 is worse still (48 targets, intervals ±4–5 EF units) and should not be used
+for model comparison at all.
+
 ## Robustness check added after the fact — contamination
 
 The time split does not guarantee novelty: 20.9% of L1's (target, ligand) pairs
