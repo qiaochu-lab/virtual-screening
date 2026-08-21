@@ -47,9 +47,12 @@ BEDROC (screening) and `_rk` selected on FEP (ranking). Only `_rk` is public, so
 that is what was evaluated. This is itself evidence for T2's premise: the authors
 found one weight could not do both jobs well.
 
-Using `_rk` is also what makes one T2 result interpretable — a checkpoint chosen
-*specifically for ranking* still gives Spearman +0.028 on T3, which rules out
-"they just didn't optimise for ranking" as the explanation.
+Using `_rk` also turns out to matter: it is **the best ranker in the benchmark**
+(T3 Spearman +0.260 at L1, ahead of LigUnity-protein's +0.230 and DrugCLIP's
++0.091) *and* the best screener on all three standard benchmarks. An earlier
+version of this file said the opposite — that the ranking weight gave only
++0.028 — which was a bug in our analysis code, not a property of the checkpoint
+([`PATCHES.md`](PATCHES.md)).
 
 **LigUnity publishes more variants than were used.** `_vs` (evaluated), plus
 `_0.3` and `_0.8`, which filter the training set by sequence distance to the test

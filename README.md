@@ -17,7 +17,7 @@ what question it asks, what data it uses, how it was run, and what came out.
 | Task | Question | Status | Doc |
 |---|---|---|---|
 | **T1** Enrichment | Do published enrichment numbers reproduce on standard benchmarks? | 7 of 9 models | [T1](tasks/T1-enrichment.md) |
-| **T2** Affinity ranking | Can these models rank binding strength, not just separate binders from non-binders? | ✅ answered — **no, across chemical series** | [T2](tasks/T2-affinity-ranking.md) 🔬 |
+| **T2** Affinity ranking | Can these models rank binding strength, not just separate binders from non-binders? | ✅ answered — **weakly, and it decays with novelty** | [T2](tasks/T2-affinity-ranking.md) 🔬 |
 | **T3** Time-split | Do they generalise to targets that appeared after training? | ✅ main result, 9 models × 4 layers | [T3](tasks/T3-time-split.md) |
 | **T4** Target fishing | Run retrieval backwards: molecule → target | not started (deprioritised) | [T4](tasks/T4-target-fishing.md) |
 | **T5** Structure robustness | Do the conclusions survive changing structure source and pocket definition? | ✅ two controls done | [T5](tasks/T5-structure-robustness.md) 🔬 |
@@ -40,12 +40,15 @@ what question it asks, what data it uses, how it was run, and what came out.
    nearly identical. This is a property of the method class, not of any one
    model. → [T3](tasks/T3-time-split.md)
 
-2. **Ranking ability depends on chemical-series composition, not target
-   familiarity.** On FEP benchmarks (congeneric analogues) Spearman ≈ +0.4; on
-   T3 (cross-database chemistry) ≈ 0. A paired test on the *same 14 targets*
-   gives +0.413 vs −0.004, p = 0.0001 — which rules out "the model knows these
-   targets" and points at the data. The models learn local SAR, not absolute
-   binding strength. → [T2](tasks/T2-affinity-ranking.md)
+2. **Affinity ranking is weak but real, and it decays like enrichment does.**
+   Per-target Spearman on post-cutoff data runs +0.09 to +0.26 at L1 and falls to
+   +0.02 to +0.10 at L4; on congeneric FEP benchmarks it is ≈ +0.4, and on the
+   14 targets shared by both the two are statistically indistinguishable
+   (+0.41 vs +0.29, p = 0.27). The checkpoint selected upstream *for ranking*
+   (HypSeek `_rk`) leads every layer. ⚠️ An earlier version of this README
+   reported ranking as **zero** on T3 — that was a molecule-ordering bug in our
+   analysis code, documented in [`PATCHES.md`](PATCHES.md).
+   → [T2](tasks/T2-affinity-ranking.md)
 
 3. **Model ranking reverses by target class.** Sequence-only models win on
    kinases; geometry-aware models win on other enzymes. Reporting only the

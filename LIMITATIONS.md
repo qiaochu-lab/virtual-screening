@@ -31,13 +31,13 @@ L1 per model, roughly a third of them):
 
 | Model | L1 EF1% before → after | L1→L4 decay before → after |
 |---|---|---|
-| DrugCLIP | 18.80 → 18.99 | −63.9% → **−64.3%** |
-| BindCLIP-randneg | 19.12 → 19.28 | −70.3% → −70.5% |
-| BindCLIP-hardneg | 17.81 → 17.78 | −66.3% → −66.2% |
-| LigUnity-pocket | 35.24 → 35.97 | −76.2% → −76.7% |
-| LigUnity-protein | 39.18 → 39.90 | −77.4% → −77.9% |
-| LiTENCLIP | 32.37 → 32.86 | −73.9% → −74.3% |
-| HypSeek `_rk` | 36.63 → 37.53 | −80.0% → −80.4% |
+| DrugCLIP | 18.80 → 19.25 | −63.9% → **−64.7%** |
+| BindCLIP-randneg | 19.12 → 19.31 | −70.3% → −70.6% |
+| BindCLIP-hardneg | 17.81 → 17.84 | −66.3% → −65.8% |
+| LigUnity-pocket | 35.24 → 36.35 | −76.2% → −77.6% |
+| LigUnity-protein | 39.18 → 40.31 | −77.4% → −78.7% |
+| LiTENCLIP | 32.37 → 33.10 | −73.9% → −75.0% |
+| HypSeek `_rk` | 36.63 → 37.90 | −80.0% → −80.9% |
 | ConGLUDe | 13.63 → **12.99** | −71.6% → **−70.2%** |
 | ConPLex | 7.66 → **6.67** | −73.3% → **−69.4%** |
 
@@ -192,7 +192,24 @@ therefore systematically absent or truncated to a binding domain. Truncation was
 validated against annotated binding sites (0% of truncations miss the site after
 the fix), but a truncated protein is still not the full protein.
 
-## 15. Statistical practice
+## 15. One analysis bug reached the README before it was caught
+
+Every analysis that joined the score arrays to *external* per-molecule data —
+affinities, assay types, contamination flags — used the wrong molecule order for
+seven of nine models, because LMDB cursor order is lexicographic and we read by
+numeric index. It produced a headline claim ("ranking ability is zero on T3")
+that was withdrawn on 2026-08-21. Details, and the check that now guards it, in
+[`PATCHES.md`](PATCHES.md).
+
+Metrics computed from `(scores, labels)` alone — T1, T3 and T5 in their entirety
+— are unaffected, since both arrays come from the model in the same order.
+
+**Standing implication for a reviewer:** treat any number that joins model output
+to an external per-molecule attribute as needing the ordering check
+([`timesplit/analysis/verify_order.py`](timesplit/analysis/verify_order.py))
+before it is quoted.
+
+## 16. Statistical practice
 
 Multiple comparisons across models × layers × classes are corrected with
 Benjamini–Hochberg (step-up). Bootstrap confidence intervals resample **targets**,

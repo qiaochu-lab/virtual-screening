@@ -48,26 +48,55 @@ python physics/score_fep.py                             # on FEP data
 python physics/fep_compare_physics.py                   # vs the physics reference
 ```
 
+## ⚠️ These numbers were corrected on 2026-08-21
+
+An earlier version of this document reported that ranking ability on T3 was
+**zero** for every model, and that a paired test proved ranking survives only
+within a congeneric series. **Both claims were artifacts of a molecule-ordering
+bug in our own analysis code**, not properties of the models. The bug, how it was
+caught, and what it did are in [`PATCHES.md`](../PATCHES.md); the corrected
+numbers are below, and the old (wrong) column is kept in
+[`results/T2_on_T3.csv`](../results/T2_on_T3.csv) as `spearman_old_misaligned`
+so the size of the correction is auditable.
+
 ## Results
 
-### On T3 data — essentially zero for everyone
+### On T3 data — weak but real, and it decays like enrichment does
 
-| Model | L1 | L2 | L3 | L4 |
-|---|---|---|---|---|
-| DrugCLIP | −0.011 | +0.008 | +0.036 | +0.004 |
-| LigUnity-protein | +0.021 | +0.023 | — | — |
-| **HypSeek `_rk`** (ranking-optimised!) | **+0.028** | +0.023 | +0.003 | +0.030 |
-| ConGLUDe | +0.129 | +0.026 | +0.047 | +0.056 |
-| ConPLex | +0.065 | −0.002 | +0.036 | +0.004 |
+Per-target Spearman between model score and measured pAffinity, averaged over
+targets ([`timesplit/analysis/score_t2_v2.py`](../timesplit/analysis/score_t2_v2.py)):
 
-Fraction of targets with ρ>0 is 48–53% — coin-flip. Full table:
-[`results/T2_on_T3.csv`](../results/T2_on_T3.csv).
+| Model | L1 | L2 | L3 | L4 | ρ>0 at L1 |
+|---|---|---|---|---|---|
+| **HypSeek `_rk`** | **+0.260** | **+0.114** | **+0.118** | **+0.096** | 79% |
+| LigUnity-protein | +0.230 | +0.105 | +0.062 | +0.089 | 79% |
+| LigUnity-pocket | +0.215 | +0.103 | +0.089 | +0.055 | 73% |
+| LiTENCLIP | +0.171 | +0.051 | +0.044 | +0.053 | 70% |
+| ConGLUDe | +0.129 | +0.026 | +0.047 | +0.056 | 70% |
+| BindCLIP-randneg | +0.119 | +0.048 | −0.048 | +0.023 | 66% |
+| BindCLIP-hardneg | +0.112 | +0.026 | +0.034 | +0.052 | 66% |
+| DrugCLIP | +0.091 | +0.032 | +0.040 | +0.015 | 64% |
+| ConPLex | +0.065 | −0.002 | +0.036 | +0.004 | 54% |
 
-**Not a data artefact:** measured affinity spans a median of 2.3–3.0 log units
-per target (200–1000× between weakest and strongest active); restricting to
-targets with span ≥2 changes nothing.
+Standard errors are ±0.015–0.044; the L1 column is comfortably non-zero for
+every structure model, and 64–79% of individual targets have the right sign
+against a 50% baseline.
 
-### On FEP data — clearly non-zero
+**Three things this says:**
+
+1. **Ranking ability decays across layers, like enrichment.** HypSeek falls
+   +0.260 → +0.096, LigUnity-protein +0.230 → +0.089. The novel-target penalty
+   applies to both capabilities, which is a stronger version of T3's finding than
+   we had before.
+2. **The checkpoint selected for ranking is the best ranker.** HypSeek's `_rk`
+   weight — chosen upstream on a FEP validation set — leads every layer. Earlier
+   this document claimed the opposite; that claim came from the buggy path.
+3. **Models trained on affinity-labelled data rank better.** The PocketAffDB
+   group (HypSeek, LigUnity ×2, LiTENCLIP: +0.17 to +0.26 at L1) separates
+   cleanly from the DrugCLIP-data group (+0.09 to +0.12), matching the pattern
+   already seen in enrichment.
+
+### On FEP data
 
 | Model | Spearman | Pearson | Systems with correct direction |
 |---|---|---|---|
@@ -75,63 +104,67 @@ targets with span ≥2 changes nothing.
 | LigUnity-pocket | +0.392 | +0.434 | 13/16 |
 | LiTENCLIP | +0.276 | +0.247 | 13/16 |
 
-Per-system: [`results/T2_on_FEP.csv`](../results/T2_on_FEP.csv).
+Per-system: [`results/T2_on_FEP.csv`](../results/T2_on_FEP.csv). These were never
+affected by the bug — the FEP path stores one array per system in a defined
+order.
 
-### On CASF-2016 — non-zero, and it complicates the story
+### On CASF-2016
 
-CASF-2016 sits between the other two: same target, but the five ligands per
-cluster are **different scaffolds**. Scored from the paired pocket/ligand
-embeddings ([`timesplit/analysis/score_casf.py`](../timesplit/analysis/score_casf.py)):
+Same target, five **different scaffolds** per cluster
+([`timesplit/analysis/score_casf.py`](../timesplit/analysis/score_casf.py)):
 
-| Model | scoring power (ρ over 285) | Pearson r | **ranking power** (mean ρ within target) | targets |
+| Model | scoring power (ρ over 285) | Pearson r | ranking power (mean ρ within target) | targets |
 |---|---|---|---|---|
 | LigUnity-pocket | 0.360 | 0.316 | **0.424** | 55 |
 | LigUnity-protein | 0.221 | 0.193 | 0.282 | 55 |
 
-**This does not fit "cross-scaffold ⇒ zero".** Different scaffolds within one
-target, and ranking power is as high as on the congeneric FEP series. So scaffold
-diversity alone cannot be what kills ranking on T3.
+⚠️ CASF complexes come from PDBbind, which overlaps these models' training data,
+and the field selects checkpoints on CASF — so this is close to in-distribution.
+Five ligands per cluster also makes each per-target Spearman coarse.
 
-⚠️ Three reasons not to over-read it: CASF complexes come from PDBbind, which
-overlaps these models' training data, so this is close to in-distribution;
-upstream authors select checkpoints on CASF (HypSeek's `_vs` weight is chosen on
-CASF BEDROC), so it is a tuning set for the field; and five ligands per cluster
-makes each per-target Spearman very coarse.
+### The paired test, redone
 
-**What it points at.** With scaffold diversity ruled out as a sufficient
-explanation, the remaining difference between CASF/FEP and T3 is **label
-quality**: CASF and FEP affinities are curated and internally consistent, while
-T3 pools Ki / Kd / IC50 / EC50 across labs and assay formats. That is directly
-testable without a GPU — restrict T3 to one assay type and one source, re-score
-from the stored predictions, and see whether the correlation moves. Not yet done.
+Same 14 targets present in **both** FEP and T3, T3 side now aligned by molecule
+identity ([`timesplit/analysis/fep_vs_t3_v2.py`](../timesplit/analysis/fep_vs_t3_v2.py)):
 
-### The two extremes are reconciled by a paired test
-
-Same 14 targets present in **both** datasets, same model:
-
-| Model | FEP data | T3 data | paired p |
+| Model | FEP data | T3 data | paired Wilcoxon |
 |---|---|---|---|
-| LigUnity-pocket | **+0.391** | **−0.055** | 0.0012 |
-| LigUnity-protein | **+0.413** | **−0.004** | 0.0001 |
+| LigUnity-pocket | +0.391 | **+0.289** | p = 0.33 |
+| LigUnity-protein | +0.413 | **+0.290** | p = 0.27 |
 
-Identical targets (thrombin, mcl1, cdk2, bace…), different ligand sets: ρ drops
-from 0.4 to 0. **Target familiarity is ruled out** — the difference comes from
-ligand composition.
+**No significant difference.** The earlier version of this table read +0.391 vs
+−0.055 (p = 0.0012) and was the basis for claiming that ranking collapses across
+chemical series. That conclusion is withdrawn: on the same targets, T3 ligands
+rank about as well as congeneric FEP ligands.
 
-### Conclusion (corrected)
+### Is it label noise?
 
-> Within a **single chemical series**, these models have moderate ranking
-> ability (ρ ≈ 0.4). Across series and across data sources, ranking ability
-> **vanishes**.
+T3 pools Ki / Kd / IC50 / EC50 across labs, so we tested whether cleaning the
+labels raises the correlation
+([`timesplit/analysis/t2_label_quality.py`](../timesplit/analysis/t2_label_quality.py)):
+all actives → only the target's dominant assay type → only its single largest
+`assay_id` (one experiment, one lab).
 
-They have learned **local structure–activity relationships** — whether adding
-this fluorine helps — not absolute binding strength across scaffolds.
+| Model | Layer | all | one assay type | one assay |
+|---|---|---|---|---|
+| LigUnity-protein | L1 | 0.171 | 0.216 | 0.095 |
+| LigUnity-protein | L4 | 0.082 | 0.136 | 0.124 |
+| LiTENCLIP | L1 | 0.138 | 0.137 | 0.048 |
+| ConGLUDe | L1 | 0.129 | 0.110 | 0.050 |
 
-**Two natural rescues were tested and both failed:**
-- Not a training-objective problem — HypSeek's `_rk` weight is selected
-  specifically on ranking, and still gives +0.028 on T3
-- Not a geometry problem — HypSeek uses hyperbolic space (the only non-Euclidean
-  model here), tops every AUROC layer, and still ranks at zero
+**No monotone improvement.** Restricting to one assay type helps slightly at
+times, and the single-assay tier is worse — but it also has a median of 9–16
+ligands per target, where Spearman is very noisy. Label heterogeneity is not the
+main driver.
+
+### What the corrected picture looks like
+
+> These models **do** rank affinity, weakly. On post-cutoff targets the
+> correlation is ρ ≈ 0.1–0.26 and decays with target novelty; on curated
+> congeneric benchmarks it is ρ ≈ 0.4. On the shared targets the two are
+> statistically indistinguishable. Meanwhile a co-folding model with an affinity
+> head reaches ρ = 0.615 on the same FEP ligands — **the gap between retrieval
+> and physics is quantitative, not categorical.**
 
 ## Open decision
 

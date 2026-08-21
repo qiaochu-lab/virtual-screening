@@ -12,24 +12,35 @@ in flight.
 
 ---
 
-## The premise is established, not assumed
+## The premise, restated after a correction
 
-The motivating claim — retrieval models cannot rank affinity — was tested hard
-before building anything on it. Two obvious rescues were ruled out:
+This task was set up on the claim that retrieval models cannot rank affinity at
+all. **That claim was wrong** — it came from a molecule-ordering bug in our T2
+analysis code (see [`PATCHES.md`](../PATCHES.md)). Corrected, the models do rank,
+weakly:
 
-| Rescue | Test | Result |
-|---|---|---|
-| "It's the training objective" | HypSeek `_rk`, a checkpoint selected on a FEP validation set specifically for ranking | Spearman **+0.028** on T3 — same as the screening-optimised weight |
-| "It's the geometry" | HypSeek uses hyperbolic rather than Euclidean embedding space | Best screening AUROC of all nine models (0.923 L1 / 0.710 L4), ranking still zero |
+| | Spearman |
+|---|---|
+| Retrieval models on post-cutoff targets (L1 → L4) | +0.09…+0.26 → +0.02…+0.10 |
+| Retrieval models on congeneric FEP series | +0.28…+0.40 |
+| **Boltz-2 on the same FEP ligands** | **+0.615** |
 
-Changing the objective doesn't fix it. Changing the geometry doesn't fix it.
-That is what turns "we could try physics" into "there is a specific gap physics
-might fill".
+Two things the correction changed and one it did not:
 
-**Refined premise** (see [T2](T2-affinity-ranking.md)): the models rank *within*
-a chemical series (ρ ≈ 0.4 on FEP benchmarks) and not at all *across* series
-(ρ ≈ 0 on T3). So T6's question sharpens to: **is physics better across series,
-where retrieval fails completely?**
+- **Changed:** "the training objective is not the problem" is now false — the
+  checkpoint selected for ranking (HypSeek `_rk`) *is* the best ranker at every
+  layer, +0.260 at L1 against DrugCLIP's +0.091.
+- **Changed:** "ranking collapses across chemical series" is withdrawn. On the
+  14 targets present in both datasets, T3 and FEP ranking are statistically
+  indistinguishable (+0.29 vs +0.41, p = 0.27).
+- **Unchanged:** the physics side is still clearly ahead. Boltz-2's +0.615 on the
+  FEP set is roughly 1.6× the best retrieval model on the same ligands, and its
+  Kendall τ of 0.474 sits next to a published free-energy method's 0.503.
+
+So T6's question survives in a sharper form: **the gap is quantitative, not
+categorical** — which makes "does physics rerank the top of a retrieval list
+usefully?" the experiment that matters, rather than "can physics do something
+retrieval fundamentally cannot?".
 
 ## Evidence so far — Boltz-2 has affinity signal
 

@@ -103,6 +103,50 @@ See [`env/`](env/).
 
 ## Part 2 — bugs in our own code
 
+### The one that reached the README
+
+**Molecule order in the LMDB is lexicographic, not numeric — and every analysis
+that joined external per-molecule data got it wrong.**
+
+`build_t3_unimol.py` writes ligands into LMDB with `str(i)` as the key. The model
+side reads them back **by cursor**, and a cursor over string keys returns
+`0, 1, 10, 100, 1000, …`. Our analysis scripts read the same LMDB **by numeric
+index**, so from the model's row *k* we recovered a different molecule.
+
+It only affects analyses that join the score array to something outside it —
+affinity values, assay types, contamination flags. Metrics computed from
+`(scores, labels)` alone — EF, BEDROC, AUROC, everything in T1/T3/T5 — are
+untouched, because both arrays come from the model in the same order.
+
+**What it produced:** T2 read as ρ ≈ 0 on T3 for all seven UniMol-family models,
+and a paired test appeared to show ranking collapsing from +0.41 to −0.00
+(p = 0.0001) between congeneric and cross-database ligands. Corrected: ρ = +0.09
+to +0.26 at L1, and the paired difference is +0.41 vs +0.29 at p = 0.27 — no
+significant difference at all.
+
+**How it was caught.** Not by review — by a consistency check written for a
+different purpose. While preparing the rerank shortlists, the number of actives
+in the top 50 was computed two ways: from the model's own label array (269) and
+from our molecule mapping (36). A 7× disagreement in a quantity that should be
+identical.
+
+**The tell that was ignored for weeks:** ConGLUDe had the highest T3 ranking
+correlation of any model (+0.129 when structure models sat at 0.00–0.03), and
+ConGLUDe is the one model whose runner iterates the eval JSONL directly instead
+of reading the LMDB. An unexplained winner that differs from the pack in exactly
+one implementation detail is worth a look.
+
+**The check that now exists:**
+[`timesplit/analysis/verify_order.py`](timesplit/analysis/verify_order.py)
+compares active positions derived from SMILES against the model's label array
+and reports agreement — 99.8% under cursor order, ~10% under numeric order. Any
+script that joins per-molecule data should be run behind it.
+
+A second, smaller bug lived in the same code: actives were identified by matching
+SMILES *strings* against the eval set. LMDB SMILES come from the conformer cache
+and are canonicalised differently, so the match silently failed. Identity now
+goes through the model's own label array, and chemistry through InChIKey.
+
 ### Two that produced a wrong conclusion
 
 **BH-FDR applied per row instead of as a step-up procedure.** Correcting each
