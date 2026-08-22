@@ -16,7 +16,7 @@ what question it asks, what data it uses, how it was run, and what came out.
 
 | Task | Question | Status | Doc |
 |---|---|---|---|
-| **T1** Enrichment | Do published enrichment numbers reproduce on standard benchmarks? | 7 of 9 models | [T1](tasks/T1-enrichment.md) |
+| **T1** Enrichment | Do published enrichment numbers reproduce on standard benchmarks? | ✅ 9 models × DUD-E/DEKOIS; 2 cells queued | [T1](tasks/T1-enrichment.md) |
 | **T2** Affinity ranking | Can these models rank binding strength, not just separate binders from non-binders? | ✅ answered — **weakly, and it decays with novelty** | [T2](tasks/T2-affinity-ranking.md) 🔬 |
 | **T3** Time-split | Do they generalise to targets that appeared after training? | ✅ main result, 9 models × 4 layers | [T3](tasks/T3-time-split.md) |
 | **T4** Target fishing | Run retrieval backwards: molecule → target | not started (deprioritised) | [T4](tasks/T4-target-fishing.md) |
@@ -100,6 +100,7 @@ physics/       🔬 FEP benchmark and Boltz-2 — the physics arm behind T2 and 
 eval/          unified metric layer (80 tests)
 env/           per-model environment construction, with the version traps
 results/       machine-readable CSVs
+├── T1_main.csv              9 models × 3 standard benchmarks × 4 metrics
 ├── T3_main.csv              9 models × 4 layers × 5 metrics
 ├── T3_targets.csv           per-target detail (class, layer, structure source)
 ├── T2_on_T3.csv             affinity ranking on time-split data

@@ -121,7 +121,7 @@ nothing about cross-series ranking; Boltz-2's affinity head was trained on
 public affinity data whose overlap with these classic systems is not
 characterised; and BACE at −0.081 shows the failure is not graceful when it comes.
 
-## Cascade rerank — run, and the answer is "not yet"
+## Cascade rerank — run twice, no effect measured either time
 
 | Mode | How | Cost |
 |---|---|---|
@@ -129,49 +129,71 @@ characterised; and BACE at −0.081 shows the failure is not graceful when it co
 | **cascade rerank** | retrieval takes top-N → physics reorders | **low — only top-N** |
 | rank fusion | weighted merge of both rankings | trivial — scores already on disk |
 
-**The experiment.** 20 L4 targets (unseen after the cutoff), chosen for
-structure quality A/B and spread across target classes; LigUnity-protein's
-**top-50** per target; Boltz-2 affinity on all 981 complexes, 977 returned
-(99.6%). MSAs were reused from the T3 structure run, so no MSA-server calls.
-Scored inside the shortlist only ([`../physics/score_rerank.py`](../physics/score_rerank.py),
-per-target CSV [`../results/T6_rerank.csv`](../results/T6_rerank.csv)):
+**The ceiling nobody measured first.** Reranking can only reorder what the
+shortlist already contains, so recall@N *is* the cascade's upper bound. Measured
+after the fact ([`../physics/shortlist_recall.py`](../physics/shortlist_recall.py),
+LigUnity-protein):
+
+| Layer | median actives | **recall@50** | recall@200 | recall@500 |
+|---|---|---|---|---|
+| L1 | 24 | **64.1%** | 79.5% | 88.8% |
+| L2 | 68 | 36.1% | 56.3% | 70.6% |
+| L3 | 37 | 32.3% | 48.8% | 63.3% |
+| **L4** | 47 | **17.5%** | 34.0% | 50.9% |
+
+Both experiments ran on **L4 — the layer with the lowest ceiling**. A top-50
+shortlist there holds about 8 of a median 47 actives; 82% were never eligible
+for reranking. That is a design error, and it is the main reason to redo this on
+L1/L2 rather than to conclude anything.
+
+**Run 1** (20 targets chosen for having ≥15 actives → shortlists 27% active,
+10 usable): P@5 0.420 → 0.440, P@10 0.410 → 0.350, AUROC 0.478 → 0.617.
+Baseline too strong for the wrong reason; superseded.
+
+**Run 2** (19 targets with 1–6 actives in the top-50 → 5.8% active, 15 usable,
+937/941 complexes scored):
 
 | Ordering | P@5 | P@10 | mean rank of actives | AUROC in shortlist |
 |---|---|---|---|---|
-| retrieval (baseline) | 0.420 | 0.410 | 27.7 | **0.478** |
-| Boltz-2 rerank | 0.440 | 0.350 | **20.9** | **0.617** |
-| rank fusion | 0.420 | 0.430 | 24.6 | 0.550 |
+| retrieval (baseline) | **0.093** | **0.087** | 27.5 | 0.446 |
+| Boltz-2 rerank | 0.053 | 0.067 | **24.1** | **0.523** |
+| rank fusion | 0.080 | 0.047 | 26.3 | 0.472 |
 
-Restricted to ligands inside Boltz-2's ≤56-heavy-atom training range (9 targets):
-retrieval 0.467 / 0.456 / 25.2 / 0.511; rerank 0.511 / 0.411 / 20.2 / 0.625.
+Paired over targets: rerank vs baseline P@5 −0.040 (p=0.52), P@10 −0.020
+(p=0.58), AUROC +0.077 (p=0.45). Restricting to ligands inside Boltz-2's
+≤56-heavy-atom training range (14 targets) does not change the picture.
 
-**What it shows.**
+**What can and cannot be said.**
 
-1. **The retrieval score carries no usable signal inside its own top-50** —
-   AUROC 0.478, i.e. at or just below chance. It separates actives from decoys
-   across the whole library, then goes flat. That is a specific, useful failure
-   mode to know about.
-2. **Boltz-2 does carry signal there** — AUROC 0.617, and it lifts the average
-   active up the list by ~7 places.
-3. **But it does not improve the very top.** P@10 goes *down* (0.410 → 0.350).
-   Better overall ordering, no better first ten — exactly the "AUROC up, P@k
-   flat" case the scoring script was written to distinguish.
-4. **Nothing is statistically significant** (paired over 10 targets, p = 0.27
-   to 0.92). This is a direction, not a result.
+- **The retrieval score is uninformative inside its own top-50** — AUROC 0.446,
+  at or below chance. It enriches across the library, then goes flat. This is a
+  clean, reusable finding, and it is why reranking looked promising.
+- **Boltz-2 does carry signal there** (0.523–0.617 across the two runs) and lifts
+  the average active a few places.
+- **Neither run improved the top of the list**, which is what a screening
+  campaign acts on.
+- **Nothing is significant**, and with 1–6 actives per shortlist, P@5 can only
+  take values 0, 0.2, 0.4 — the measurement is coarse before it is anything
+  else. "No effect measured" is not "no effect exists".
+- **Rank fusion sits between the two arms rather than above them**, so on this
+  data the two error modes are not complementary in the way T6 assumed.
 
-**Three limits, and they are the reason to redo it.**
+**Next: the L1/L2 contrast (in progress).** It separates two very different
+conclusions — *the approach does not work* versus *the approach fails on novel
+targets with predicted structures*. L1 is the right place to test it: recall@50
+is 64.1%, and shortlists there are dense enough for P@k to move.
 
-- **Only 10 of 20 targets are usable.** The rest had shortlists that were almost
-  all actives, leaving nothing to rank.
-- **The shortlists are active-rich (27%)**, because targets were selected for
-  having ≥15 actives. A real campaign's top-50 holds one or two actives, which
-  is precisely where reranking has room to help. This design made the baseline
-  hard to beat for the wrong reason.
-- **n = 10 targets** cannot support a significance claim either way.
+The blocker was that **L1/L2 have no MSAs** — the 934 we have were generated
+while predicting structures for targets that lacked crystals, i.e. L3/L4 only.
+Boltz-2 without an MSA falls back to single-sequence mode, which would confound
+structure quality with the thing being tested. Fixed by calling Boltz's own
+`compute_msa` directly for the 30 selected L1/L2 targets — MSA generation needs
+no GPU, so it runs while the cluster is busy
+([`../physics/warm_msa_l1l2.py`](../physics/warm_msa_l1l2.py)).
 
-**The redo that would settle it:** 40–60 targets chosen for *sparse* shortlists
-(1–3 actives in the top-50), which is both realistic and where the measurement
-has headroom. Same pipeline, same cost per complex.
+Also queued, in one scheduler that respects the 4-GPU limit
+([`../physics/queue_master.sh`](../physics/queue_master.sh)): SPRINT's remaining
+T1 benchmarks and a retry of SPRINT on T3 L1/L2.
 
 ## Falsifiability, agreed in advance
 
