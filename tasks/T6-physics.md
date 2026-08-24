@@ -151,7 +151,8 @@ L1/L2 rather than to conclude anything.
 Baseline too strong for the wrong reason; superseded.
 
 **Run 2** (19 targets with 1–6 actives in the top-50 → 5.8% active, 15 usable,
-937/941 complexes scored):
+937/941 complexes scored; per-target CSV
+[`../results/T6_rerank2.csv`](../results/T6_rerank2.csv)):
 
 | Ordering | P@5 | P@10 | mean rank of actives | AUROC in shortlist |
 |---|---|---|---|---|
