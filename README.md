@@ -21,7 +21,7 @@ what question it asks, what data it uses, how it was run, and what came out.
 | **T3** Time-split | Do they generalise to targets that appeared after training? | ✅ main result, 9 models × 4 layers | [T3](tasks/T3-time-split.md) |
 | **T4** Target fishing | Run retrieval backwards: molecule → target | not started (deprioritised) | [T4](tasks/T4-target-fishing.md) |
 | **T5** Structure robustness | Do the conclusions survive changing structure source and pocket definition? | ✅ two controls done | [T5](tasks/T5-structure-robustness.md) 🔬 |
-| **T6** Physics complementarity | Can physics methods supply the ranking ability retrieval lacks? | ✅ first head-to-head done — **yes, and complementary** | [T6](tasks/T6-physics.md) 🔬 |
+| **T6** Physics complementarity | Can physics methods supply the ranking ability retrieval lacks? | ✅ ranking: yes (ρ 0.615 vs 0.40). ❌ cascade rerank: no benefit in any condition tested | [T6](tasks/T6-physics.md) 🔬 |
 
 🔬 = has a **"where physics fits"** section with concrete entry points.
 
@@ -59,7 +59,16 @@ what question it asks, what data it uses, how it was run, and what came out.
    significant difference (p = 0.28–0.74); moving the pocket cutoff from 6 Å to
    4 Å or 8 Å costs 31–75%, with 6 Å winning 12 of 12 cells. → [T5](tasks/T5-structure-robustness.md)
 
-5. **A co-folding model ranks affinity where retrieval cannot.** On the 16 FEP
+5. **A co-folding model ranks affinity well, but reranking a retrieval
+   shortlist with it does not help.** Three runs, two layers: on known targets
+   the retrieval score is informative inside its own top-50 (AUROC 0.806) and
+   Boltz-2 reranking *degrades* it (0.720); on novel targets the retrieval score
+   is at chance (0.446) and Boltz-2 is slightly better (0.523) but cannot move
+   the top of the list. Rank fusion never beat the better arm. Whether retrieval
+   scores are usable inside their own shortlist turns out to depend on target
+   familiarity — which is why testing one layer misled us. → [T6](tasks/T6-physics.md)
+
+6. **A co-folding model ranks affinity where retrieval cannot.** On the 16 FEP
    systems, same ligands and same metric, Boltz-2 reaches Spearman +0.615
    (Kendall τ 0.474, against a published free-energy method's 0.503) while the
    retrieval models sit at +0.28 to +0.40. It is not a clean sweep — retrieval
@@ -67,7 +76,7 @@ what question it asks, what data it uses, how it was run, and what came out.
    loses — which is what makes the two families worth combining rather than
    ranking. → [T6](tasks/T6-physics.md)
 
-6. **Training data explains performance tiers better than architecture.** The
+7. **Training data explains performance tiers better than architecture.** The
    three models trained on LigUnity's data all land at L1 EF1% 32–39; the three
    on DrugCLIP's data all land at 17–19 — across differences in retrieval
    augmentation and molecular encoder. → [T3](tasks/T3-time-split.md)

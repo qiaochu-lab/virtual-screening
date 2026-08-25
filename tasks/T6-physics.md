@@ -179,22 +179,43 @@ Paired over targets: rerank vs baseline P@5 −0.040 (p=0.52), P@10 −0.020
 - **Rank fusion sits between the two arms rather than above them**, so on this
   data the two error modes are not complementary in the way T6 assumed.
 
-**Next: the L1/L2 contrast (in progress).** It separates two very different
-conclusions — *the approach does not work* versus *the approach fails on novel
-targets with predicted structures*. L1 is the right place to test it: recall@50
-is 64.1%, and shortlists there are dense enough for P@k to move.
+**Run 3 — the L1/L2 contrast, and it inverts the picture.** 12 targets on
+known proteins with crystal structures, same top-50, same three arms, 749/749
+complexes scored ([`../results/T6_rerank3.csv`](../results/T6_rerank3.csv)):
 
-The blocker was that **L1/L2 have no MSAs** — the 934 we have were generated
-while predicting structures for targets that lacked crystals, i.e. L3/L4 only.
-Boltz-2 without an MSA falls back to single-sequence mode, which would confound
-structure quality with the thing being tested. Fixed by calling Boltz's own
-`compute_msa` directly for the 30 selected L1/L2 targets — MSA generation needs
-no GPU, so it runs while the cluster is busy
-([`../physics/warm_msa_l1l2.py`](../physics/warm_msa_l1l2.py)).
+| Ordering | P@5 | P@10 | mean rank | AUROC in shortlist |
+|---|---|---|---|---|
+| retrieval (baseline) | **0.533** | **0.333** | 11.8 | **0.806** |
+| Boltz-2 rerank | 0.333 | 0.225 | 15.5 | 0.720 |
+| rank fusion | 0.433 | 0.308 | **11.0** | **0.822** |
 
-Also queued, in one scheduler that respects the 4-GPU limit
-([`../physics/queue_master.sh`](../physics/queue_master.sh)): SPRINT's remaining
-T1 benchmarks and a retry of SPRINT on T3 L1/L2.
+Side by side with run 2 (L4, novel targets, largely predicted structures):
+
+| | retrieval AUROC in shortlist | Boltz-2 AUROC | rerank helps? |
+|---|---|---|---|
+| **L1/L2** (known targets, crystals) | **0.806** | 0.720 | **no — it degrades** |
+| **L4** (novel targets, predicted) | 0.446 | 0.523 | no — AUROC up, top-k flat |
+
+**What the contrast settles.** The original question was whether cascade rerank
+fails as an idea or only under novel-target conditions. The answer is neither:
+
+1. **Whether the retrieval score is informative inside its own shortlist depends
+   on target familiarity** — 0.806 on known targets, 0.446 (chance) on novel
+   ones. Reading the L4 number alone as a property of retrieval models, as an
+   earlier version of this document did, was an artifact of testing one layer.
+2. **Boltz-2's discrimination is comparatively stable** (0.720 vs 0.523) but
+   loses to the baseline where the baseline is good, and cannot lift the top of
+   the list where the baseline is bad.
+3. **Rank fusion never beats the better arm** in any of the three runs. The two
+   families' errors are not complementary on this data, which is the opposite of
+   T6's premise.
+
+So: **reranking a retrieval model's top-50 with Boltz-2 gave no benefit under
+any condition we tested.** That is a stronger statement than run 2 supported,
+because "novel targets are just hard" is now excluded. It remains a statement
+about *this* pairing — one physics method, top-50 depth, this scoring — not
+about physics rescoring in general; the caveats in the previous section stand,
+and n = 12–15 targets keeps every p-value above 0.10.
 
 ## Falsifiability, agreed in advance
 

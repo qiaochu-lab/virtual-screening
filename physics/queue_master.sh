@@ -36,10 +36,22 @@ done_sprint_dude() { [ "$(ls $B/results/t1_raw/sprint/DUDE 2>/dev/null | wc -l)"
 done_sprint_pcba() { [ "$(ls $B/results/t1_raw/sprint/PCBA 2>/dev/null | wc -l)" -gt 5 ]; }
 done_sprint_t3()   { [ "$(ls $B/results/t3_raw/sprint/T3/L1 2>/dev/null | wc -l)" -gt 50 ]; }
 done_rerank2()     { [ "$(find $B/boltz_rerank3_out -name 'affinity_*.json' 2>/dev/null | wc -l)" -gt 100 ]; }
-msa_ready()        { [ "$(ls $B/data/t3/msa_l1l2/*_0.csv 2>/dev/null | wc -l)" -ge 25 ]; }
+msa_ready()        { [ "$(ls $B/data/t3/msa_l1l2/*.csv 2>/dev/null | wc -l)" -ge 25 ]; }
 
 running() { pgrep -u "$USER" -f "$1" > /dev/null; }
 
+declare -A TRIES
+try_ok() {   # $1=作业名；连试 3 次仍无产出就放弃，避免像上次那样重启上千遍
+  TRIES[$1]=$(( ${TRIES[$1]:-0} + 1 ))
+  if [ ${TRIES[$1]} -gt 3 ]; then
+    return 1
+  fi
+  return 0
+}
+# 注意：这个脚本必须用 setsid nohup 起，不要放 tmux。
+# tmux 的 socket 在 /tmp/tmux-1001，这台机器的 /tmp 清理程序会把它删掉，
+# tmux server 一死，会话里的调度就没了（已经踩过两次；
+# 同一个清理程序还啃掉过 scratchpad 里 git 仓库的 .git/HEAD）。
 say "总调度启动，红线 ${MAXGPU} 张卡，只用 4-7"
 
 for round in $(seq 1 2000); do
@@ -51,7 +63,7 @@ for round in $(seq 1 2000); do
   [ "$AVAIL" -gt "$BUDGET" ] && AVAIL=$BUDGET
 
   # ---- 1/2/3：SPRINT 三件，各 1 张卡 ----
-  if [ "$AVAIL" -ge 1 ] && ! done_sprint_dude && ! running "layers DUDE"; then
+  if [ "$AVAIL" -ge 1 ] && ! done_sprint_dude && ! running "layers DUDE" && try_ok sprint_dude; then
     g=${FREE[0]}
     say "SPRINT × DUD-E -> GPU $g"
     setsid nohup sh -c "ulimit -n 65535; cd $B && exec $PY run_t3_sprint.py --layers DUDE \
@@ -60,7 +72,7 @@ for round in $(seq 1 2000); do
       > $B/results/logs/sprint_T1_DUDE.log 2>&1 < /dev/null &
     sleep 90; continue
   fi
-  if [ "$AVAIL" -ge 1 ] && done_sprint_dude && ! done_sprint_pcba && ! running "layers PCBA"; then
+  if [ "$AVAIL" -ge 1 ] && done_sprint_dude && ! done_sprint_pcba && ! running "layers PCBA" && try_ok sprint_pcba; then
     g=${FREE[0]}
     say "SPRINT × LIT-PCBA -> GPU $g"
     setsid nohup sh -c "ulimit -n 65535; cd $B && exec $PY run_t3_sprint.py --layers PCBA \
@@ -69,7 +81,7 @@ for round in $(seq 1 2000); do
       > $B/results/logs/sprint_T1_PCBA.log 2>&1 < /dev/null &
     sleep 90; continue
   fi
-  if [ "$AVAIL" -ge 1 ] && ! done_sprint_t3 && ! running "layers L1 L2"; then
+  if [ "$AVAIL" -ge 1 ] && ! done_sprint_t3 && ! running "layers L1 L2" && try_ok sprint_t3; then
     g=${FREE[0]}
     say "SPRINT × T3 L1/L2 重试（ulimit 65535）-> GPU $g"
     setsid nohup sh -c "ulimit -n 65535; cd $B && exec $PY run_t3_sprint.py --layers L1 L2 \
@@ -93,7 +105,9 @@ for round in $(seq 1 2000); do
       for i in $(seq 0 $((n-1))); do
         g=${FREE[$i]}
         say "rerank3 shard_$i -> GPU $g"
-        setsid nohup sh -c "cd $B && exec /data/work/envs/boltz2/bin/boltz predict \
+        # 必须显式指定卡：boltz 只认 CUDA_VISIBLE_DEVICES，--devices 1 只是"用几张"，
+        # 不指定就全挤到 GPU 0（上一轮就是这么越界的）
+        setsid nohup sh -c "cd $B && CUDA_VISIBLE_DEVICES=$g exec /data/work/envs/boltz2/bin/boltz predict \
           $B/boltz_rerank3/shard_$i --out_dir $B/boltz_rerank3_out/shard_$i \
           --cache $B/boltz_cache --accelerator gpu --devices 1 --no_kernels \
           --diffusion_samples 1 --output_format pdb --num_workers 2" \
