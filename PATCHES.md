@@ -69,8 +69,33 @@ asserts the shape explicitly rather than trusting either source.
    column so the sniffer commits to tabs.
 3. **File-descriptor leak** — `transform()` creates a multiprocessing `Pool` per
    call, and PyTorch tensors cross the boundary as `DupFd`. Fixed by batching.
-4. **Unsolved:** at ~146,000 unique molecules (L1/L2) the loader still exhausts
-   shared memory. See [`LIMITATIONS.md`](LIMITATIONS.md) §7.
+4. **What looked unsolvable was three more bugs, two of them ours.** At ~146,000
+   molecules the run died with `Too many open files`, and this was recorded as a
+   scale limit. It was not:
+
+   - **Chunking had been silently disabled.** `run_embed`'s default read
+     `chunk=20000**9` — about 5×10³⁸ — so `len(rows) <= chunk` was always true
+     and the entire molecule set went to a single subprocess. Chunking is what
+     releases file descriptors (each chunk is its own process), so the leak ran
+     unbounded. Restored to 10,000.
+   - **`--num-workers 0` is the worst possible value here.** `featurizers.py`
+     reads `n_jobs if n_jobs > 0 else multiprocessing.cpu_count()`, so 0 means
+     *104 workers on this machine*, and every featurize call spawned and
+     destroyed 104 processes. Load average 8 with no progress for ten hours.
+     The earlier DEKOIS run worked because it passed 4. Now fixed at 8.
+   - **A cached feature shape mismatch.** A minority of entries come back as
+     `[1, 2048]` instead of `[2048]`, and `torch.stack` refuses to mix them.
+     They are the same vector; the collate function now squeezes the leading
+     axis.
+
+   The FD limit itself was also part of it — the machine's soft limit is 1024
+   against a hard limit of 1048576 — so the runner now raises its own limit at
+   import instead of depending on the launcher remembering `ulimit`.
+
+   Worth stating plainly: "SPRINT cannot scale past ~150k molecules" was our
+   conclusion for two weeks, and it was wrong in a way that cost a 20-hour run
+   producing nothing. A job that burns CPU while writing no output is not making
+   progress, and the feature cache's mtime would have shown that on day one.
 
 Also worth recording: SPRINT is **not** a sequence-only model. It consumes
 SaProt structure-aware sequences (amino acid + foldseek 3Di tokens), so it needs
