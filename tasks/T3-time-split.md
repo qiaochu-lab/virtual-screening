@@ -171,32 +171,60 @@ separation between the strong group and ConGLUDe/ConPLex.
 L3 is worse still (48 targets, intervals ±4–5 EF units) and should not be used
 for model comparison at all.
 
-## Robustness check added after the fact — contamination
+## Contamination: measured, removed, and now a first-class table
 
-The time split does not guarantee novelty: 20.9% of L1's (target, ligand) pairs
+The time split does not guarantee novelty — 20.9% of L1's (target, ligand) pairs
 already exist in the training set. Rather than caveat it, the contaminated
-actives were deleted and all nine models re-scored
-([`../timesplit/analysis/score_t3_clean.py`](../timesplit/analysis/score_t3_clean.py)).
+actives are deleted and every model re-scored. That table now ships alongside
+the main one ([`../results/T3_main_clean.csv`](../results/T3_main_clean.csv),
+produced by [`../timesplit/analysis/export_t3_clean.py`](../timesplit/analysis/export_t3_clean.py)),
+so the headline decay is a range rather than a point:
 
-**Seven of nine models get a *larger* decay after cleaning** (e.g. DrugCLIP
-−63.9% → −64.3%, HypSeek −80.0% → −80.4%) — the seen pairs were ranked slightly
-worse than average, not better. The two sequence-only models move the other way
-(ConPLex −73.3% → −69.4%), which is the direction contamination predicts, but by
-a few points rather than a category.
+| Model | decay, as measured | decay, contamination removed |
+|---|---|---|
+| HypSeek `_rk` | −80.0% | **−80.9%** |
+| LigUnity-protein | −77.4% | −78.7% |
+| LigUnity-pocket | −76.2% | −77.6% |
+| LiTENCLIP | −73.9% | −75.0% |
+| BindCLIP-randneg | −70.3% | −70.6% |
+| DrugCLIP | −63.9% | −64.7% |
+| ConGLUDe | −71.6% | −70.2% |
+| ConPLex | −73.3% | −69.4% |
+| SPRINT | −45.6% | −46.2% |
 
-Full table and interpretation: [`../LIMITATIONS.md`](../LIMITATIONS.md) §1.
+**Seven of nine models decay *more* after cleaning**, not less: the seen pairs
+were ranked slightly worse than average, so removing them lifts L1. Only the two
+weakest, sequence-based models move the way contamination would predict, and by
+a few points. L3 and L4 are identical in both columns — those layers have zero
+contaminated pairs, which is the built-in self-check that the filter works.
 
-Two implementation notes, since this kind of re-scoring is easy to get wrong:
+⚠️ **One口径 difference from a true rebuild.** We delete indices from the scored
+arrays rather than regenerate the eval set and re-run inference. Removing actives
+shifts the active:decoy ratio slightly away from 1:50, so EF's denominator moves
+a little. A genuine rebuild would require re-running all nine models; the cost is
+out of proportion to that difference, but the difference is real and is not
+being papered over.
 
-- **No inference was re-run.** Every model's per-molecule scores are on disk, so
-  cleaning is a matter of dropping indices and recomputing. This is why keeping
-  raw scores rather than aggregate metrics matters.
-- **Molecule order differs by model.** The UniMol family reads an LMDB built by
-  `build_t3_unimol.py`, which silently skips molecules with no conformer; the
-  other three iterate the eval JSONL directly. The script detects which ordering
-  matches the array length and **skips the target if neither does** rather than
-  guessing — mislabelling which molecule is contaminated would be worse than not
-  checking.
+## Pocket-atom cap: the one inconsistency we introduced, and it was harmless
+
+HypSeek was run on T3 with `--max-pocket-atoms 256` (to avoid an OOM at the
+time) while every other model, and HypSeek's own T1 runs, used 511. At 6 Å,
+**19.7% of pockets exceed 256 atoms** and get center-weighted random cropping —
+so a fifth of HypSeek's T3 targets were seen through a partially cropped pocket
+that no other model had to deal with.
+
+Re-run at 511 ([`../timesplit/runners/run_t3_hypseek_511.sh`](../timesplit/runners/run_t3_hypseek_511.sh)):
+
+| Layer | AUROC 256 → 511 | EF1% 256 → 511 |
+|---|---|---|
+| L1 | 0.923 → 0.924 | 36.63 → 36.84 |
+| L2 | 0.878 → 0.879 | 23.61 → 23.75 |
+| L3 | 0.770 → 0.767 | 13.56 → 13.35 |
+| L4 | 0.710 → 0.710 | 7.34 → 7.34 |
+
+**No material difference.** The inconsistency existed and is now closed by
+measurement rather than by argument; HypSeek's position in the tables does not
+depend on it.
 
 ## Code
 

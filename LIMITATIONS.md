@@ -176,6 +176,11 @@ indicative of magnitude and must not be cited as "FEP+ results".
 | LiTENCLIP | one weight (`bedroc_0.50`) | a `bedroc_0.58` variant is referenced upstream and was not obtained |
 | LigUnity | `_vs`, plus `_0.3` / `_0.8` variants filtered by training-set sequence distance | only the plain `_vs` was evaluated |
 
+**Resolved since:** HypSeek's T3 runs used a 256-atom pocket cap while everything
+else used 511, and 19.7% of 6 Å pockets exceed 256. Re-running at 511 changes
+nothing material (L1 AUROC 0.923 → 0.924, L4 EF1% 7.34 → 7.34), so the
+inconsistency is closed by measurement. See [`tasks/T3-time-split.md`](tasks/T3-time-split.md).
+
 More generally, released checkpoints are chosen with DUD-E / LIT-PCBA scores in
 view, so those benchmarks measure a selection decision as well as a model. This
 is the motivation for T3, and it does not go away inside T3 — it only stops

@@ -28,7 +28,7 @@ from the same training run** — `_vs.pt` selected on CASF BEDROC (screening) an
 |---|---|---|---|
 | **T3** (self-built) | 1,044 targets | **Cross-series** — pulled from databases, many scaffolds per target | ✅ 9 models |
 | **FEP** (JACS 8 + Merck 8) | 16 systems, 461 ligands | **Within-series** — same scaffold, substituent changes | ✅ 3 models |
-| **CASF-2016** | 285 complexes, 55 usable targets × ~5 | Within-target, **cross-scaffold** | ✅ 4 models |
+| **CASF-2016** | 285 complexes, 55 usable targets × ~5 | Within-target, **cross-scaffold** | ✅ 5 models |
 
 FEP set = Wang et al. 2015 (BACE, CDK2, JNK1, MCL1, p38, PTP1B, thrombin, TYK2)
 + Schindler et al. 2020 (CDK8, c-Met, Eg5, HIF-2α, PFKFB3, SHP-2, SYK, TNKS2).
@@ -119,10 +119,21 @@ Same target, five **different scaffolds** per cluster
 | LiTENCLIP | 0.364 | 0.356 | 0.371 | 55 |
 | LigUnity-pocket | 0.360 | 0.316 | 0.424 | 55 |
 | LigUnity-protein | 0.221 | 0.193 | 0.282 | 55 |
+| ConPLex (sequence only) | 0.169 | 0.253 | 0.111 | 53 |
 
 **HypSeek `_rk` leads by a wide margin here too** — 0.627 scoring power against
 LigUnity-pocket's 0.360. Together with its first place on all three screening
 benchmarks and on T3 ranking, one checkpoint now leads every axis we measure.
+
+**Why only five models.** CASF needs (protein, ligand) → score, and
+`casf_label_seq.json` ships sequences and SMILES for all 285 complexes, so
+ConPLex ran with no preparation at all. The other four need work that is not
+incidental: ConGLUDe wants a `.pdb` per target (285 PDBbind entries to fetch),
+SPRINT needs foldseek 3Di tokens computed on those structures, and
+DrugCLIP/BindCLIP have no CASF branch in their repositories at all — that code
+path would have to be ported, and the two forks that do have it shipped it
+broken (see [`PATCHES.md`](../PATCHES.md)). Recorded as a coverage gap rather
+than done badly.
 
 ⚠️ CASF complexes come from PDBbind, which overlaps these models' training data,
 and the field selects checkpoints on CASF — so this is close to in-distribution.
