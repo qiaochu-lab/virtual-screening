@@ -20,7 +20,7 @@ what question it asks, what data it uses, how it was run, and what came out.
 | **T2** Affinity ranking | Can these models rank binding strength, not just separate binders from non-binders? | ✅ answered — **weakly, and it decays with novelty** | [T2](tasks/T2-affinity-ranking.md) 🔬 |
 | **T3** Time-split | Do they generalise to targets that appeared after training? | ✅ main result, 9 models × 4 layers | [T3](tasks/T3-time-split.md) |
 | **T4** Target fishing | Run retrieval backwards: molecule → target | not started (deprioritised) | [T4](tasks/T4-target-fishing.md) |
-| **T5** Structure robustness | Do the conclusions survive changing structure source and pocket definition? | ✅ two controls done | [T5](tasks/T5-structure-robustness.md) 🔬 |
+| **T5** Structure robustness | Do the conclusions survive changing structure source, pocket definition, and apo conformation? | ✅ three controls done | [T5](tasks/T5-structure-robustness.md) 🔬 |
 | **T6** Physics complementarity | Can physics methods supply the ranking ability retrieval lacks? | ✅ ranking: yes (ρ 0.615 vs 0.40). ❌ cascade rerank: no benefit in any condition tested | [T6](tasks/T6-physics.md) 🔬 |
 
 🔬 = has a **"where physics fits"** section with concrete entry points.

@@ -93,9 +93,64 @@ truncated. At 256 cap and 7 Å — the configuration a collaborator reported —
 median pocket is 289 atoms and **70.8%** get truncated, which is why truncation
 strategy is a live issue there and a non-issue here.
 
+## Control 3 — apo conformation
+
+The first two controls both used **holo** pockets: cut from a complex, with side
+chains already arranged around a ligand. Every public screening benchmark does
+the same. A real campaign often starts from an **apo** structure, where nothing
+has moved out of the way. If models degrade there, every benchmark — ours
+included — overstates what these methods deliver in practice.
+
+**Design.** For each target, superpose an apo entry onto the holo one by backbone
+CA, then cut the 6 Å pocket in the superposed apo **using the holo ligand's
+coordinates**. Both pockets therefore sit at the same place and the only
+difference is conformation. (Finding a pocket independently in the apo structure
+would measure pocket detection instead, which is a different question.)
+Alignment is rejected below 30 matched residues or above 5 Å RMSD.
+
+**Result** — 45 targets, paired
+([`../timesplit/analysis/t5_apo_compare.py`](../timesplit/analysis/t5_apo_compare.py),
+per-target [`../results/T5_apo.csv`](../results/T5_apo.csv)):
+
+| Model | EF1% holo → apo | BEDROC | AUROC holo → apo |
+|---|---|---|---|
+| DrugCLIP | 7.60 → 6.45 (−15%, p=0.53) | −20% (p=0.064) | 0.704 → 0.627 (**−11%, p=0.0007**) |
+| BindCLIP-randneg | 7.88 → 8.40 (+7%, p=0.88) | +3% (p=0.85) | 0.650 → 0.622 (−4%, p=0.32) |
+
+**What holds and what does not.** DrugCLIP loses global ranking quality on apo
+pockets and that loss is significant. BindCLIP's change is not distinguishable
+from noise. Early-enrichment metrics (EF1%) are too noisy at 45 targets to
+support any claim in either direction — their p-values are 0.53 and 0.88. So the
+honest summary is: **apo conformation measurably hurts one of two models on
+AUROC, and the benchmark cannot resolve the effect on the metric practitioners
+actually use.**
+
+⚠️ **How different are these apo structures, really?** Median side-chain
+deviation in the pocket is 1.08 Å, with 56% of targets above 1 Å (75th pct
+1.78 Å, 90th 2.61 Å). That is mild-to-moderate induced fit, **not** a collapsed
+pocket. The result should be read as "models are somewhat sensitive to modest
+conformational change" and cannot be extended to hard apo cases.
+
+**A bug worth recording, because the first version of this table was wrong.**
+The initial run reported apo being *better* (EF1 +8.8% / +35%). The check that
+caught it was asking, before interpreting anything, how far the apo pockets
+actually sat from the holo ones: side-chain deviation had a 90th percentile of
+**29.8 Å**. Conformational change cannot be 30 Å — the pockets were in different
+places. Cause: for homo-oligomers the ligand appears in several copies tens of
+ångströms apart, and the apo extraction took the first copy while the holo
+pipeline had used `pick_copy` (most contacts within the target's own chains).
+Anchoring the copy choice to the existing holo pocket's centroid brought the
+90th percentile to 2.61 Å. The sanity script
+([`../timesplit/analysis/t5_apo_sanity.py`](../timesplit/analysis/t5_apo_sanity.py))
+is now part of the procedure rather than a one-off.
+
+**Coverage.** 486 of 631 targets with a holo structure also have an apo entry;
+110 of those are in the eval set; 45 survive alignment, co-location and
+minimum-pocket-size filters. Targets are L3/L4 only, since the holo pipeline only
+ever needed structures for new targets.
+
 ## Not done
 
-- Apo structures (unbound conformations)
 - MD-sampled conformers
 - Top-k overlap / pocket RMSD as stability metrics
 
