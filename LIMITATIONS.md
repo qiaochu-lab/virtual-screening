@@ -116,13 +116,24 @@ moves the decay from −72% to −67%. The conclusion stands; the magnitude shif
 L3 are not interpretable, and its confidence intervals are wide. L4 (254/226) is
 the layer to trust for "unseen target" claims.
 
-## 7. SPRINT has no L1/L2 results
+## 7. SPRINT now has all four layers — the earlier limit was our own bug
 
-Embedding the ~146,000 unique molecules in L1/L2 exhausts file descriptors and
-shared memory (`RuntimeError: unable to mmap ... Cannot allocate memory`) inside
-its data loader. Three upstream bugs were fixed to get L3/L4 running; this one
-was not solved. SPRINT therefore appears in the table with **L3/L4 only** and
-cannot contribute to any L1→L4 decay statement.
+This section previously recorded that SPRINT could not run L1/L2 because the
+loader exhausted shared memory at ~146,000 molecules, and treated that as a
+scale limit of the model. **It was not.** Four separate faults were stacked:
+chunking disabled by a default of `20000**9`, `--num-workers 0` falling back to
+`cpu_count()` (104 workers spawned per featurize call), a cached feature shape
+mismatch, and PyTorch's default file-descriptor sharing strategy leaking one FD
+per shared tensor. Details in [`PATCHES.md`](PATCHES.md).
+
+With those fixed, SPRINT completes all four T3 layers (L1 282, L2 386, L3 39,
+L4 202 targets) and all three T1 benchmarks. The results are weak — T3 AUROC
+0.579 → 0.523, EF1% 2.4 → 1.6 — but they exist, and the weakness is now a
+property of the model rather than of our tooling.
+
+**The lesson worth keeping:** a documented limitation that originates in a
+crash, not in a measurement, deserves one more look before it is written down.
+This one stood for two weeks and cost a 20-hour run that wrote nothing.
 
 ## 8. Structure-source comparison is not randomised
 

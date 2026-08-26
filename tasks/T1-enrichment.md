@@ -3,7 +3,7 @@
 **Question:** can the model rank known actives above decoys, on the benchmarks
 the field already uses?
 
-**Status:** 9 of 9 models have DUD-E and DEKOIS; SPRINT's DUD-E and LIT-PCBA are queued. CASF-2016 done for four models.
+**Status:** ✅ complete — nine models × three benchmarks. CASF-2016 done for four models.
 
 ---
 
@@ -60,10 +60,17 @@ Machine-readable: [`results/T1_main.csv`](../results/T1_main.csv).
 | BindCLIP-hardneg | 3D pocket | 27.64 | 17.56 | 6.23 |
 | ConGLUDe | sequence + structure graph | 26.48 | 16.55 | **13.24** ⚠️ |
 | ConPLex | sequence only | 18.70 | 10.46 | 2.15 |
-| SPRINT | SaProt 3Di sequence | running | 3.09 | running |
+| SPRINT | SaProt 3Di sequence | 4.58 | 3.09 | 8.95 ⚠️ |
 
 **AUROC** tells the same story more smoothly: HypSeek 0.967 / 0.964 / 0.613,
 DrugCLIP 0.807 / 0.791 / 0.572, ConPLex 0.683 / 0.666 / 0.554.
+
+⚠️ **SPRINT's LIT-PCBA 8.95 is above its DUD-E 4.58**, which no other model does
+— everything else drops 4–7× from DUD-E to LIT-PCBA. Its AUROC ordering is the
+same shape (0.689 / 0.678 / 0.716). A model this weak overall (last on two of
+three benchmarks) inverting the usual difficulty order is more likely to be
+telling us something about LIT-PCBA's actives than about SPRINT, but it is
+unexplained and should not be quoted as a strength.
 
 **Three things worth reading off this table.**
 
