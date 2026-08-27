@@ -90,6 +90,9 @@ tasks own no code of their own: T2 re-scores arrays that T1 and T3 already
 produced, and T5 is the T3 pipeline re-run at other pocket cutoffs.
 
 ```
+MODELS_TRAINING.md  ⚠️ our attempt to train HypSeek's screening weight, and why
+               its numbers must not be quoted (no parameter ever updated)
+
 tasks/         ⭐ start here — one document per task
 ├── T1-enrichment.md            standard benchmarks (DUD-E / LIT-PCBA / DEKOIS)
 ├── T2-affinity-ranking.md      🔬 can they rank binding strength?
