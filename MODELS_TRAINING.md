@@ -59,17 +59,56 @@ Leakage removal is visible in the log: 26,748 assays → 26,729 after dropping F
 assays → **18,316** after dropping every protein appearing in DUD-E, DEKOIS,
 LIT-PCBA or CASF.
 
-## Status
+## Results, seed 1
 
-Training is running with the corrected configuration. **Nothing from the first
-two runs should be quoted** — those numbers describe a pretrained encoder with an
-untrained head, not a training outcome. Results will be reported with at least
-two seeds, since a single run cannot settle anything about a model whose
-published weights are known to be seed-sensitive.
+With training actually running, the weight moved (molecule tower now 68.9 away
+from its initialisation, against 0.000000 in the broken runs) and the numbers are
+meaningful:
+
+| | our `_vs` | released `_rk` | gap |
+|---|---|---|---|
+| DUD-E EF1% | 43.36 | **56.39** | −23% |
+| DUD-E BEDROC | 0.684 | **0.884** | −23% |
+| DUD-E AUROC | 0.922 | 0.967 | −4.7% |
+| DEKOIS EF1% | 23.35 | **28.83** | −19% |
+| DEKOIS AUROC | 0.921 | 0.964 | −4.5% |
+
+The released weight is `checkpoint_avg_41-50_rk.pt` — an average of the last ten
+epochs — so we averaged ours the same way before comparing. **It changed almost
+nothing** (DUD-E EF1% 43.29 → 43.36), which rules that difference out.
+
+**Where the gap sits is more informative than its size.** AUROC differs by 4–5%,
+so overall ranking ability is close. EF1% and BEDROC differ by ~20%, and both are
+early-recognition metrics: the gap is concentrated in the very top of the ranked
+list, which is the part a screening campaign acts on.
+
+## What this does and does not establish
+
+Three explanations remain, and this experiment does not separate them:
+
+1. **The objective.** `_vs` selects its checkpoint on `valid_bedroc`, `_rk` on
+   FEP ranking. It is possible that the ranking-selected checkpoint is simply the
+   better screening weight — which would itself be worth reporting.
+2. **Our reproduction.** Data version, undocumented preprocessing, or training
+   length could differ from what produced the released weight.
+3. **Seed variance.** The authors of the model report seed sensitivity, and this
+   is one run. A second seed is training.
+
+Separating (1) from (2) would need a FEP-mode run to see whether we can reproduce
+`_rk`'s level with the same pipeline. That was considered and deliberately not
+done — the released weight already exists and works, so spending a day of GPU to
+re-derive it does not earn its cost here.
+
+**So the honest statement is:** training HypSeek from the published recipe with
+the screening-selected checkpoint yields a model roughly 20% weaker on early
+enrichment than the released ranking-selected weight, and we cannot currently say
+whether that is a property of the objective or of our reproduction.
 
 ## The transferable lesson
 
 A run that consumes GPU-hours, writes checkpoints, and exits cleanly is not
 evidence that it trained. The cheap check is to compare the saved weights against
 the initialisation — it takes seconds and would have caught this before the first
-50 epochs finished, let alone the second.
+50 epochs finished, let alone the second. That check is now a gate in the
+post-training chain: distance 0 stops the pipeline instead of feeding empty
+results into evaluation.
