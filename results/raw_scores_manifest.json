@@ -1,0 +1,77 @@
+{
+ "T3_bindclip_hardneg": {
+  "targets": 1044,
+  "file": "T3_bindclip_hardneg.npz",
+  "size_mb": 18.9
+ },
+ "T3_bindclip_randneg": {
+  "targets": 1044,
+  "file": "T3_bindclip_randneg.npz",
+  "size_mb": 18.94
+ },
+ "T3_bindclip_randneg_apo": {
+  "targets": 45,
+  "file": "T3_bindclip_randneg_apo.npz",
+  "size_mb": 0.97
+ },
+ "T3_drugclip": {
+  "targets": 1044,
+  "file": "T3_drugclip.npz",
+  "size_mb": 18.94
+ },
+ "T3_drugclip_apo": {
+  "targets": 45,
+  "file": "T3_drugclip_apo.npz",
+  "size_mb": 0.97
+ },
+ "T3_hypseek_rk": {
+  "targets": 1012,
+  "file": "T3_hypseek_rk.npz",
+  "size_mb": 27.16
+ },
+ "T3_hypseek_rk_511": {
+  "targets": 1016,
+  "file": "T3_hypseek_rk_511.npz",
+  "size_mb": 27.2
+ },
+ "T3_hypseek_vs_s1": {
+  "targets": 1016,
+  "file": "T3_hypseek_vs_s1.npz",
+  "size_mb": 26.24
+ },
+ "T3_ligunity_pocket_ranking": {
+  "targets": 1016,
+  "file": "T3_ligunity_pocket_ranking.npz",
+  "size_mb": 18.28
+ },
+ "T3_ligunity_protein_ranking": {
+  "targets": 1016,
+  "file": "T3_ligunity_protein_ranking.npz",
+  "size_mb": 18.25
+ },
+ "T3_litenclip": {
+  "targets": 1016,
+  "file": "T3_litenclip.npz",
+  "size_mb": 27.89
+ },
+ "T3_sprint": {
+  "targets": 909,
+  "file": "T3_sprint.npz",
+  "size_mb": 22.92
+ },
+ "T1_conglude": {
+  "targets": 196,
+  "file": "T1_conglude.npz",
+  "size_mb": 15.19
+ },
+ "T1_conplex": {
+  "targets": 196,
+  "file": "T1_conplex.npz",
+  "size_mb": 10.04
+ },
+ "T1_sprint": {
+  "targets": 198,
+  "file": "T1_sprint.npz",
+  "size_mb": 15.28
+ }
+}
