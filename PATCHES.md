@@ -126,6 +126,21 @@ See [`env/`](env/).
 
 ---
 
+### HypSeek saves LIT-PCBA embeddings but not the scores it just computed
+
+`test_pcba_target` computes `res_single = alpha_poc * poc_scores + alpha_prot *
+prot_scores`, passes it to `cal_metrics`, and then saves the two embedding
+matrices and the labels — but not `res_single`. A sibling function,
+`test_pcba_target_regression`, does save it, which is why some result
+directories have `saved_preds.npy` and others do not. Any scorer that reads
+scores from disk reports "no usable results" for the retrieval path.
+
+One line added after the label save:
+
+```python
+np.save(f"{out_dir}/saved_preds.npy", res_single)
+```
+
 ## Part 2 — bugs in our own code
 
 ### The one that reached the README
@@ -183,6 +198,56 @@ correction.
 returns ascending order of the negated array; the quintiles were labelled
 backwards, making the binned table appear to contradict the correlation
 computed three lines above. The contradiction was the tell.
+
+### Silent path bugs: exit code 0, plausible logs, wrong output
+
+Four found in one sweep. None raised an error; each would have put a wrong
+number in front of a reader.
+
+**A runner hardcoded to seed 1 while being called for seed 2.**
+`run_t3_hypseek_vs.sh` took the GPU as `$1` but had both the checkpoint path and
+`--results-path` written out as `hypseek_vs_seed1`. The scheduler called it for
+seed 2, so it loaded seed 1's weights and overwrote seed 1's output directory —
+then logged "seed=2 T3 done". Seed 2's T3 would never have existed, and nothing
+in the logs said so. The script now takes `$2` as the seed and writes to
+`hypseek_vs_s$SEED`. Before running any variant sweep, grep the runner for
+hardcoded paths.
+
+**Two published CSVs were stale, one of them carrying retracted numbers.**
+`results/T2_on_T3.csv` was regenerated on 08-26 by the *pre-fix* scorer, so the
+repository published ρ = +0.003 for HypSeek at L1 — the exact value this file
+documents as a bug — five days after the corrected value (+0.260) had been
+computed. Separately, `results/T3_main.csv` had been overwritten by an export
+run that covered a single model, leaving 1 of 10 models in the main table.
+Both now have dedicated export scripts
+([`physics/export_t2.py`](physics/export_t2.py),
+[`timesplit/analysis/export_t3.py`](timesplit/analysis/export_t3.py)) that read
+the authoritative summary JSON, so the table can always be rebuilt. `export_t2.py`
+also emits a `spearman_old_retracted` column so the two are visible side by side.
+
+A useful self-check fell out of it: ConGLUDe and ConPLex have identical old and
+new values, and they are exactly the two models whose runners iterate the eval
+JSONL instead of the LMDB — so they were never exposed to the ordering bug.
+
+**A progress counter whose pattern could never match.** The docking runner
+logged `grep -c '^   1 '` against smina's output to report how many ligands had
+been scored. smina writes the mode table flush-left (`1       -7.5`), so the
+count was 0 for every target from the first one onward. Sixteen targets' worth
+of correct results were logged as total failures.
+
+**Partial results silently truncated instead of flagged.** `score_dock.py`
+joined scores to the manifest with `n = min(len(aff), len(info))`. Targets killed
+by the 90-minute timeout have a *non-random* subset of ligands — the fast ones,
+which are the small ones — so enrichment computed over that prefix is biased
+upward. It now records coverage per target, warns explicitly, and reports the
+summary twice: all targets, and complete targets only.
+
+**The common shape.** All four produced clean exits and plausible logs. The
+lesson recorded under the LMDB bug applies here too: the artifacts that look
+like progress — an exit code, a directory entry count, a log line — are not
+evidence that the right computation ran. Directory entry counts are a
+particularly bad signal, because directories are created before their contents
+are written.
 
 ### Metric bugs
 

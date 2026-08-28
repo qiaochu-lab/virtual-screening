@@ -3,8 +3,9 @@
 **Question:** not just "can it separate actives from decoys", but **can it rank
 binding strength**?
 
-**Status:** run on two datasets, which give **opposite answers**. The reason has
-been isolated. A third dataset (CASF-2016) is available and not yet run.
+**Status:** run on all three datasets. They initially appeared to give opposite
+answers; both reasons are now isolated — an ordering bug in our analysis (since
+fixed) and range restriction from this benchmark's own `pAff ≥ 6` filter.
 
 > 🔬 **Physics collaborators: this task and T6 are where physics methods matter
 > most.** See "Where physics fits" at the bottom.
@@ -173,6 +174,41 @@ all actives → only the target's dominant assay type → only its single larges
 times, and the single-assay tier is worse — but it also has a median of 9–16
 ligands per target, where Spearman is very noisy. Label heterogeneity is not the
 main driver.
+
+### Why CASF looks so much better than T3: range restriction
+
+The same models score ρ ≈ 0.42–0.55 within CASF targets and ρ ≈ 0.09–0.26 within
+T3 targets. That 3–5× gap is mostly **an artifact of our own eval-set filter**,
+not a property of the models
+([`physics/t2_gap.py`](../physics/t2_gap.py),
+[`results/T2_range_restriction.csv`](../results/T2_range_restriction.csv)).
+
+T3's actives must pass `pAff ≥ 6`, which truncates the weak half of the
+distribution. Correlations shrink mechanically when the spread of the true
+values is compressed:
+
+| | targets | ligands/target (median) | within-target pAff SD | range |
+|---|---|---|---|---|
+| CASF-2016 | 55 | 5 | **1.576** | 4.06 |
+| T3 L1 | 349 | 24 | **0.783** | 2.99 |
+
+The spread is almost exactly halved (ratio 2.01). Correcting the observed T3
+values back to CASF's spread (Thorndike case II,
+ρ_true ≈ ρk / √(1 + ρ²(k²−1))):
+
+| Model | T3 L1 observed | range-corrected | CASF observed | gap explained |
+|---|---|---|---|---|
+| HypSeek `_rk` | 0.260 | **0.477** | 0.549 | 75% |
+| LigUnity-pocket | 0.215 | **0.406** | 0.424 | 91% |
+
+**So T3 and CASF do not disagree about these models.** They disagree about how
+much affinity spread their ligand sets contain. The residual (HypSeek still 0.07
+short) is consistent with the label heterogeneity measured above — CASF is
+curated Kd/Ki from PDBbind, T3 is mixed ChEMBL assay types.
+
+Note what this does **not** license: the corrected numbers are an estimate of
+what these models would score on a CASF-like spread, not a measurement. Report
+the observed T3 value, and cite the correction as the explanation for the gap.
 
 ### What the corrected picture looks like
 

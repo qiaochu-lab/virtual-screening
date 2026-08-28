@@ -16,12 +16,12 @@ what question it asks, what data it uses, how it was run, and what came out.
 
 | Task | Question | Status | Doc |
 |---|---|---|---|
-| **T1** Enrichment | Do published enrichment numbers reproduce on standard benchmarks? | ✅ complete — 9 models × 3 benchmarks | [T1](tasks/T1-enrichment.md) |
-| **T2** Affinity ranking | Can these models rank binding strength, not just separate binders from non-binders? | ✅ answered — **weakly, and it decays with novelty** | [T2](tasks/T2-affinity-ranking.md) 🔬 |
-| **T3** Time-split | Do they generalise to targets that appeared after training? | ✅ main result, 9 models × 4 layers | [T3](tasks/T3-time-split.md) |
+| **T1** Enrichment | Do published enrichment numbers reproduce on standard benchmarks? | ✅ complete — 10 models × 3 benchmarks | [T1](tasks/T1-enrichment.md) |
+| **T2** Affinity ranking | Can these models rank binding strength, not just separate binders from non-binders? | ✅ answered — **weakly, and it decays with novelty**; the CASF/T3 gap is explained | [T2](tasks/T2-affinity-ranking.md) 🔬 |
+| **T3** Time-split | Do they generalise to targets that appeared after training? | ✅ main result, 10 models × 4 layers | [T3](tasks/T3-time-split.md) |
 | **T4** Target fishing | Run retrieval backwards: molecule → target | not started (deprioritised) | [T4](tasks/T4-target-fishing.md) |
 | **T5** Structure robustness | Do the conclusions survive changing structure source, pocket definition, and apo conformation? | ✅ three controls done | [T5](tasks/T5-structure-robustness.md) 🔬 |
-| **T6** Physics complementarity | Can physics methods supply the ranking ability retrieval lacks? | ✅ ranking: yes (ρ 0.615 vs 0.40). ❌ cascade rerank: no benefit in any condition tested | [T6](tasks/T6-physics.md) 🔬 |
+| **T6** Physics complementarity | Can physics methods supply the ranking ability retrieval lacks? | ✅ ranking: yes (ρ 0.615 vs 0.40). ❌ cascade rerank: no benefit, now with **two** independent physics methods | [T6](tasks/T6-physics.md) 🔬 |
 
 🔬 = has a **"where physics fits"** section with concrete entry points.
 
@@ -35,7 +35,7 @@ what question it asks, what data it uses, how it was run, and what came out.
 
 ## Headline findings
 
-1. **All nine models lose 64–77% of EF1% on post-cutoff targets.** Absolute
+1. **All ten models lose 64–77% of EF1% on post-cutoff targets.** Absolute
    performance differs fivefold between the best and worst model; the *decay* is
    nearly identical. This is a property of the method class, not of any one
    model. → [T3](tasks/T3-time-split.md)
@@ -49,6 +49,12 @@ what question it asks, what data it uses, how it was run, and what came out.
    reported ranking as **zero** on T3 — that was a molecule-ordering bug in our
    analysis code, documented in [`PATCHES.md`](PATCHES.md).
    → [T2](tasks/T2-affinity-ranking.md)
+
+   **The T3-vs-CASF gap is our filter, not the models.** The same models score
+   ρ ≈ 0.42–0.55 within CASF targets. T3's `pAff ≥ 6` cut halves the within-target
+   affinity spread (SD 0.783 vs 1.576), and correcting for that restriction of
+   range recovers 75–91% of the difference. Report the observed T3 number, but
+   do not read it as these models ranking worse on post-cutoff data than on CASF.
 
 3. **Model ranking reverses by target class.** Sequence-only models win on
    kinases; geometry-aware models win on other enzymes. Reporting only the
@@ -66,7 +72,11 @@ what question it asks, what data it uses, how it was run, and what came out.
    is at chance (0.446) and Boltz-2 is slightly better (0.523) but cannot move
    the top of the list. Rank fusion never beat the better arm. Whether retrieval
    scores are usable inside their own shortlist turns out to depend on target
-   familiarity — which is why testing one layer misled us. → [T6](tasks/T6-physics.md)
+   familiarity — which is why testing one layer misled us.
+   **A second, unrelated physics method reproduces this**: smina docking of a
+   top-200 shortlist at L4 also degrades the ranking rather than improving it.
+   Two methods with nothing in common except being physics-based, same direction.
+   → [T6](tasks/T6-physics.md)
 
 6. **A co-folding model ranks affinity where retrieval cannot.** On the 16 FEP
    systems, same ligands and same metric, Boltz-2 reaches Spearman +0.615
@@ -77,9 +87,19 @@ what question it asks, what data it uses, how it was run, and what came out.
    ranking. → [T6](tasks/T6-physics.md)
 
 7. **Training data explains performance tiers better than architecture.** The
-   three models trained on LigUnity's data all land at L1 EF1% 32–39; the three
-   on DrugCLIP's data all land at 17–19 — across differences in retrieval
-   augmentation and molecular encoder. → [T3](tasks/T3-time-split.md)
+   models trained on PocketAffDB all land at L1 EF1% 32–39; the three on
+   DrugCLIP's data all land at 17–19 — across differences in retrieval
+   augmentation and molecular encoder. The same split holds on DUD-E, where the
+   four PocketAffDB models take the top four places. Visible directly in
+   [`figures/`](figures/) fig 1 and fig 2, which are coloured by training set
+   rather than architecture. → [T3](tasks/T3-time-split.md)
+
+8. **Retraining the best model's screening-selected weight makes it worse, and
+   that is reproducible.** HypSeek publishes only its ranking-selected weight
+   (`_rk`); training the screening weight (`_vs`) from the published recipe gives
+   19–23% lower early enrichment. Two seeds agree to within 3%, so this is not
+   run-to-run noise — but we cannot separate "the objective is weaker" from "our
+   reproduction is off". → [`MODELS_TRAINING.md`](MODELS_TRAINING.md)
 
 ## Repository layout
 
@@ -90,8 +110,9 @@ tasks own no code of their own: T2 re-scores arrays that T1 and T3 already
 produced, and T5 is the T3 pipeline re-run at other pocket cutoffs.
 
 ```
-MODELS_TRAINING.md  ⚠️ our attempt to train HypSeek's screening weight, and why
-               its numbers must not be quoted (no parameter ever updated)
+MODELS_TRAINING.md  ⚠️ our attempt to train HypSeek's screening weight: two runs
+               that never updated a parameter, then two that did — and what the
+               19–23% shortfall against the released weight does and does not show
 
 tasks/         ⭐ start here — one document per task
 ├── T1-enrichment.md            standard benchmarks (DUD-E / LIT-PCBA / DEKOIS)
@@ -112,12 +133,20 @@ physics/       🔬 FEP benchmark and Boltz-2 — the physics arm behind T2 and 
 eval/          unified metric layer (80 tests)
 env/           per-model environment construction, with the version traps
 results/       machine-readable CSVs
-├── T1_main.csv              9 models × 3 standard benchmarks × 4 metrics
-├── T3_main.csv              9 models × 4 layers × 5 metrics
-├── T3_targets.csv           per-target detail (class, layer, structure source)
-├── T2_on_T3.csv             affinity ranking on time-split data
-├── T2_on_FEP.csv            affinity ranking on the 16 FEP systems
-└── T5_pocket_threshold.csv  4 / 6 / 8 Å comparison
+├── T1_main.csv                 10 models × 3 standard benchmarks × 4 metrics
+├── T3_main.csv                 10 models × 4 layers × 5 metrics
+├── T3_main_clean.csv           the same, with training-set contamination removed
+├── T3_main_ci.csv              bootstrap confidence intervals
+├── T3_targets.csv              per-target detail (class, layer, structure source)
+├── T2_on_T3.csv                affinity ranking on time-split data
+├── T2_on_FEP.csv               affinity ranking on the 16 FEP systems
+├── T2_range_restriction.csv    why CASF and T3 disagree — spread, not models
+├── T5_apo.csv                  apo vs holo pockets
+├── T5_pocket_threshold.csv     4 / 6 / 8 Å comparison
+├── T6_FEP_boltz.csv            Boltz-2 affinity on the FEP systems
+├── T6_rerank{,2,3}.csv         three cascade-rerank runs
+└── T6_dock.csv                 smina docking rerank, with per-target coverage
+figures/       the three summary figures, and the script that rebuilds them
 ```
 
 Which task each directory serves:
@@ -128,6 +157,7 @@ Which task each directory serves:
 | `timesplit/` | T3 (build + run + analyse), T5 (same pipeline, other cutoffs), T2 (re-scores its outputs), T4 (would reuse them) |
 | `physics/` | T2 (FEP benchmark) and T6 (Boltz-2, physics comparison) |
 | `eval/` | every task — one metric implementation for all of them |
+| `figures/` | T1, T3, T6 — regenerated from `results/`, never hand-edited |
 
 ## Models evaluated
 

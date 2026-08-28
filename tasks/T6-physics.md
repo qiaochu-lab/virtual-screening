@@ -121,7 +121,7 @@ nothing about cross-series ranking; Boltz-2's affinity head was trained on
 public affinity data whose overlap with these classic systems is not
 characterised; and BACE at −0.081 shows the failure is not graceful when it comes.
 
-## Cascade rerank — run twice, no effect measured either time
+## Cascade rerank — Boltz-2, run three times, no effect measured any time
 
 | Mode | How | Cost |
 |---|---|---|
@@ -217,6 +217,52 @@ about *this* pairing — one physics method, top-50 depth, this scoring — not
 about physics rescoring in general; the caveats in the previous section stand,
 and n = 12–15 targets keeps every p-value above 0.10.
 
+## A second physics method, deliberately unrelated
+
+The three Boltz-2 runs share one scoring engine, one shortlist depth, and one
+notion of what "physics" means. A conclusion resting on that alone is a
+conclusion about Boltz-2. So the rerank was repeated with **smina docking** —
+an empirical scoring function with no learned affinity head, no co-folding, and
+no shared code with Boltz-2 — and two of the design choices were changed at the
+same time:
+
+| | Boltz-2 runs | smina run |
+|---|---|---|
+| Shortlist depth | top-50 | **top-200** (recall@200 at L4 is 34.0% vs 17.5% at 50) |
+| Method | co-folding + learned affinity head | empirical scoring function |
+| Poses | co-folded | docked into the retrieval pocket |
+
+**Status: 16 of 20 targets docked, scoring is preliminary.** On the complete
+targets available so far (n = 5):
+
+| Ranking | P@10 | AUROC |
+|---|---|---|
+| retrieval (baseline) | 0.380 | 0.706 |
+| **smina rerank** | **0.120** | **0.537** |
+| rank fusion | 0.340 | 0.664 |
+
+Same direction as Boltz-2, and larger: docking scores rank *worse than the
+retrieval order it was given*, and fusion again fails to beat the better arm.
+
+Three things to hold against these numbers before quoting them:
+
+- **n is small and will stay small.** Only 6 of the 12 scored targets had ≥ 2
+  actives inside the top-200 — the recall ceiling again. Expect a final n near
+  10, and p-values that will not reach significance.
+- **Three targets timed out at 90 minutes** and hold a non-random subset of
+  ligands (the fast ones are the small ones). They are excluded from the table
+  above and reported separately; `results/T6_dock.csv` carries a `coverage`
+  column per target.
+- **Docking into a pocket slice is not full-protein docking.** The box comes
+  from the extracted pocket's bounding box, which is the same pocket definition
+  the retrieval models saw — a fair comparison, but not the docking setup a
+  docking paper would use.
+
+What the second method buys is not significance — it is that the earlier result
+no longer depends on one scoring engine or one shortlist depth. Two methods
+sharing nothing but the label "physics" degrade the same retrieval ordering in
+the same direction.
+
 ## Falsifiability, agreed in advance
 
 If physics methods also land near zero under identical conditions, that is a
@@ -269,3 +315,7 @@ All of it lives in [`physics/`](../physics/):
 | Compare against the published physics reference | [`fep_compare_physics.py`](../physics/fep_compare_physics.py) |
 | Pockets a physics method would consume, at four thresholds | [`timesplit/structure/extract_pocket*.py`](../timesplit/structure/) |
 | Metrics any new scoring method plugs into | [`eval/metrics.py`](../eval/metrics.py) |
+| Recall ceiling of a shortlist, by layer and depth | [`shortlist_recall.py`](../physics/shortlist_recall.py) |
+| Build docking inputs from a retrieval shortlist | [`prep_dock.py`](../physics/prep_dock.py) |
+| Run smina, one target at a time, 90-minute cap | [`run_dock.sh`](../physics/run_dock.sh) |
+| Score the docking rerank, with per-target coverage | [`score_dock.py`](../physics/score_dock.py) |

@@ -91,8 +91,24 @@ Three explanations remain, and this experiment does not separate them:
    better screening weight — which would itself be worth reporting.
 2. **Our reproduction.** Data version, undocumented preprocessing, or training
    length could differ from what produced the released weight.
-3. **Seed variance.** The authors of the model report seed sensitivity, and this
-   is one run. A second seed is training.
+3. **Seed variance.** ~~The authors of the model report seed sensitivity, and
+   this is one run.~~ **Ruled out** — see below.
+
+### Seed variance is ruled out
+
+A second seed was trained under the identical configuration and passed the same
+weights-actually-moved gate (distance from pretrained init 69.16, against 0.000
+for the two failed runs).
+
+| | seed 1 | seed 2 | spread |
+|---|---|---|---|
+| DUD-E EF1% | 43.29 | 42.03 | −2.9% |
+| DEKOIS EF1% | 23.32 | 22.63 | −2.9% |
+| DUD-E EF0.1% | 50.36 | 50.69 | +0.7% |
+
+Seed-to-seed spread is about **3%**. The gap to the released `_rk` weight
+(56.39 / 28.83) is **19–23%** — roughly seven times larger. Run-to-run
+randomness does not account for it.
 
 Separating (1) from (2) would need a FEP-mode run to see whether we can reproduce
 `_rk`'s level with the same pipeline. That was considered and deliberately not
@@ -101,8 +117,9 @@ re-derive it does not earn its cost here.
 
 **So the honest statement is:** training HypSeek from the published recipe with
 the screening-selected checkpoint yields a model roughly 20% weaker on early
-enrichment than the released ranking-selected weight, and we cannot currently say
-whether that is a property of the objective or of our reproduction.
+enrichment than the released ranking-selected weight; this is reproducible across
+seeds, and we cannot currently say whether it is a property of the objective or
+of our reproduction.
 
 ## The transferable lesson
 

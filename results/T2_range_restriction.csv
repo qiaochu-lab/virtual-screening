@@ -1,0 +1,7 @@
+set,n_targets,median_ligands_per_target,median_within_target_pAff_sd,median_within_target_pAff_range
+CASF-2016,55,5,1.576,4.060
+T3_L1,349,24,0.783,2.989
+
+model,t3_L1_spearman_observed,range_corrected,casf_within_target_observed,gap_explained_pct
+hypseek_rk,0.260,0.477,0.549,75
+ligunity_pocket_ranking,0.215,0.406,0.424,91
