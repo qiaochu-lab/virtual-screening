@@ -100,15 +100,37 @@ A second seed was trained under the identical configuration and passed the same
 weights-actually-moved gate (distance from pretrained init 69.16, against 0.000
 for the two failed runs).
 
-| | seed 1 | seed 2 | spread |
-|---|---|---|---|
-| DUD-E EF1% | 43.29 | 42.03 | −2.9% |
-| DEKOIS EF1% | 23.32 | 22.63 | −2.9% |
-| DUD-E EF0.1% | 50.36 | 50.69 | +0.7% |
+Both seeds were then run on everything the released weight was run on — three
+standard benchmarks and all four time-split layers
+([`results/T1_T3_hypseek_seeds.csv`](results/T1_T3_hypseek_seeds.csv)):
 
-Seed-to-seed spread is about **3%**. The gap to the released `_rk` weight
-(56.39 / 28.83) is **19–23%** — roughly seven times larger. Run-to-run
-randomness does not account for it.
+| | | `_rk` | seed 1 | seed 2 | seed spread | vs `_rk` |
+|---|---|---|---|---|---|---|
+| T1 | DUD-E EF1% | 56.39 | 43.29 | 42.03 | 2.9% | −24% |
+| T1 | DEKOIS EF1% | 28.83 | 23.32 | 22.63 | 3.0% | −20% |
+| T1 | LIT-PCBA EF1% | 8.34 | 4.44 | 5.22 | **17.6%** | −42% |
+| T3 | L1 AUROC | 0.9230 | 0.8879 | 0.8882 | **0.0%** | −3.8% |
+| T3 | L1 EF1% | 36.63 | 22.15 | 22.22 | **0.3%** | −39% |
+| T3 | L2 EF1% | 23.61 | 13.32 | 13.06 | 2.0% | −44% |
+| T3 | L3 EF1% | 13.56 | 7.11 | 7.03 | 1.2% | −48% |
+| T3 | L4 EF1% | 7.34 | 4.63 | 4.14 | 10.5% | −40% |
+
+Two things fall out of this that one seed could not have shown.
+
+**Seed spread is 0–3% wherever n is large, and only blows up on the two
+smallest measurements** — LIT-PCBA (15 targets, 17.6%) and L4 EF1% (the weakest
+signal, 10.5%). The seed conclusion therefore rests on DUD-E, DEKOIS and the
+L1–L3 layers, not on LIT-PCBA. The 17.6% is best read as a measurement of how
+noisy a 15-target benchmark is, which is worth knowing on its own.
+
+**The shortfall is entirely in early enrichment, not in overall
+discrimination.** Across all four T3 layers AUROC drops only 3.6–5.0%, while
+EF1% drops 39–48% and BEDROC 35–44%. `_vs` separates binders from non-binders
+almost as well as `_rk`; what it loses is the ordering at the very top of the
+list — which is the only part a screening campaign uses.
+
+Against a 19–24% gap on T1 and 39–48% on T3, run-to-run randomness of 0–3%
+does not account for it.
 
 Separating (1) from (2) would need a FEP-mode run to see whether we can reproduce
 `_rk`'s level with the same pipeline. That was considered and deliberately not
@@ -118,8 +140,9 @@ re-derive it does not earn its cost here.
 **So the honest statement is:** training HypSeek from the published recipe with
 the screening-selected checkpoint yields a model roughly 20% weaker on early
 enrichment than the released ranking-selected weight; this is reproducible across
-seeds, and we cannot currently say whether it is a property of the objective or
-of our reproduction.
+seeds — and concentrated in early enrichment rather than in overall ranking —
+and we cannot currently say whether it is a property of the objective or of our
+reproduction.
 
 ## The transferable lesson
 

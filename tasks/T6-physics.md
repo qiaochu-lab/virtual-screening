@@ -232,27 +232,38 @@ same time:
 | Method | co-folding + learned affinity head | empirical scoring function |
 | Poses | co-folded | docked into the retrieval pocket |
 
-**Status: 16 of 20 targets docked, scoring is preliminary.** On the complete
-targets available so far (n = 5):
+**Complete: 20 of 20 targets docked.** Nine had enough actives inside the
+top-200 to score.
 
-| Ranking | P@10 | AUROC |
-|---|---|---|
-| retrieval (baseline) | 0.380 | 0.706 |
-| **smina rerank** | **0.120** | **0.537** |
-| rank fusion | 0.340 | 0.664 |
+| Ranking | P@10 | P@20 | mean active rank | AUROC |
+|---|---|---|---|---|
+| retrieval (baseline) | 0.411 | 0.439 | 59.9 | 0.755 |
+| **smina rerank** | **0.167** | **0.172** | 81.6 | **0.527** |
+| rank fusion | 0.367 | 0.350 | 64.9 | 0.687 |
 
-Same direction as Boltz-2, and larger: docking scores rank *worse than the
-retrieval order it was given*, and fusion again fails to beat the better arm.
+| vs baseline | ΔP@10 | ΔP@20 | ΔAUROC |
+|---|---|---|---|
+| smina rerank | −0.244 (**p = 0.031**) | −0.267 (**p = 0.039**) | −0.228 (p = 0.055) |
+| rank fusion | −0.044 (p = 0.25) | −0.089 (p = 0.14) | −0.068 (p = 0.20) |
+
+Same direction as Boltz-2 and larger — and this is the first rerank run where
+the degradation reaches significance. Docking ranks the shortlist **worse than
+the retrieval order it was handed**, dropping it to near chance (AUROC 0.527),
+and fusion again fails to beat the better arm.
 
 Three things to hold against these numbers before quoting them:
 
-- **n is small and will stay small.** Only 6 of the 12 scored targets had ≥ 2
-  actives inside the top-200 — the recall ceiling again. Expect a final n near
-  10, and p-values that will not reach significance.
-- **Three targets timed out at 90 minutes** and hold a non-random subset of
-  ligands (the fast ones are the small ones). They are excluded from the table
-  above and reported separately; `results/T6_dock.csv` carries a `coverage`
-  column per target.
+- **n = 9, from 20 targets docked.** Eleven were lost because fewer than 2
+  actives fell inside the top-200 — the recall ceiling again, not a docking
+  failure. The significant p-values come from a Wilcoxon signed-rank test over
+  those 9 pairs; they say the direction is consistent, not that the effect size
+  is well estimated.
+- **Four targets timed out at 90 minutes** (coverage 36–90%) and hold a
+  non-random subset of ligands — the fast ones are the small ones. They are kept
+  here because both arms are scored on the *same* subset, so the comparison
+  stays internally valid even though the absolute level is biased;
+  `results/T6_dock.csv` carries a `coverage` column and `score_dock.py` also
+  prints the complete-only summary (n = 5, same direction, no significance).
 - **Docking into a pocket slice is not full-protein docking.** The box comes
   from the extracted pocket's bounding box, which is the same pocket definition
   the retrieval models saw — a fair comparison, but not the docking setup a

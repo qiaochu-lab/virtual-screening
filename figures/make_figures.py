@@ -96,12 +96,16 @@ fig.savefig(f"{OUT}/fig2_t1_heatmap.pdf", bbox_inches="tight"); plt.close(fig)
 
 # ---------------- fig 3: T6 physics
 def agg(path, mcol, metric):
-    rows = rd(path); d = defaultdict(list)
+    """所有靶点都用。部分覆盖（超时）只影响绝对水平，不影响同一批配体上
+    两种排序方式的相对比较——而这张图比的正是相对差。完整靶点数另外标注。"""
+    rows = rd(path); d = defaultdict(list); n_part = 0
     for r in rows:
-        if r.get("coverage") and float(r["coverage"]) < 0.99:
-            continue
         d[r[mcol]].append(float(r[metric]))
-    return {k: (np.mean(v), np.std(v, ddof=1) / np.sqrt(len(v)), len(v)) for k, v in d.items()}
+        if r.get("coverage") and float(r["coverage"]) < 0.99 and r[mcol] == "retrieval":
+            n_part += 1
+    out = {k: (np.mean(v), np.std(v, ddof=1) / np.sqrt(len(v)), len(v)) for k, v in d.items()}
+    out["_partial"] = n_part
+    return out
 
 bo = agg(f"{B}/results/export/T6_rerank3.csv", "method", "auroc")
 dk = agg(f"{B}/results/export/T6_dock.csv", "method", "auroc")
@@ -114,12 +118,14 @@ cols = ["#4a5568", "#c0632a", "#2a5d9f"]
 for ax, (title, data, keys) in zip(axes, groups):
     xs, ys, es, ns = [], [], [], []
     for k, lab in keys:
-        if k in data:
+        if k in data and k != "_partial":
             m, s, n = data[k]; xs.append(lab); ys.append(m); es.append(s); ns.append(n)
     ax.bar(range(len(xs)), ys, yerr=es, capsize=3, color=cols[:len(xs)], width=.62)
     ax.axhline(ys[0], color="#999", ls="--", lw=.9)
     ax.set_xticks(range(len(xs))); ax.set_xticklabels(xs, fontsize=7.5)
-    ax.set_title(f"{title}   n={ns[0]}", fontsize=8.5, loc="left")
+    npart = data.get("_partial", 0)
+    extra = f"  ({npart} partial)" if npart else ""
+    ax.set_title(f"{title}   n={ns[0]}{extra}", fontsize=8.5, loc="left")
     for i, (y, e) in enumerate(zip(ys, es)):
         ax.text(i, y + e + .012, f"{y:.3f}", ha="center", fontsize=7)
 axes[0].set_ylabel("AUROC within shortlist"); axes[0].set_ylim(0, 1.0)

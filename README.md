@@ -21,7 +21,7 @@ what question it asks, what data it uses, how it was run, and what came out.
 | **T3** Time-split | Do they generalise to targets that appeared after training? | ✅ main result, 10 models × 4 layers | [T3](tasks/T3-time-split.md) |
 | **T4** Target fishing | Run retrieval backwards: molecule → target | not started (deprioritised) | [T4](tasks/T4-target-fishing.md) |
 | **T5** Structure robustness | Do the conclusions survive changing structure source, pocket definition, and apo conformation? | ✅ three controls done | [T5](tasks/T5-structure-robustness.md) 🔬 |
-| **T6** Physics complementarity | Can physics methods supply the ranking ability retrieval lacks? | ✅ ranking: yes (ρ 0.615 vs 0.40). ❌ cascade rerank: no benefit, now with **two** independent physics methods | [T6](tasks/T6-physics.md) 🔬 |
+| **T6** Physics complementarity | Can physics methods supply the ranking ability retrieval lacks? | ✅ ranking: yes (ρ 0.615 vs 0.40). ❌ cascade rerank: no benefit; two independent physics methods, one significant | [T6](tasks/T6-physics.md) 🔬 |
 
 🔬 = has a **"where physics fits"** section with concrete entry points.
 
@@ -73,10 +73,11 @@ what question it asks, what data it uses, how it was run, and what came out.
    the top of the list. Rank fusion never beat the better arm. Whether retrieval
    scores are usable inside their own shortlist turns out to depend on target
    familiarity — which is why testing one layer misled us.
-   **A second, unrelated physics method reproduces this**: smina docking of a
-   top-200 shortlist at L4 also degrades the ranking rather than improving it.
-   Two methods with nothing in common except being physics-based, same direction.
-   → [T6](tasks/T6-physics.md)
+   **A second, unrelated physics method reproduces this, and there it reaches
+   significance**: smina docking of a top-200 shortlist at L4 drops P@10 from
+   0.411 to 0.167 (p = 0.031, n = 9) — worse than the retrieval order it was
+   handed. Two methods sharing no code, no scoring idea and no shortlist depth,
+   same direction. → [T6](tasks/T6-physics.md)
 
 6. **A co-folding model ranks affinity where retrieval cannot.** On the 16 FEP
    systems, same ligands and same metric, Boltz-2 reaches Spearman +0.615
@@ -95,10 +96,13 @@ what question it asks, what data it uses, how it was run, and what came out.
    rather than architecture. → [T3](tasks/T3-time-split.md)
 
 8. **Retraining the best model's screening-selected weight makes it worse, and
-   that is reproducible.** HypSeek publishes only its ranking-selected weight
-   (`_rk`); training the screening weight (`_vs`) from the published recipe gives
-   19–23% lower early enrichment. Two seeds agree to within 3%, so this is not
-   run-to-run noise — but we cannot separate "the objective is weaker" from "our
+   the loss is entirely in early enrichment.** HypSeek publishes only its
+   ranking-selected weight (`_rk`); training the screening weight (`_vs`) from
+   the published recipe costs 20–24% EF1% on T1 and 39–48% on T3 — while AUROC
+   falls only 3.6–5.0%. It still separates binders from non-binders; it loses
+   the ordering at the top of the list, which is the part a screen uses. Two
+   seeds agree to within 0–3% wherever n is large, so this is not run-to-run
+   noise — but we cannot separate "the objective is weaker" from "our
    reproduction is off". → [`MODELS_TRAINING.md`](MODELS_TRAINING.md)
 
 ## Repository layout

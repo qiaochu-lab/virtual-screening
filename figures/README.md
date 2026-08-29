@@ -23,7 +23,10 @@ them — across substantial architectural differences. See
 [`../LIMITATIONS.md`](../LIMITATIONS.md) on why this makes per-architecture
 attribution unsafe.
 
-**fig 3 excludes docking targets with incomplete ligand coverage** (three timed
-out at 90 minutes and hold a non-random subset of ligands). Error bars are
-standard error across targets; the n differs between panels because the two runs
+**fig 3 keeps docking targets with incomplete coverage** and labels how many
+(four timed out at 90 minutes, coverage 36–90%). They are kept because both arms
+are scored on the same ligand subset, so the comparison the figure makes stays
+valid even though the absolute AUROC is biased. `score_dock.py` prints the
+complete-only summary as well; it points the same way with n = 5. Error bars are
+standard error across targets, and n differs between panels because the two runs
 used different shortlist depths and different layers.
