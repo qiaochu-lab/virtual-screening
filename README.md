@@ -25,6 +25,12 @@ what question it asks, what data it uses, how it was run, and what came out.
 
 🔬 = has a **"where physics fits"** section with concrete entry points.
 
+**New to virtual screening?** [`WALKTHROUGH-zh.md`](WALKTHROUGH-zh.md) (Chinese)
+explains the whole project from first principles — what virtual screening is, how
+these models work, what each task did, and what the results mean — with no
+assumed background. It is the recommended entry point for readers who are not
+already working in this area.
+
 **Reviewing rather than running?** Three pages carry the caveats:
 
 | | |
@@ -114,6 +120,8 @@ tasks own no code of their own: T2 re-scores arrays that T1 and T3 already
 produced, and T5 is the T3 pipeline re-run at other pocket cutoffs.
 
 ```
+WALKTHROUGH-zh.md   从零理解整个项目（中文）— 无需背景知识的完整导览
+
 MODELS_TRAINING.md  ⚠️ our attempt to train HypSeek's screening weight: two runs
                that never updated a parameter, then two that did — and what the
                19–23% shortfall against the released weight does and does not show
