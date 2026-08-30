@@ -8,8 +8,8 @@
 #
 # 环境借用 litenclip（同为 torch 2.4 + unicore，推理路径依赖已补齐）。
 set -u
-B=/data/yicheng/xqc/vs-benchmark
-E=/data/yicheng/xqc/envs/litenclip
+B=/data/work/vs
+E=/data/work/envs/litenclip
 GPU=${1:-5}
 SEED=${2:-1}          # 之前 ckpt 与输出路径都硬编码成 seed1，给 seed2 用会静默覆盖 seed1 结果
 cd $B/code/HypSeek

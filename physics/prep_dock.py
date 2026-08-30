@@ -30,8 +30,8 @@ import subprocess
 import lmdb
 import numpy as np
 
-B = "/data/yicheng/xqc/vs-benchmark"
-DOCK = "/data/yicheng/xqc/envs/dock/bin"
+B = "/data/work/vs"
+DOCK = "/data/work/envs/dock/bin"
 PAD = 4.0
 
 

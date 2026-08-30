@@ -121,7 +121,7 @@ nothing about cross-series ranking; Boltz-2's affinity head was trained on
 public affinity data whose overlap with these classic systems is not
 characterised; and BACE at −0.081 shows the failure is not graceful when it comes.
 
-## Cascade rerank — Boltz-2, run three times, no effect measured any time
+## Cascade rerank — Boltz-2, run four times, no effect measured any time
 
 | Mode | How | Cost |
 |---|---|---|
@@ -216,6 +216,60 @@ because "novel targets are just hard" is now excluded. It remains a statement
 about *this* pairing — one physics method, top-50 depth, this scoring — not
 about physics rescoring in general; the caveats in the previous section stand,
 and n = 12–15 targets keeps every p-value above 0.10.
+
+## Is one diffusion sample enough? A direct test
+
+Boltz-2's structure stage samples the complex from a diffusion process, and that
+sampling is stochastic. Our runs set `--diffusion_samples 1`, so the affinity
+model received a single unfiltered draw. A fair objection to the rerank result
+is that the pose was simply bad and the affinity score inherited the noise.
+
+Two details matter for reading that objection:
+
+- **The affinity stage was never single-sample.** `--diffusion_samples_affinity`
+  defaults to **5** and we never overrode it. The affinity model runs its own
+  diffusion with 5 samples on top of whatever structure it is given.
+- **Extra structure samples do not reach the affinity model as multiple poses.**
+  The structure stage ranks its N samples by confidence and writes only the
+  rank-0 one as `pre_affinity_<id>.npz`
+  ([`boltz/data/write/writer.py:177`](https://github.com/jwohlwend/boltz)). So
+  raising N buys a *best-of-N structure selection*, not multi-pose rescoring —
+  Boltz-2 cannot be handed externally generated poses at all. Our run confirms
+  the mechanism directly: 101 records produced 505 PDB files (5 each) and
+  exactly 101 `pre_affinity` files.
+
+**The test.** Same 750 complexes, same YAMLs, same MSAs, same affinity settings
+— only `--diffusion_samples` changed from 1 to 5, giving a strictly paired
+comparison over the 749 complexes scored in both runs
+([`physics/run_rerank4.sh`](../physics/run_rerank4.sh),
+[`physics/export_rerank4.py`](../physics/export_rerank4.py),
+[`results/T6_rerank4.csv`](../results/T6_rerank4.csv)).
+
+| Ranking | P@5 | P@10 | mean active rank | AUROC |
+|---|---|---|---|---|
+| retrieval (baseline) | **0.533** | **0.333** | **11.8** | 0.806 |
+| Boltz-2, N=1 | 0.333 | 0.225 | 15.5 | 0.720 |
+| Boltz-2, **N=5** | 0.317 | 0.233 | 15.7 | **0.718** |
+| rank fusion, N=1 | 0.433 | 0.308 | 11.0 | **0.822** |
+| rank fusion, N=5 | 0.467 | 0.292 | 11.4 | 0.815 |
+
+Paired Wilcoxon over the 12 targets, N=1 against N=5:
+
+| | P@5 | P@10 | mean rank | AUROC |
+|---|---|---|---|---|
+| N=5 − N=1 | −0.017 (p = 1.000) | +0.008 (p = 1.000) | +0.122 (p = 0.915) | −0.002 (p = 0.983) |
+
+**AUROC moves by 0.002 and every p-value sits above 0.9.** Best-of-5 structure
+selection changes nothing. Boltz-2 reranking is still worse than the retrieval
+order it was given (P@5 0.317 vs 0.533, p = 0.070), and fusion still fails to
+beat the better arm.
+
+This makes the rerank conclusion stronger rather than weaker: **structure
+sampling quality is not the limiting factor.** Whatever prevents the affinity
+score from reordering a retrieval shortlist is not fixed by giving it a better
+pose to score. It also lowers the value of the obvious follow-up — supplying the
+binding site as a `pocket` constraint is another way to improve the input
+structure, and this result predicts it would land in the same place.
 
 ## A second physics method, deliberately unrelated
 
@@ -330,3 +384,4 @@ All of it lives in [`physics/`](../physics/):
 | Build docking inputs from a retrieval shortlist | [`prep_dock.py`](../physics/prep_dock.py) |
 | Run smina, one target at a time, 90-minute cap | [`run_dock.sh`](../physics/run_dock.sh) |
 | Score the docking rerank, with per-target coverage | [`score_dock.py`](../physics/score_dock.py) |
+| The 5-sample rerun and its paired comparison | [`run_rerank4.sh`](../physics/run_rerank4.sh), [`chain_rerank4.sh`](../physics/chain_rerank4.sh), [`export_rerank4.py`](../physics/export_rerank4.py) |

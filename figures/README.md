@@ -4,7 +4,7 @@ Regenerate all three with [`make_figures.py`](make_figures.py). It needs
 matplotlib; on our machine only the `dock` environment has it.
 
 ```bash
-/data/yicheng/xqc/envs/dock/bin/python make_figures.py
+/data/work/envs/dock/bin/python make_figures.py
 ```
 
 Each figure is written as both PNG (160 dpi) and PDF.

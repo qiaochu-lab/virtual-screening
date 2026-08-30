@@ -10,7 +10,7 @@
 校正公式（Thorndike case II）：ρ_true ≈ ρ_obs·(S/s) / sqrt(1 + ρ_obs²(S²/s² - 1))
 """
 import json, os, numpy as np
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs"
 
 by = {}
 for e in json.load(open(f"{B}/code/LigUnity/test_datasets/casf_label_seq.json")):

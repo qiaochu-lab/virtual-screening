@@ -208,7 +208,38 @@ therefore systematically absent or truncated to a binding domain. Truncation was
 validated against annotated binding sites (0% of truncations miss the site after
 the fix), but a truncated protein is still not the full protein.
 
-## 15. One analysis bug reached the README before it was caught
+## 15. Boltz-2 sampling settings — tested, not assumed
+
+Boltz-2 has two independent sampling controls and they are easy to confuse:
+
+| Flag | Stage | Default | Ours |
+|---|---|---|---|
+| `--diffusion_samples` | structure | 1 | **1**, later **5** (see below) |
+| `--diffusion_samples_affinity` | affinity | **5** | 5 (never overridden) |
+| `--sampling_steps_affinity` | affinity | 200 | 200 |
+
+Two things follow. The affinity score was **never** a single-sample prediction —
+the affinity model always ran its own 5-sample diffusion. And extra structure
+samples do **not** reach the affinity model as multiple poses: the structure
+stage ranks its samples by confidence and passes only the rank-0 structure on,
+so raising N buys best-of-N *selection*, not multi-pose rescoring. Boltz-2
+cannot be handed externally generated poses at all — a point worth stating
+because "multi-pose" invites the docking reading.
+
+The rerank runs used `--diffusion_samples 1`, and the objection that a single
+unfiltered draw could be a bad pose is a fair one. It was tested rather than
+argued: the same 750 complexes were rerun at N=5, giving a paired comparison
+over the 749 scored in both. AUROC moved by 0.002 with every p-value above 0.9
+([`results/T6_rerank4.csv`](results/T6_rerank4.csv)). Structure sampling quality
+is not what limits the rerank result.
+
+**What is still untested:** the binding site was never supplied as a `pocket`
+constraint, so Boltz-2 located it itself while every retrieval model was handed
+a 6 Å pocket. That asymmetry is real and favours the retrieval side. It is
+another route to a better input structure, and the N=5 result predicts it would
+change little — but that is a prediction, not a measurement.
+
+## 16. One analysis bug reached the README before it was caught
 
 Every analysis that joined the score arrays to *external* per-molecule data —
 affinities, assay types, contamination flags — used the wrong molecule order for
@@ -225,7 +256,7 @@ to an external per-molecule attribute as needing the ordering check
 ([`timesplit/analysis/verify_order.py`](timesplit/analysis/verify_order.py))
 before it is quoted.
 
-## 16. Statistical practice
+## 17. Statistical practice
 
 Multiple comparisons across models × layers × classes are corrected with
 Benjamini–Hochberg (step-up). Bootstrap confidence intervals resample **targets**,

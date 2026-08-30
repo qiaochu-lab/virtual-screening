@@ -8,7 +8,7 @@
 import json, os, sys
 import numpy as np
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs"
 OUT = sys.argv[1] if len(sys.argv) > 1 else f"{B}/results/raw_release"
 os.makedirs(OUT, exist_ok=True)
 

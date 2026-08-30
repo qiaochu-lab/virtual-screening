@@ -83,7 +83,10 @@ already working in this area.
    significance**: smina docking of a top-200 shortlist at L4 drops P@10 from
    0.411 to 0.167 (p = 0.031, n = 9) — worse than the retrieval order it was
    handed. Two methods sharing no code, no scoring idea and no shortlist depth,
-   same direction. → [T6](tasks/T6-physics.md)
+   same direction. **Nor is it a pose-quality artifact**: raising Boltz-2's
+   structure sampling from 1 to 5 (best-of-5 by confidence, strictly paired over
+   749 complexes) moves AUROC by 0.002, every p-value above 0.9. Structure
+   quality is not the limiting factor. → [T6](tasks/T6-physics.md)
 
 6. **A co-folding model ranks affinity where retrieval cannot.** On the 16 FEP
    systems, same ligands and same metric, Boltz-2 reaches Spearman +0.615
@@ -157,6 +160,7 @@ results/       machine-readable CSVs
 ├── T5_pocket_threshold.csv     4 / 6 / 8 Å comparison
 ├── T6_FEP_boltz.csv            Boltz-2 affinity on the FEP systems
 ├── T6_rerank{,2,3}.csv         three cascade-rerank runs
+├── T6_rerank4.csv              the same shortlist at 5 diffusion samples
 └── T6_dock.csv                 smina docking rerank, with per-target coverage
 figures/       the three summary figures, and the script that rebuilds them
 ```

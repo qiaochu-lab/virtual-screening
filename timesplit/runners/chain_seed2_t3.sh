@@ -1,8 +1,8 @@
 #!/bin/bash
 # 等 PCBA 补跑结束 → 跑 seed=2 的 T3（脚本已参数化，不再覆盖 seed1）→ 算分
 set -u
-B=/data/yicheng/xqc/vs-benchmark
-PY=/data/yicheng/xqc/envs/ligunity/bin/python
+B=/data/work/vs
+PY=/data/work/envs/ligunity/bin/python
 LOG=$B/results/logs/chain_seed2_t3.log
 say(){ echo "[$(date '+%m-%d_%H:%M')] $*" >> $LOG; }
 

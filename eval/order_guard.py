@@ -17,7 +17,7 @@
 import json, os, pickle, sys
 import lmdb, numpy as np
 
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs"
 
 
 class MoleculeOrderError(RuntimeError):

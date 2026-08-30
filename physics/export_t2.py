@@ -4,7 +4,7 @@
 分子与打分整体错位。旧列一并保留，方便对照撤回了什么。
 """
 import csv, json, os
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs"
 d = json.load(open(f"{B}/results/t3/summary_t2_v2.json"))
 out = f"{B}/results/export/T2_on_T3.csv"
 os.makedirs(os.path.dirname(out), exist_ok=True)

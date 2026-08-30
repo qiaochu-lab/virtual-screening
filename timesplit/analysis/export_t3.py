@@ -4,7 +4,7 @@
 在 T3_main_clean.csv 里。这个脚本让主表可以随时重建。
 """
 import csv, json, os
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs"
 d = json.load(open(f"{B}/results/t3/summary.json"))
 out = f"{B}/results/export/T3_main.csv"
 os.makedirs(os.path.dirname(out), exist_ok=True)

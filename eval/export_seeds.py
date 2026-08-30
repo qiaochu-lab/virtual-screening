@@ -4,7 +4,7 @@
 差 17.6%，本身就说明该基准的噪声量级。
 """
 import csv, json, os
-B = "/data/yicheng/xqc/vs-benchmark"
+B = "/data/work/vs"
 out = f"{B}/results/export/T1_T3_hypseek_seeds.csv"
 os.makedirs(os.path.dirname(out), exist_ok=True)
 
