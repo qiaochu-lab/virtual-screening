@@ -97,6 +97,54 @@ The three models trained on LigUnity's data (LigUnity ×2, LiTENCLIP) sit at
 architectural differences between them (retrieval augmentation, molecule
 encoder) matter less than which corpus they saw.
 
+**2b. Sequence beats pocket where the target is familiar, and ties where it is
+not.** LigUnity ships two parallel branches from one release —
+`pocket_ranking_vs` (protein side = 3D pocket) and `protein_ranking_vs`
+(protein side = amino-acid sequence) — with the same training set, the same
+ligand encoder and the same checkpoint-averaging scheme. That makes them a
+controlled pair, and both were run over the same targets and the same candidate
+sets, so the comparison can be paired per target
+([`timesplit/analysis/seq_vs_pocket.py`](../timesplit/analysis/seq_vs_pocket.py),
+[`results/T3_seq_vs_pocket_per_target.csv`](../results/T3_seq_vs_pocket_per_target.csv)).
+
+| Layer | Metric | seq wins | pocket wins | ties | win rate (ex-ties) | mean Δ | p |
+|---|---|---|---|---|---|---|---|
+| **L1** | EF1% | 123 | 56 | 131 | **68.7%** | +3.98 | **7.9e-07** |
+| **L1** | AUROC | 177 | 120 | 13 | 59.6% | +0.023 | **2.3e-05** |
+| **L2** | EF1% | 202 | 134 | 98 | **60.1%** | +3.81 | **5.5e-07** |
+| **L2** | AUROC | 247 | 180 | 7 | 57.8% | +0.026 | **0.00017** |
+| L3 | EF1% | 18 | 11 | 19 | 62.1% | +3.74 | 0.10 |
+| L3 | AUROC | 27 | 20 | 1 | 57.4% | +0.019 | 0.40 |
+| **L4** | EF1% | 62 | **67** | 95 | **48.1%** | +0.45 | **0.93** |
+| **L4** | EF5% | 90 | 90 | 44 | **50.0%** | **−0.15** | **0.91** |
+| **L4** | AUROC | 110 | **114** | 0 | **49.1%** | +0.021 | 0.53 |
+
+**The sequence advantage is real at L1 and L2 and absent at L4.** On novel
+targets the two representations are a coin flip — win rate 48–50%, and both the
+EF5% mean and the AUROC median favour the pocket branch slightly. L3 points the
+same way as L1/L2 but has only 48 targets and settles nothing.
+
+Two reading notes. First, **the per-target table matters more than the means
+here**: EF@1% is coarse at this pool size (median ~1,200 candidates, so the top
+1% is 12 slots) and 131 of 310 L1 targets are exact ties, so a mean difference
+can be carried by a handful of targets. The main table above reports means for
+all models and shows LigUnity-protein ahead at every layer; the paired test
+says that lead is only established at L1 and L2.
+
+Second, this is **not** evidence that sequence is intrinsically the better
+protein representation. Both weights were trained by the authors; we know the
+two branches share a training set, a ligand encoder and a checkpoint-selection
+scheme, but not that every training detail matched. Separating that would need
+an ablation from the authors — one codebase, one hyperparameter set, only the
+protein tower swapped.
+
+What it does say is narrower and still useful: **a 3D pocket is not required to
+reach this level, and on genuinely novel targets it buys nothing measurable.**
+Read alongside [T5](T5-structure-robustness.md), where pocket-consuming models
+lose 31–75% when the extraction cutoff moves off the one used in training while
+swapping experimental structures for predicted ones costs nothing, the pocket
+looks less like a necessary input and more like a fragile one.
+
 **3. Model ranking reverses by target class.** On kinases ConPLex (pure
 sequence) beats ConGLUDe (geometric) 5.76 vs 2.07; on other enzymes it reverses,
 4.73 vs 1.28 — both significant after BH-FDR correction. Reporting only the

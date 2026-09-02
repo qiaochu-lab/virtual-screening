@@ -96,7 +96,16 @@ already working in this area.
    loses — which is what makes the two families worth combining rather than
    ranking. → [T6](tasks/T6-physics.md)
 
-7. **Training data explains performance tiers better than architecture.** The
+7. **A 3D pocket is not required, and on novel targets it buys nothing.**
+   LigUnity ships a pocket branch and a sequence branch from one release — same
+   training set, same ligand encoder, same checkpoint scheme. Paired per target,
+   the sequence branch wins 60–69% of decided targets at L1/L2 (p ≤ 2e-05) and
+   is a **coin flip at L4** (48–50%, p ≥ 0.53). Read with finding 4 below —
+   pocket-consuming models lose 31–75% when the extraction cutoff moves — the
+   pocket looks less like a necessary input than a fragile one.
+   → [T3](tasks/T3-time-split.md)
+
+8. **Training data explains performance tiers better than architecture.** The
    models trained on PocketAffDB all land at L1 EF1% 32–39; the three on
    DrugCLIP's data all land at 17–19 — across differences in retrieval
    augmentation and molecular encoder. The same split holds on DUD-E, where the
@@ -104,7 +113,7 @@ already working in this area.
    [`figures/`](figures/) fig 1 and fig 2, which are coloured by training set
    rather than architecture. → [T3](tasks/T3-time-split.md)
 
-8. **Retraining the best model's screening-selected weight makes it worse, and
+9. **Retraining the best model's screening-selected weight makes it worse, and
    the loss is entirely in early enrichment.** HypSeek publishes only its
    ranking-selected weight (`_rk`); training the screening weight (`_vs`) from
    the published recipe costs 20–24% EF1% on T1 and 39–48% on T3 — while AUROC
@@ -153,6 +162,7 @@ results/       machine-readable CSVs
 ├── T3_main_clean.csv           the same, with training-set contamination removed
 ├── T3_main_ci.csv              bootstrap confidence intervals
 ├── T3_targets.csv              per-target detail (class, layer, structure source)
+├── T3_seq_vs_pocket_per_target.csv  the sequence/pocket controlled pair, per target
 ├── T2_on_T3.csv                affinity ranking on time-split data
 ├── T2_on_FEP.csv               affinity ranking on the 16 FEP systems
 ├── T2_range_restriction.csv    why CASF and T3 disagree — spread, not models
