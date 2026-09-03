@@ -60,6 +60,24 @@ We deliberately avoid DUD-E-style property matching since that is the bias in
 question. **Cost: absolute numbers are not comparable to published values.**
 Only the L1→L4 decay within one fixed setup means anything.
 
+The three exclusions can leave a target short of 50×, in which case the builder
+takes what it can and records the true ratio — EF depends on library size, so
+that number has to travel with the result. In practice the pool was large enough
+that this almost never fired: **1,143 of 1,144 targets sit at exactly 50.0×**,
+the one exception at 43.6×. Per-target EF values are therefore comparable to
+each other, which they would not be under a varying ratio.
+
+**What does vary is the number of actives, and it limits EF's resolution.** The
+floor is 10 actives per target; the medians are 24 (L1), 66 (L2), 34 (L3) and 44
+(L4), with maxima in the hundreds to thousands. On a 10-active target the top 1%
+is 6 slots, so **one more hit moves EF@1% by 8.5** — against layer means of 8–39.
+Small targets are therefore very noisy, and the reported means weight them
+equally with targets measured a hundred times more precisely. The bootstrap
+intervals in [`results/T3_main_ci.csv`](../results/T3_main_ci.csv) resample
+targets and so carry this variance, but no weighting is applied. Raising the
+floor or weighting by active count would both be defensible; neither was done,
+and the L3 layer (48 targets) is where it matters most.
+
 **Structures:** 1,466 new targets; experimental PDB where available, Boltz-2
 predictions otherwise; usable pocket coverage **95.4%**. Pockets are
 residue-level at 6 Å, validated against the authors' own published pockets with
@@ -97,53 +115,77 @@ The three models trained on LigUnity's data (LigUnity ×2, LiTENCLIP) sit at
 architectural differences between them (retrieval augmentation, molecule
 encoder) matter less than which corpus they saw.
 
-**2b. Sequence beats pocket where the target is familiar, and ties where it is
-not.** LigUnity ships two parallel branches from one release —
-`pocket_ranking_vs` (protein side = 3D pocket) and `protein_ranking_vs`
-(protein side = amino-acid sequence) — with the same training set, the same
-ligand encoder and the same checkpoint-averaging scheme. That makes them a
-controlled pair, and both were run over the same targets and the same candidate
-sets, so the comparison can be paired per target
-([`timesplit/analysis/seq_vs_pocket.py`](../timesplit/analysis/seq_vs_pocket.py),
-[`results/T3_seq_vs_pocket_per_target.csv`](../results/T3_seq_vs_pocket_per_target.csv)).
+**2b. Sequence and pocket trade places by benchmark — neither wins
+consistently.** LigUnity ships two parallel branches from one release —
+`pocket_ranking` (protein side = 3D pocket) and `protein_ranking` (protein side
+= amino-acid sequence) — with the same training set, the same ligand encoder and
+the same checkpoint-averaging scheme. That makes them a controlled pair, and both
+were run over the same targets and candidate sets, so the comparison pairs per
+target ([`timesplit/analysis/seq_vs_pocket.py`](../timesplit/analysis/seq_vs_pocket.py),
+[`standard/seq_vs_pocket_t1.py`](../standard/seq_vs_pocket_t1.py)).
 
-| Layer | Metric | seq wins | pocket wins | ties | win rate (ex-ties) | mean Δ | p |
-|---|---|---|---|---|---|---|---|
-| **L1** | EF1% | 123 | 56 | 131 | **68.7%** | +3.98 | **7.9e-07** |
-| **L1** | AUROC | 177 | 120 | 13 | 59.6% | +0.023 | **2.3e-05** |
-| **L2** | EF1% | 202 | 134 | 98 | **60.1%** | +3.81 | **5.5e-07** |
-| **L2** | AUROC | 247 | 180 | 7 | 57.8% | +0.026 | **0.00017** |
-| L3 | EF1% | 18 | 11 | 19 | 62.1% | +3.74 | 0.10 |
-| L3 | AUROC | 27 | 20 | 1 | 57.4% | +0.019 | 0.40 |
-| **L4** | EF1% | 62 | **67** | 95 | **48.1%** | +0.45 | **0.93** |
-| **L4** | EF5% | 90 | 90 | 44 | **50.0%** | **−0.15** | **0.91** |
-| **L4** | AUROC | 110 | **114** | 0 | **49.1%** | +0.021 | 0.53 |
+**On the time-split data, sequence wins where the target was seen and ties where
+it was not** ([`results/T3_seq_vs_pocket_per_target.csv`](../results/T3_seq_vs_pocket_per_target.csv)):
 
-**The sequence advantage is real at L1 and L2 and absent at L4.** On novel
-targets the two representations are a coin flip — win rate 48–50%, and both the
-EF5% mean and the AUROC median favour the pocket branch slightly. L3 points the
-same way as L1/L2 but has only 48 targets and settles nothing.
+| Layer | Metric | seq wins | pocket wins | ties | win rate (ex-ties) | p |
+|---|---|---|---|---|---|---|
+| **L1** | EF1% | 123 | 56 | 131 | **68.7%** | **7.9e-07** |
+| **L1** | AUROC | 177 | 120 | 13 | 59.6% | **2.3e-05** |
+| **L2** | EF1% | 202 | 134 | 98 | **60.1%** | **5.5e-07** |
+| **L2** | AUROC | 247 | 180 | 7 | 57.8% | **0.00017** |
+| L3 | EF1% | 18 | 11 | 19 | 62.1% | 0.10 |
+| L3 | AUROC | 27 | 20 | 1 | 57.4% | 0.40 |
+| **L4** | EF1% | 62 | **67** | 95 | **48.1%** | **0.93** |
+| **L4** | EF5% | 90 | 90 | 44 | **50.0%** | **0.91** |
+| **L4** | AUROC | 110 | **114** | 0 | **49.1%** | 0.53 |
 
-Two reading notes. First, **the per-target table matters more than the means
-here**: EF@1% is coarse at this pool size (median ~1,200 candidates, so the top
-1% is 12 slots) and 131 of 310 L1 targets are exact ties, so a mean difference
-can be carried by a handful of targets. The main table above reports means for
-all models and shows LigUnity-protein ahead at every layer; the paired test
-says that lead is only established at L1 and L2.
+**On the standard benchmarks the ordering reverses**
+([`results/T1_seq_vs_pocket_per_target.csv`](../results/T1_seq_vs_pocket_per_target.csv)):
 
-Second, this is **not** evidence that sequence is intrinsically the better
-protein representation. Both weights were trained by the authors; we know the
-two branches share a training set, a ligand encoder and a checkpoint-selection
-scheme, but not that every training detail matched. Separating that would need
-an ablation from the authors — one codebase, one hyperparameter set, only the
-protein tower swapped.
+| Benchmark | Metric | pocket | sequence | seq wins | pocket wins | ties | win rate | p |
+|---|---|---|---|---|---|---|---|---|
+| DUD-E | EF1% | 42.57 | 36.69 | 45 | 47 | 10 | 48.9% | 0.08 |
+| DUD-E | BEDROC | 0.653 | 0.574 | 49 | 53 | 0 | 48.0% | 0.11 |
+| DUD-E | AUROC | 0.892 | 0.887 | 51 | 51 | 0 | 50.0% | 0.53 |
+| **DEKOIS** | EF1% | 24.62 | **27.04** | 30 | 22 | 29 | **57.7%** | **0.011** |
+| **DEKOIS** | BEDROC | 0.728 | **0.785** | 55 | 26 | 0 | **67.9%** | **0.02** |
+| DEKOIS | AUROC | 0.911 | 0.925 | 40 | 40 | 1 | 50.0% | 0.22 |
+| **LIT-PCBA** | EF1% | **7.30** | 6.22 | **0** | **10** | 5 | **0.0%** | **0.0051** |
+| **LIT-PCBA** | EF5% | **3.10** | 2.18 | 1 | 13 | 1 | **7.1%** | **0.0029** |
+| **LIT-PCBA** | BEDROC | **0.088** | 0.075 | 2 | 13 | 0 | **13.3%** | **0.012** |
+| LIT-PCBA | AUROC | 0.601 | 0.563 | 5 | 10 | 0 | 33.3% | 0.19 |
 
-What it does say is narrower and still useful: **a 3D pocket is not required to
-reach this level, and on genuinely novel targets it buys nothing measurable.**
-Read alongside [T5](T5-structure-robustness.md), where pocket-consuming models
-lose 31–75% when the extraction cutoff moves off the one used in training while
-swapping experimental structures for predicted ones costs nothing, the pocket
-looks less like a necessary input and more like a fragile one.
+**Putting both tables together, there is no consistent winner.** The sequence
+branch wins DEKOIS and T3's L1/L2; the pocket branch wins LIT-PCBA on every
+early-enrichment metric — 10 of 10 decided targets on EF1% — and DUD-E is a tie
+under pairing despite a 5.89 gap in the means. This is the same phenomenon as
+finding 3 below, one level down: **not only does model ranking reverse by
+benchmark, so does the ranking of two branches of a single model.**
+
+**LIT-PCBA deserves the most weight of the three standard benchmarks** — its
+decoys are experimentally confirmed inactives rather than generated — and it is
+the one that favours the pocket most decisively. Any claim that a 3D pocket is
+dispensable has to answer that.
+
+Three reading notes.
+
+**The per-target table matters more than the means here.** EF@1% is coarse at
+this pool size (T3's median pool is ~1,200 candidates, so the top 1% is 12 slots)
+and 131 of 310 L1 targets are exact ties, so a mean difference can be carried by
+a handful of targets. DUD-E is the clearest case: the pocket branch leads by 5.89
+EF1% in the mean and the paired test says 48.9% vs 51.1%, p = 0.08.
+
+**AUROC settles nothing anywhere.** It is non-significant on all three standard
+benchmarks (p = 0.19–0.53) and at L3/L4. Only the early-enrichment metrics
+separate the two branches — the same point finding 4 makes about models.
+
+**This is not evidence about representations in general.** Both weights were
+trained by the authors; we know the branches share a training set, a ligand
+encoder and a checkpoint-selection scheme, but not that every training detail
+matched, and the paper's reported model is the **ensemble** of both plus an HGNN
+post-step, which we did not run. What the pair supports is narrower: the two
+protein representations are close enough that which one leads depends on the
+evaluation, and on genuinely novel targets they are indistinguishable.
 
 **3. Model ranking reverses by target class.** On kinases ConPLex (pure
 sequence) beats ConGLUDe (geometric) 5.76 vs 2.07; on other enzymes it reverses,

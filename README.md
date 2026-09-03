@@ -96,13 +96,16 @@ already working in this area.
    loses — which is what makes the two families worth combining rather than
    ranking. → [T6](tasks/T6-physics.md)
 
-7. **A 3D pocket is not required, and on novel targets it buys nothing.**
-   LigUnity ships a pocket branch and a sequence branch from one release — same
-   training set, same ligand encoder, same checkpoint scheme. Paired per target,
-   the sequence branch wins 60–69% of decided targets at L1/L2 (p ≤ 2e-05) and
-   is a **coin flip at L4** (48–50%, p ≥ 0.53). Read with finding 4 below —
-   pocket-consuming models lose 31–75% when the extraction cutoff moves — the
-   pocket looks less like a necessary input than a fragile one.
+7. **Sequence and pocket trade places by benchmark — neither representation
+   wins consistently.** LigUnity ships a pocket branch and a sequence branch from
+   one release — same training set, same ligand encoder, same checkpoint scheme.
+   Paired per target, the sequence branch wins DEKOIS and T3's L1/L2 (60–69% of
+   decided targets, p ≤ 0.02), the pocket branch wins **LIT-PCBA on every
+   early-enrichment metric** (10 of 10 decided targets on EF1%, p = 0.005), and
+   DUD-E is a tie under pairing despite a 5.89 EF1% gap in the means. On novel
+   targets (L4) the two are indistinguishable — 48–50%, p ≥ 0.53. This is
+   finding 3 one level down: not only does model ranking reverse by benchmark,
+   so does the ranking of two branches of one model.
    → [T3](tasks/T3-time-split.md)
 
 8. **Training data explains performance tiers better than architecture.** The
@@ -162,7 +165,8 @@ results/       machine-readable CSVs
 ├── T3_main_clean.csv           the same, with training-set contamination removed
 ├── T3_main_ci.csv              bootstrap confidence intervals
 ├── T3_targets.csv              per-target detail (class, layer, structure source)
-├── T3_seq_vs_pocket_per_target.csv  the sequence/pocket controlled pair, per target
+├── T3_seq_vs_pocket_per_target.csv  the sequence/pocket pair on the time split
+├── T1_seq_vs_pocket_per_target.csv  the same pair on the three standard benchmarks
 ├── T2_on_T3.csv                affinity ranking on time-split data
 ├── T2_on_FEP.csv               affinity ranking on the 16 FEP systems
 ├── T2_range_restriction.csv    why CASF and T3 disagree — spread, not models

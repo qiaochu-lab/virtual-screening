@@ -239,7 +239,35 @@ a 6 Å pocket. That asymmetry is real and favours the retrieval side. It is
 another route to a better input structure, and the N=5 result predicts it would
 change little — but that is a prediction, not a measurement.
 
-## 16. One analysis bug reached the README before it was caught
+## 16. Checkpoint selection is not symmetric across models
+
+Every retrieval model here ran a screening-selected checkpoint except HypSeek,
+which ran `_rk`, selected on FEP ranking — the only weight its authors released.
+Comparing it to models represented by their screening weights is not apples to
+apples.
+
+Measured rather than assumed: we trained the screening-selected weight from the
+published recipe (two seeds) and it is **worse** at screening — T3 L1 EF1% 22.2
+against `_rk`'s 36.6, and 20–24% lower on the standard benchmarks. So the
+asymmetry does not flatter HypSeek's screening numbers; `_rk` is its stronger
+screening weight too. The per-task checkpoint matrix is in
+[`MODELS.md`](MODELS.md).
+
+## 17. Per-target actives counts vary by two orders of magnitude
+
+T3 requires ≥10 actives per target; the medians are 24–66 by layer and the
+maxima reach the thousands. On a 10-active target the top 1% is 6 slots, so one
+additional hit moves EF@1% by **8.5** — against layer means of 8–39. Targets at
+the floor are therefore very noisy, and the reported means weight them equally
+with targets measured far more precisely. Bootstrap intervals
+([`results/T3_main_ci.csv`](results/T3_main_ci.csv)) resample targets and carry
+this variance; no weighting or higher floor was applied. L3, at 48 targets, is
+where this bites hardest.
+
+The decoy ratio, by contrast, is **not** a source of incomparability: 1,143 of
+1,144 targets sit at exactly 50.0×, the single exception at 43.6×.
+
+## 18. One analysis bug reached the README before it was caught
 
 Every analysis that joined the score arrays to *external* per-molecule data —
 affinities, assay types, contamination flags — used the wrong molecule order for
@@ -256,7 +284,7 @@ to an external per-molecule attribute as needing the ordering check
 ([`timesplit/analysis/verify_order.py`](timesplit/analysis/verify_order.py))
 before it is quoted.
 
-## 17. Statistical practice
+## 19. Statistical practice
 
 Multiple comparisons across models × layers × classes are corrected with
 Benjamini–Hochberg (step-up). Bootstrap confidence intervals resample **targets**,

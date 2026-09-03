@@ -87,16 +87,41 @@ belongs on the structure side of any comparison.
 
 Full detail, and what breaks without each fix, in [`PATCHES.md`](PATCHES.md).
 
-## Status by task
+## Status by task, and which checkpoint each ran
 
-| Model | T1 | T2 | T3 | T5 |
-|---|---|---|---|---|
-| DrugCLIP | ✅ | ✅ | ✅ | ✅ (4/6/8 Å) |
-| BindCLIP ×2 | ✅ | ✅ | ✅ | ✅ (4/6/8 Å) |
-| LigUnity ×2 | — | ✅ (T3 + FEP) | ✅ | — |
-| LiTENCLIP | — | ✅ (T3 + FEP) | ✅ | — |
-| HypSeek `_rk` | — | ✅ | ✅ | — |
-| ConGLUDe | — | ✅ | ✅ | — |
-| ConPLex | — | ✅ | ✅ | control |
-| SPRINT | — | — | ⚠️ L3/L4 only | — |
-| Boltz-2 | — | 🔄 running | structures | — |
+Every model was evaluated with **one** checkpoint across all tasks — we did not
+swap weights per task. The selection criterion behind that checkpoint differs
+between models, and that asymmetry is worth seeing in one place.
+
+| Model | Checkpoint selected on | T1 | T2 | T3 | T5 | T6 |
+|---|---|---|---|---|---|---|
+| DrugCLIP | screening | ✅ | ✅ | ✅ | ✅ (4/6/8 Å, apo) | — |
+| BindCLIP ×2 | screening | ✅ | ✅ | ✅ | ✅ (4/6/8 Å, apo) | — |
+| LigUnity-pocket | screening (`_vs`) | ✅ | ✅ (T3 + FEP + CASF) | ✅ | — | shortlist source |
+| LigUnity-protein | screening (`_vs`) | ✅ | ✅ (T3 + FEP + CASF) | ✅ | — | shortlist source |
+| LiTENCLIP | screening (`best_valid_bedroc`) | ✅ | ✅ (T3 + FEP + CASF) | ✅ | — | — |
+| **HypSeek `_rk`** | **FEP ranking** | ✅ | ✅ | ✅ | ✅ (256 vs 511 cap) | — |
+| HypSeek `_vs` (ours) | screening | ✅ | — | ✅ | — | — |
+| ConGLUDe | undisclosed | ✅ | ✅ | ✅ | — | — |
+| ConPLex | undisclosed | ✅ | ✅ | ✅ | control | — |
+| SPRINT | undisclosed | ✅ | — | ✅ | — | — |
+| Boltz-2 | n/a (co-folding) | — | ✅ (FEP) | structures | — | ✅ |
+
+**The asymmetry to keep in mind: every retrieval model here ran a
+screening-selected checkpoint except HypSeek, which ran a ranking-selected one**
+— because `_rk` is the only weight its authors released. Reporting HypSeek's
+screening numbers from a checkpoint chosen on FEP ranking is not obviously fair,
+and it was raised as a criticism.
+
+It turns out not to disadvantage HypSeek. We trained the screening-selected
+weight ourselves from the published recipe, two seeds, and it is **worse** at
+screening: T3 L1 EF1% 22.2 against `_rk`'s 36.6, and 20–24% lower on the
+standard benchmarks ([`MODELS_TRAINING.md`](MODELS_TRAINING.md),
+[`results/T1_T3_hypseek_seeds.csv`](results/T1_T3_hypseek_seeds.csv)). So `_rk`
+is HypSeek's better screening weight as well as its ranking weight — which is
+itself the finding, not a flaw in the setup.
+
+Where a model's own paper reports no metric for a task, that is a property of
+the model's scope rather than of this benchmark, and the cell above says so
+rather than implying the run failed.
+
