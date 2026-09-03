@@ -283,6 +283,20 @@ weighting by actives count is applied; bootstrap intervals
 ([`results/T3_main_ci.csv`](results/T3_main_ci.csv)) resample targets and carry
 the variance.
 
+- **Raising the floor deletes protein classes.** Well-studied targets have more
+  actives, so a floor selects for them. Large classes hold their share (enzymes
+  28% → 31%, kinases 26% → 28% at ≥50) but transporters fall 23 → 3, nuclear
+  receptors 22 → 6 and P450 12 → 2. **The per-class finding cannot be made on a
+  ≥50 subset**, which is part of why the floor was left at 10
+  ([`results/T3_actives_floor_classes.csv`](results/T3_actives_floor_classes.csv)).
+
+There is no industry floor to appeal to: DUD-E carries 100+ actives on 82% of
+targets, but **DEKOIS gives every target exactly 40 and none reaches 50**, and it
+has been standard for over a decade. What DEKOIS has is uniformity — every target
+identical, so its per-target values are directly comparable. DUD-E spans 15×.
+**Ours spans 326×**, and that spread, not the absolute count, is what makes our
+per-target precision unequal.
+
 The decoy ratio, by contrast, is **not** a source of incomparability: 1,143 of
 1,144 targets sit at exactly 50.0×, the single exception at 43.6×.
 

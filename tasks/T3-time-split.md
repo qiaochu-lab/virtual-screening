@@ -279,10 +279,53 @@ top three at all four floors. **Where an ordering matters, prefer BEDROC or
 PR-AUC over a single EF cutoff** — the same lesson finding 4 draws from a
 different angle.
 
+**Raising the floor is not a neutral filter — it deletes whole protein
+classes.** Well-studied targets have more actives in the literature, so a floor
+selects for them ([`timesplit/analysis/actives_floor_classes.py`](../timesplit/analysis/actives_floor_classes.py),
+[`results/T3_actives_floor_classes.csv`](../results/T3_actives_floor_classes.csv)):
+
+| Class | ≥10 | ≥30 | ≥50 | ≥100 |
+|---|---|---|---|---|
+| other enzymes | 324 (28%) | 206 (30%) | 158 (31%) | 97 (30%) |
+| kinases | 292 (26%) | 182 (26%) | 141 (28%) | 95 (29%) |
+| unclassified | 149 (13%) | 98 (14%) | 75 (15%) | 50 (15%) |
+| GPCR | 113 (10%) | 55 (8%) | 41 (8%) | 23 (7%) |
+| proteases | 77 (7%) | 48 (7%) | 34 (7%) | 20 (6%) |
+| epigenetic | 72 (6%) | 47 (7%) | 29 (6%) | 21 (6%) |
+| ion channels | 60 (5%) | 31 (4%) | 18 (4%) | 14 (4%) |
+| **transporters** | 23 (2%) | 7 (1%) | **3** | **2** |
+| **nuclear receptors** | 22 (2%) | 10 (1%) | **6** | **4** |
+| **P450** | 12 (1%) | 6 (1%) | **2** | **1** |
+
+The large classes hold their share — a ≥50 subset is not "all kinases", enzymes
+go 28% → 31% and kinases 26% → 28%. But **transporters, nuclear receptors and
+P450 fall below the point of supporting any claim**, and GPCRs drop from 10% to
+8%. Finding 3 above — that model ranking reverses by target class — **cannot be
+made on a ≥50 subset at all**, because the classes it depends on are gone.
+
+**Is there an industry floor?** The three public benchmarks disagree, so no:
+
+| Benchmark | targets | min | median | max | ≥50 | ≥100 |
+|---|---|---|---|---|---|---|
+| DUD-E | 102 | 40 | 158 | 592 | 95% | 82% |
+| **DEKOIS** | 81 | 37 | **40** | 40 | **0%** | **0%** |
+| LIT-PCBA | 15 | 13 | 102 | 7166 | 67% | 53% |
+| **T3 (ours)** | 1144 | **10** | 41 | 3262 | 44% | 29% |
+
+DUD-E is generous — 82% of its targets carry 100+ actives. **DEKOIS gives every
+target exactly 40 and not one reaches 50**, and it has been a standard benchmark
+for over a decade. So a hard floor of 50 is not the convention.
+
+What DEKOIS does have is **uniformity**: every target identical, so per-target
+EF values are directly comparable. DUD-E spans 15×. **Ours spans 326×.** That
+spread, not the absolute count, is what makes our per-target values unequal in
+precision — and it is the thing a fixed floor cannot fix, only trade against
+coverage.
+
 What was *not* changed: the floor stays at 10 in the main tables, because moving
-it would cost 27–56% of targets and L3 outright. The gradient is reported
-alongside instead, and the caveat is recorded in
-[`LIMITATIONS.md`](../LIMITATIONS.md).
+it would cost 27–56% of targets, L3 outright, and the entire per-class analysis.
+The gradient and the class table are reported alongside instead, and the caveat
+is recorded in [`LIMITATIONS.md`](../LIMITATIONS.md).
 
 ### Robustness checks
 

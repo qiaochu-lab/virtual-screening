@@ -101,7 +101,8 @@ between models, and that asymmetry is worth seeing in one place.
 | LigUnity-protein | screening (`_vs`) | ✅ | ✅ (T3 + FEP + CASF) | ✅ | — | shortlist source |
 | LiTENCLIP | screening (`best_valid_bedroc`) | ✅ | ✅ (T3 + FEP + CASF) | ✅ | — | — |
 | **HypSeek `_rk`** | **FEP ranking** | ✅ | ✅ | ✅ | ✅ (256 vs 511 cap) | — |
-| HypSeek `_vs` (ours) | screening | ✅ | — | ✅ | — | — |
+| HypSeek `_vs` (collaborator) | screening | ✅ | ✅ | ✅ | — | — |
+| HypSeek `_vs` (ours, deficient) | screening | ✅ | — | ✅ | — | — |
 | ConGLUDe | undisclosed | ✅ | ✅ | ✅ | — | — |
 | ConPLex | undisclosed | ✅ | ✅ | ✅ | control | — |
 | SPRINT | undisclosed | ✅ | — | ✅ | — | — |
@@ -113,13 +114,21 @@ screening-selected checkpoint except HypSeek, which ran a ranking-selected one**
 screening numbers from a checkpoint chosen on FEP ranking is not obviously fair,
 and it was raised as a criticism.
 
-It turns out not to disadvantage HypSeek. We trained the screening-selected
-weight ourselves from the published recipe, two seeds, and it is **worse** at
-screening: T3 L1 EF1% 22.2 against `_rk`'s 36.6, and 20–24% lower on the
-standard benchmarks ([`MODELS_TRAINING.md`](MODELS_TRAINING.md),
-[`results/T1_T3_hypseek_seeds.csv`](results/T1_T3_hypseek_seeds.csv)). So `_rk`
-is HypSeek's better screening weight as well as its ranking weight — which is
-itself the finding, not a flaw in the setup.
+It turns out not to disadvantage HypSeek, but establishing that took two tries.
+Our own `_vs` training scored far below `_rk`, which we first read as evidence
+about the objective; it was a deficit in our training (see
+[`MODELS_TRAINING.md`](MODELS_TRAINING.md)). A collaborator's paper-faithful
+`_vs`, run through this same pipeline, still trails `_rk` at every T3 layer —
+EF1% 30.70 vs 36.63 at L1, 5.75 vs 7.34 at L4
+([`results/T3_hypseek_three_way.csv`](results/T3_hypseek_three_way.csv)). So
+`_rk` is HypSeek's better screening weight as well as its ranking weight, by
+about 16% rather than the 40% our own weight suggested.
+
+**A caveat that applies to anyone using this model.** The released `_rk` scores
+*above* the paper's own published screening numbers — DUD-E EF1% 56.39 against
+51.44 — measured with a pipeline that reproduces the paper's LigUnity baseline
+to four decimals. The released checkpoint is not the model behind the paper's
+Table 1, and the paper never mentions two checkpoints at all.
 
 Where a model's own paper reports no metric for a task, that is a property of
 the model's scope rather than of this benchmark, and the cell above says so

@@ -249,6 +249,59 @@ evidence that the right computation ran. Directory entry counts are a
 particularly bad signal, because directories are created before their contents
 are written.
 
+### Gradient accumulation does not substitute for batch size in contrastive learning
+
+The official HypSeek recipe is `batch-size 24, update-freq 1` on four GPUs.
+Batch 24 does not fit in 24 GB — the first run logged 471,107 OOM events and
+finished 50 epochs without applying a single gradient. We dropped to batch 4 and
+raised `update-freq` to 6, keeping the optimiser's effective batch at
+4 × 6 × 4 = 96, matching the official 24 × 1 × 4 = 96, and recorded in the script
+that the two were equivalent.
+
+**They are not.** `three_hybrid_loss` builds its similarity matrix from the
+ligands in the current forward pass, and neither the model nor the loss calls
+`all_gather`, so negatives come from one GPU's current batch. Accumulation sums
+the gradients of six small-batch losses; it never constructs a larger similarity
+matrix. The optimiser saw 96; **the contrastive loss saw 4 negatives instead of
+24.**
+
+Three independently trained weights, evaluated through one pipeline, are
+monotone in the negative pool and unrelated to the optimiser batch:
+
+| | per-GPU batch | update-freq | GPUs | optimiser batch | negatives | DUD-E EF1% |
+|---|---|---|---|---|---|---|
+| official | 24 | 1 | 4 | 96 | **24** | 51.44 |
+| collaborator | 12 | 1 | 1 | **12** | **12** | 49.34 |
+| ours | 4 | 6 | 4 | 96 | **4** | 43.29 |
+
+The collaborator's run had one eighth of the official optimiser batch and
+reproduced the paper; ours matched the optimiser batch exactly and fell 15.8%
+short. The deficit's shape matches the mechanism — AUROC moved 2.3% while EF1%
+moved 15.8%, i.e. coarse separation survives and top-of-list discrimination does
+not.
+
+**The equivalence is real in ordinary supervised training**, which is why the
+substitution looked safe and why the note in the script asserting it went
+unchallenged. In any objective whose loss couples the examples within a batch —
+contrastive, triplet, listwise ranking — batch size is a property of the loss,
+not just of the optimiser.
+
+### Diagnosing a memory ceiling under the wrong parallelism
+
+The same episode has a second lesson worth separating. Batch 24 OOM'd and batch
+6 crashed, so we retreated to 4. We never tried 8, 12 or 16, and never tried a
+single GPU.
+
+Both failures were measured **under 4-GPU DDP**, where each rank carries extra
+memory, and where unicore's OOM recovery is actively unsafe: one rank skipping a
+batch while the others keep communicating desynchronises NCCL and aborts the
+process with SIGABRT. That crash is a property of the parallel setup, not of the
+memory. The collaborator fit batch 12 on a single 4090 — the same 24 GB we had.
+
+**We measured our parallelism and called it our hardware.** Before shrinking a
+batch to fit, establish what a different parallel configuration allows; and treat
+a distributed-training crash as evidence about distribution, not about capacity.
+
 ### Metric bugs
 
 **Enrichment cutoffs must use `ceil`, not `round`.** RDKit's `CalcEnrichment`

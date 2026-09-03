@@ -82,67 +82,110 @@ so overall ranking ability is close. EF1% and BEDROC differ by ~20%, and both ar
 early-recognition metrics: the gap is concentrated in the very top of the ranked
 list, which is the part a screening campaign acts on.
 
+## Resolved: the gap was our own negative pool
+
+A collaborator trained the same weight independently and shared the checkpoint.
+Run through **our** pipeline — same code, same data, same metrics — it lands
+close to the paper where ours does not:
+
+| | paper | collaborator `_vs` | ours (seed 1) | released `_rk` |
+|---|---|---|---|---|
+| DUD-E AUROC | 0.9435 | **0.9388** (−0.5%) | 0.922 (−2.3%) | 0.967 (+2.5%) |
+| DUD-E BEDROC | 0.7892 | **0.7589** (−3.8%) | 0.684 (−13.3%) | 0.884 (+12.0%) |
+| DUD-E EF1% | 51.44 | **49.34** (−4.1%) | **43.29 (−15.8%)** | 56.39 (+9.6%) |
+| LIT-PCBA EF1% | 6.81 | **6.76** (−0.7%) | 4.44 (−34.8%) | 8.34 (+22.5%) |
+
+**Our evaluation is not the variable.** The paper reports LigUnity-pocket as a
+baseline, and our independent measurement of it matches to four decimal places
+(AUROC 0.8922 vs 0.8922, EF5% 13.57 vs 13.57, BEDROC 0.6528 vs 0.6526, EF1%
+42.57 vs 42.63). So the 15.8% is a training deficit on our side.
+
+### What differed
+
+Every hyperparameter matches the official `train.sh` — learning rate, schedule,
+warmup, epochs, clip norm, fp16 settings, `max-pocket-atoms`, `max-lignum`,
+`learn-curv`, `protein-similarity-thres` — and the task code loads the same
+PocketAffDB files. One thing differed:
+
+| | per-GPU batch | update-freq | GPUs | optimiser batch | **negatives per step** | DUD-E EF1% |
+|---|---|---|---|---|---|---|
+| official | 24 | 1 | 4 | 96 | **24** | 51.44 |
+| collaborator | 12 | 1 | **1** | 12 | **12** | 49.34 |
+| **ours** | 4 | **6** | 4 | 96 | **4** | 43.29 |
+
+We could not fit batch 24 in 24 GB (471,107 OOM events in the first run), so we
+dropped the batch and raised `update-freq` to keep the optimiser's effective
+batch at 96 — reasoning that is correct for ordinary supervised training and
+**wrong for contrastive learning**.
+
+`three_hybrid_loss` builds its similarity matrix from the ligands in the current
+forward pass, and there is no cross-GPU `all_gather` anywhere in the model or
+the loss. Gradient accumulation sums the gradients of six small-batch losses; it
+does not construct one large similarity matrix. **The optimiser saw a batch of
+96; the contrastive loss saw 4 negatives instead of 24.**
+
+The three configurations are monotone in the negative pool (24 → 12 → 4 giving
+51.44 → 49.34 → 43.29) and unrelated to the optimiser batch (96 → 12 → 96). The
+collaborator's run had **one eighth** of the official optimiser batch and still
+reproduced the paper.
+
+It also explains the *shape* of the deficit. AUROC moves 2.3% while EF1% moves
+15.8%: fewer negatives still teach coarse separation, but not discrimination
+among the hardest, most similar candidates — which is the top of the ranked list.
+
+### The second mistake, which is the more transferable one
+
+Batch 24 OOM'd and batch 6 crashed, so we retreated to 4. We never tried 8, 12
+or 16, and never tried a single GPU. Both failures were measured **under 4-GPU
+DDP**, where each rank carries extra memory and — worse — unicore's OOM recovery
+is unsafe: one rank skipping a batch while the others keep communicating
+desynchronises NCCL and aborts the process. The collaborator fit batch 12 on a
+single 4090, the same 24 GB.
+
+**The limit we measured was our parallelism, not our memory**, and we treated a
+DDP-specific crash as a hardware ceiling. Before shrinking a batch, ask what a
+different parallel setup allows.
+
 ## What this does and does not establish
 
-Three explanations remain, and this experiment does not separate them:
+**Withdrawn.** An earlier version of this page, and finding 9 in the README,
+said that training the screening-selected weight yields a materially weaker
+screener. That was our training deficit, not a property of the objective, and
+the claim is retracted.
 
-1. **The objective.** `_vs` selects its checkpoint on `valid_bedroc`, `_rk` on
-   FEP ranking. It is possible that the ranking-selected checkpoint is simply the
-   better screening weight — which would itself be worth reporting.
-2. **Our reproduction.** Data version, undocumented preprocessing, or training
-   length could differ from what produced the released weight.
-3. **Seed variance.** ~~The authors of the model report seed sensitivity, and
-   this is one run.~~ **Ruled out** — see below.
+**What survives, with the collaborator's paper-faithful weight in place of
+ours.** The released `_rk` still leads on screening at every T3 layer
+([`results/T3_hypseek_three_way.csv`](results/T3_hypseek_three_way.csv)):
 
-### Seed variance is ruled out
+| Layer | `_rk` | collaborator `_vs` | ours |
+|---|---|---|---|
+| L1 EF1% | **36.63** | 30.70 | 22.15 |
+| L2 EF1% | **23.61** | 19.39 | 13.32 |
+| L3 EF1% | **13.56** | 11.11 | 7.11 |
+| L4 EF1% | **7.34** | 5.75 | 4.63 |
+| L1 AUROC | 0.923 | 0.900 | 0.888 |
+| L4 AUROC | 0.710 | 0.683 | 0.682 |
 
-A second seed was trained under the identical configuration and passed the same
-weights-actually-moved gate (distance from pretrained init 69.16, against 0.000
-for the two failed runs).
+So **a checkpoint selected on FEP ranking is also the better screener** — the
+observation that motivated this whole exercise. The margin is 16% at L1, not the
+40% our own weight suggested. And the L1→L4 decay is indifferent to which weight
+is used (−50% / −54% / −53%), which is worth noting on its own: **the benchmark's
+headline finding does not depend on getting the training right.**
 
-Both seeds were then run on everything the released weight was run on — three
-standard benchmarks and all four time-split layers
-([`results/T1_T3_hypseek_seeds.csv`](results/T1_T3_hypseek_seeds.csv)):
+**A separate anomaly, which we did not go looking for.** The weight published on
+HuggingFace scores *above* the paper's own reported screening numbers — DUD-E
+EF1% 56.39 against 51.44 (+9.6%), LIT-PCBA 8.34 against 6.81 (+22.5%), with our
+pipeline validated against the paper's LigUnity baseline to four decimals. **The
+released checkpoint is therefore not the model behind Table 1.** The paper never
+mentions two checkpoints at all; the `_vs`/`_rk` distinction exists only in the
+release. Anyone downloading the weight is not getting the published model — in
+this instance a better one on screening, but the two are not interchangeable.
 
-| | | `_rk` | seed 1 | seed 2 | seed spread | vs `_rk` |
-|---|---|---|---|---|---|---|
-| T1 | DUD-E EF1% | 56.39 | 43.29 | 42.03 | 2.9% | −24% |
-| T1 | DEKOIS EF1% | 28.83 | 23.32 | 22.63 | 3.0% | −20% |
-| T1 | LIT-PCBA EF1% | 8.34 | 4.44 | 5.22 | **17.6%** | −42% |
-| T3 | L1 AUROC | 0.9230 | 0.8879 | 0.8882 | **0.0%** | −3.8% |
-| T3 | L1 EF1% | 36.63 | 22.15 | 22.22 | **0.3%** | −39% |
-| T3 | L2 EF1% | 23.61 | 13.32 | 13.06 | 2.0% | −44% |
-| T3 | L3 EF1% | 13.56 | 7.11 | 7.03 | 1.2% | −48% |
-| T3 | L4 EF1% | 7.34 | 4.63 | 4.14 | 10.5% | −40% |
-
-Two things fall out of this that one seed could not have shown.
-
-**Seed spread is 0–3% wherever n is large, and only blows up on the two
-smallest measurements** — LIT-PCBA (15 targets, 17.6%) and L4 EF1% (the weakest
-signal, 10.5%). The seed conclusion therefore rests on DUD-E, DEKOIS and the
-L1–L3 layers, not on LIT-PCBA. The 17.6% is best read as a measurement of how
-noisy a 15-target benchmark is, which is worth knowing on its own.
-
-**The shortfall is entirely in early enrichment, not in overall
-discrimination.** Across all four T3 layers AUROC drops only 3.6–5.0%, while
-EF1% drops 39–48% and BEDROC 35–44%. `_vs` separates binders from non-binders
-almost as well as `_rk`; what it loses is the ordering at the very top of the
-list — which is the only part a screening campaign uses.
-
-Against a 19–24% gap on T1 and 39–48% on T3, run-to-run randomness of 0–3%
-does not account for it.
-
-Separating (1) from (2) would need a FEP-mode run to see whether we can reproduce
-`_rk`'s level with the same pipeline. That was considered and deliberately not
-done — the released weight already exists and works, so spending a day of GPU to
-re-derive it does not earn its cost here.
-
-**So the honest statement is:** training HypSeek from the published recipe with
-the screening-selected checkpoint yields a model roughly 20% weaker on early
-enrichment than the released ranking-selected weight; this is reproducible across
-seeds — and concentrated in early enrichment rather than in overall ranking —
-and we cannot currently say whether it is a property of the objective or of our
-reproduction.
+**One correction.** We had flagged the curvature parameter never moving during
+training as a possible bug. The paper states κ is **fixed to 1** by design, so
+that observation is expected. The three `alpha` parameters sitting at their
+initial values across all three independently trained weights remains
+unexplained.
 
 ## The transferable lesson
 

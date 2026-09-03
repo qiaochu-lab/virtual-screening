@@ -116,15 +116,21 @@ already working in this area.
    [`figures/`](figures/) fig 1 and fig 2, which are coloured by training set
    rather than architecture. → [T3](tasks/T3-time-split.md)
 
-9. **Retraining the best model's screening-selected weight makes it worse, and
-   the loss is entirely in early enrichment.** HypSeek publishes only its
-   ranking-selected weight (`_rk`); training the screening weight (`_vs`) from
-   the published recipe costs 20–24% EF1% on T1 and 39–48% on T3 — while AUROC
-   falls only 3.6–5.0%. It still separates binders from non-binders; it loses
-   the ordering at the top of the list, which is the part a screen uses. Two
-   seeds agree to within 0–3% wherever n is large, so this is not run-to-run
-   noise — but we cannot separate "the objective is weaker" from "our
-   reproduction is off". → [`MODELS_TRAINING.md`](MODELS_TRAINING.md)
+9. **A checkpoint selected for affinity ranking is also the better screener.**
+   HypSeek releases only `_rk`, selected on FEP ranking. A collaborator's
+   paper-faithful `_vs` reproduction, run through our pipeline, trails it at
+   every T3 layer — EF1% 30.70 vs 36.63 at L1, 5.75 vs 7.34 at L4 — while the
+   L1→L4 decay is indifferent to which weight is used (−50% vs −54%).
+   ⚠️ An earlier version of this finding said retraining the screening weight
+   makes a model *worse*; that was a deficit in our own training (a contrastive
+   negative pool of 4 against the official 24) and is retracted.
+   → [`MODELS_TRAINING.md`](MODELS_TRAINING.md)
+
+10. **The released weight is not the published model.** HypSeek's HuggingFace
+    checkpoint scores *above* the paper's own screening numbers — DUD-E EF1%
+    56.39 against a published 51.44 — measured with a pipeline that reproduces
+    the paper's LigUnity baseline to four decimals. Whatever you download is not
+    what Table 1 reports. → [`MODELS_TRAINING.md`](MODELS_TRAINING.md)
 
 ## Repository layout
 
