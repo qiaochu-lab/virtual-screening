@@ -90,24 +90,39 @@ Full construction pipeline and the four things that are easy to get wrong:
 
 Full table: [`results/T3_main.csv`](../results/T3_main.csv). EF1%:
 
-| Model | L1 | L2 | L3 | L4 | decay |
-|---|---|---|---|---|---|
-| HypSeek (`_rk`) | 36.63 | 23.61 | 13.56 | 7.34 | **−80.0%** |
-| LigUnity-protein | 39.18 | 30.20 | 17.81 | 8.83 | −77.4% |
-| LigUnity-pocket | 35.24 | 26.39 | 13.90 | 8.39 | −76.2% |
-| LiTENCLIP | 32.37 | 23.06 | 12.94 | 8.46 | −73.9% |
-| BindCLIP-randneg | 19.12 | 12.86 | 8.21 | 5.68 | −70.3% |
-| DrugCLIP | 18.80 | 12.56 | 6.42 | 6.78 | **−63.9%** |
-| BindCLIP-hardneg | 17.81 | 12.57 | 7.90 | 6.00 | −66.3% |
-| ConGLUDe | 13.63 | 7.75 | 5.36 | 3.87 | −71.6% |
-| ConPLex | 7.66 | 3.80 | 3.24 | 2.04 | −73.3% |
-| SPRINT | — | — | 1.32 | 1.37 | — |
+| Model | L1 | L2 | L3 | L4 | decay (excess) | decay (raw) |
+|---|---|---|---|---|---|---|
+| LigUnity-protein | 39.18 | 30.20 | 17.81 | 8.83 | −79% | −77% |
+| HypSeek (`_rk`) | 36.63 | 23.61 | 13.56 | 7.34 | −82% | −80% |
+| LigUnity-pocket | 35.24 | 26.39 | 13.90 | 8.39 | −78% | −76% |
+| LiTENCLIP | 32.37 | 23.06 | 12.94 | 8.46 | −76% | −74% |
+| BindCLIP-randneg | 19.12 | 12.86 | 8.21 | 5.68 | −74% | −70% |
+| DrugCLIP | 18.80 | 12.56 | 6.42 | 6.78 | **−68%** | −64% |
+| BindCLIP-hardneg | 17.81 | 12.57 | 7.90 | 6.00 | −70% | −66% |
+| ConGLUDe | 13.63 | 7.75 | 5.36 | 3.87 | −77% | −72% |
+| ConPLex | 7.66 | 3.80 | 3.24 | 2.04 | **−84%** | −73% |
+| SPRINT | 2.52 | 1.84 | 1.32 | 1.37 | −76% | −46% |
+
+**Two decay columns, because the choice of baseline matters.** EF@1% has a floor
+at 1.0 — a random ranking scores 1, not 0 — so a raw ratio `(L1−L4)/L1`
+understates the loss for a model whose L1 is already close to that floor. Decay
+on the **excess over random**, `((L1−1)−(L4−1))/(L1−1)`, is the same convention
+the AUROC decay in this file already uses (there the floor is 0.5). The two agree
+to within a few points for every model except SPRINT, whose L1 of 2.52 is only
+1.5 above random: the raw ratio calls that a 46% decay and makes it the lone
+outlier, while on the excess it is 76% and mid-pack.
+
+⚠️ An earlier version of this file reported only the raw ratio, quoted the range
+as 64–80%, and silently omitted SPRINT — whose L1 and L2 were dashes in the table
+because they had not been run when it was written. Both are fixed above.
 
 ### Four findings
 
-**1. Absolute performance spans 5×; decay spans 64–80% for everyone.**
-This is a property of the method family, not of any one model. It holds even for
-HypSeek, the only model not using Euclidean embeddings.
+**1. Absolute performance spans 15×; decay spans 68–84% for every one of the
+ten.** This is a property of the method family, not of any one model. It holds
+for HypSeek, the only model not using Euclidean embeddings (−82%), and for
+SPRINT at the other end of the performance range (−76%). Nothing in the set
+escapes it.
 
 **2. Training data explains the tiers better than architecture does.**
 The three models trained on LigUnity's data (LigUnity ×2, LiTENCLIP) sit at
@@ -187,14 +202,22 @@ post-step, which we did not run. What the pair supports is narrower: the two
 protein representations are close enough that which one leads depends on the
 evaluation, and on genuinely novel targets they are indistinguishable.
 
-**3. Model ranking reverses by target class.** On kinases ConPLex (pure
-sequence) beats ConGLUDe (geometric) 5.76 vs 2.07; on other enzymes it reverses,
-4.73 vs 1.28 — both significant after BH-FDR correction. Reporting only the
-overall mean would say "ConGLUDe is better", which is wrong per class.
+**3. Model ranking reverses by target class.** On the unseen-target layers
+(L3+L4 merged, since L3 alone cannot fill a single class), **ConPLex beats
+ConGLUDe on kinases 5.76 vs 2.07, and ConGLUDe beats ConPLex on other enzymes
+4.73 vs 1.28.** Paired on the common targets the gaps are −4.36 (p = 0.0099,
+n = 24) and +3.53 (p = 0.0119, n = 76); both survive BH-FDR over the six classes
+with n ≥ 8. The overall means are 4.11 and 2.25 — reporting only those would say
+"ConGLUDe is better", which is wrong on the largest class in the set.
 
-**4. AUROC hides what EF shows.** On L4, ConGLUDe vs ConPLex is AUROC 0.570 vs
-0.549 (p=0.37, n.s.) but EF1% 4.00 vs 2.16 (p=0.018, significant). Virtual
-screening only cares about the top of the list. Report both.
+**4. AUROC hides what EF shows.** On L4, paired over the 193 targets both
+models cover, ConGLUDe against ConPLex is AUROC 0.570 vs 0.549 (p = 0.37, n.s.)
+but EF1% 4.00 vs 2.16 (p = 0.018, significant). Virtual screening only cares
+about the top of the list. Report both.
+
+*(Those EF values are the paired-subset means; the main table above shows 3.87
+and 2.04 over each model's full target set — 202 and 234 — which is why the two
+do not match.)*
 
 ### Actives per target: does the floor drive anything?
 
@@ -312,12 +335,14 @@ made on a ≥50 subset at all**, because the classes it depends on are gone.
 | LIT-PCBA | 15 | 13 | 102 | 7166 | 67% | 53% |
 | **T3 (ours)** | 1144 | **10** | 41 | 3262 | 44% | 29% |
 
-DUD-E is generous — 82% of its targets carry 100+ actives. **DEKOIS gives every
-target exactly 40 and not one reaches 50**, and it has been a standard benchmark
-for over a decade. So a hard floor of 50 is not the convention.
+DUD-E is generous — 82% of its targets carry 100+ actives. **DEKOIS gives 78 of
+its 81 targets exactly 40 actives** (the other three have 37–39) **and not one
+reaches 50**, and it has been a standard benchmark for over a decade. So a hard
+floor of 50 is not the convention.
 
-What DEKOIS does have is **uniformity**: every target identical, so per-target
-EF values are directly comparable. DUD-E spans 15×. **Ours spans 326×.** That
+What DEKOIS does have is **uniformity**: a 1.08× spread end to end, so its
+per-target EF values are directly comparable. DUD-E spans 14.8×.
+**Ours spans 326×.** That
 spread, not the absolute count, is what makes our per-target values unequal in
 precision — and it is the thing a fixed floor cannot fix, only trade against
 coverage.

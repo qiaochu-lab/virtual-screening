@@ -41,10 +41,16 @@ already working in this area.
 
 ## Headline findings
 
-1. **All ten models lose 64–77% of EF1% on post-cutoff targets.** Absolute
-   performance differs fivefold between the best and worst model; the *decay* is
-   nearly identical. This is a property of the method class, not of any one
-   model. → [T3](tasks/T3-time-split.md)
+1. **All ten models lose 68–84% of their above-random enrichment on post-cutoff
+   targets.** Absolute performance differs fifteenfold between the best and worst
+   model; the *decay* is nearly identical. This is a property of the method
+   class, not of any one model.
+   ⚠️ Decay is measured on the excess over a random ranking — EF@1% has a floor
+   at 1.0, so a raw ratio understates the loss for weak models. Under the raw
+   ratio the range is 46–80%, with SPRINT the lone outlier at 46% purely because
+   its L1 is 2.52; on the excess it sits at 76%, mid-pack. AUROC decay in the
+   same tables already used this convention.
+   → [T3](tasks/T3-time-split.md)
 
 2. **Affinity ranking is weak but real, and it decays like enrichment does.**
    Per-target Spearman on post-cutoff data runs +0.09 to +0.26 at L1 and falls to
@@ -66,10 +72,18 @@ already working in this area.
    kinases; geometry-aware models win on other enzymes. Reporting only the
    overall mean is misleading. → [T3](tasks/T3-time-split.md)
 
-4. **Insensitive to structure source, extremely sensitive to pocket
-   definition.** Predicted structures substitute for experimental ones with no
-   significant difference (p = 0.28–0.74); moving the pocket cutoff from 6 Å to
-   4 Å or 8 Å costs 31–75%, with 6 Å winning 12 of 12 cells. → [T5](tasks/T5-structure-robustness.md)
+4. **Mildly sensitive to structure source, extremely sensitive to pocket
+   definition.** Moving the pocket cutoff off the 6 Å the models were trained on
+   costs 31–75%, with 6 Å winning 12 of 12 cells. Swapping experimental
+   structures for Boltz-2 predictions costs less but not nothing: **8 of 10
+   models drop at L4** (sign test p = 0.109), four individually significant and
+   ConGLUDe surviving BH-FDR across all 20 comparisons, with LigUnity-pocket
+   losing 46% (11.70 → 6.29). The two sequence-only models — which never see a
+   structure — show no gap, so target difficulty does not explain it.
+   ⚠️ An earlier version of this finding said predicted structures substitute
+   with *no* significant difference. That rested on two models, selected by
+   accident rather than design ([`PATCHES.md`](PATCHES.md)).
+   → [T5](tasks/T5-structure-robustness.md)
 
 5. **A co-folding model ranks affinity well, but reranking a retrieval
    shortlist with it does not help.** Three runs, two layers: on known targets
@@ -178,6 +192,7 @@ results/       machine-readable CSVs
 ├── T2_on_FEP.csv               affinity ranking on the 16 FEP systems
 ├── T2_range_restriction.csv    why CASF and T3 disagree — spread, not models
 ├── T5_apo.csv                  apo vs holo pockets
+├── T5_structure_source.csv     experimental vs predicted structures, all ten models
 ├── T5_pocket_threshold.csv     4 / 6 / 8 Å comparison
 ├── T6_FEP_boltz.csv            Boltz-2 affinity on the FEP systems
 ├── T6_rerank{,2,3}.csv         three cascade-rerank runs

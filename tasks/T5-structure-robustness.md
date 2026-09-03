@@ -19,22 +19,56 @@ models. Both were tested.
 
 ## Control 1 — structure source
 
-Same targets, experimental holo structures vs Boltz-2 predictions.
+Same targets, experimental holo structures against Boltz-2 predictions, on the
+two layers where both sources occur
+([`timesplit/analysis/t5_structure_source.py`](../timesplit/analysis/t5_structure_source.py),
+[`results/T5_structure_source.csv`](../results/T5_structure_source.csv)).
 
-| Model | Layer | n(holo) | holo | n(pred) | predicted | p |
-|---|---|---|---|---|---|---|
-| BindCLIP-hardneg | L3 | 31 | 9.00±2.41 | 18 | 6.00±1.83 | 0.62 |
-| BindCLIP-hardneg | L4 | 89 | 6.34±1.34 | 137 | 5.79±0.97 | 0.32 |
-| BindCLIP-randneg | L3 | 31 | 8.33±2.09 | 18 | 8.00±2.18 | 0.74 |
-| BindCLIP-randneg | L4 | 89 | 6.11±1.22 | 137 | 5.41±0.99 | 0.28 |
+⚠️ **An earlier version of this section reported only BindCLIP-hardneg and
+BindCLIP-randneg and concluded "no significant difference anywhere". That was an
+artifact**: the script iterated whatever models happened to be in
+`results/t3/summary.json`, and that file is overwritten by each `score_t3.py`
+run. With all ten models the picture changes. The script now requires an
+explicit `--models` list and names anything missing
+([`PATCHES.md`](../PATCHES.md)).
 
-**No significant difference anywhere.** Predicted structures are usable
-substitutes for targets without crystals.
+**L4** (n = 65–89 holo, 131–137 predicted):
 
-⚠️ This is **not a randomised comparison** — whether a target has an experimental
-structure is itself non-random (well-studied targets have them). The differences
-are small and consistently in the same direction, which supports the reading,
-but it is not proof.
+| Model | holo | predicted | p |
+|---|---|---|---|
+| **ConGLUDe** | 6.40 ± 1.41 | **2.66 ± 0.59** | **0.0017** |
+| **LigUnity-pocket** | 11.70 ± 1.77 | **6.29 ± 1.07** | **0.0086** |
+| **SPRINT** | 1.90 ± 0.46 | **1.12 ± 0.27** | **0.0229** |
+| **HypSeek** | 9.13 ± 1.65 | **6.20 ± 1.10** | **0.0295** |
+| LiTENCLIP | 10.63 ± 1.68 | 7.08 ± 1.13 | 0.196 |
+| BindCLIP-randneg | 6.11 ± 1.22 | 5.41 ± 0.99 | 0.284 |
+| BindCLIP-hardneg | 6.34 ± 1.34 | 5.79 ± 0.97 | 0.324 |
+| ConPLex *(sequence only)* | 1.89 ± 0.45 | 2.20 ± 0.52 | 0.660 |
+| DrugCLIP | 6.73 ± 1.26 | 6.82 ± 1.05 | 0.882 |
+| LigUnity-protein *(sequence only)* | 9.15 ± 1.67 | 8.64 ± 1.27 | 0.896 |
+
+Nothing reaches significance at L3, where the predicted group is only 18 targets.
+
+**What this supports, stated carefully.** Four models differ at L4 with p < 0.05,
+all favouring experimental structures, and **8 of 10 point that way** (sign test
+p = 0.109). But across all 20 comparisons **only ConGLUDe survives BH-FDR**
+(threshold 0.0025 against its 0.0017). So this is a consistent direction with one
+firmly established case, not four.
+
+**The negative controls behave correctly, and that is what makes it interesting.**
+Targets with crystal structures are not a random sample — well-studied targets
+have them, and might simply be easier. If that were the whole story, the
+sequence-only models would show the same gap, since they never see a structure.
+Neither does: ConPLex p = 0.66, LigUnity-protein p = 0.90. **Target difficulty
+does not explain the gap.**
+
+**So the claim is now narrower.** Predicted structures are not a free
+substitute: the largest measured cost is LigUnity-pocket losing 46% of its L4
+EF1% (11.70 → 6.29). Where a model is weak to begin with the difference is
+invisible, which is why DrugCLIP and BindCLIP show nothing. For a project
+choosing between an AlphaFold model and waiting for a crystal, **the honest
+summary is that predicted structures usually work but can cost up to half the
+early enrichment, and which case you are in is not knowable in advance.**
 
 ## Control 2 — pocket cutoff
 

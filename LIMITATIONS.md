@@ -135,13 +135,27 @@ property of the model rather than of our tooling.
 crash, not in a measurement, deserves one more look before it is written down.
 This one stood for two weeks and cost a 20-hour run that wrote nothing.
 
-## 8. Structure-source comparison is not randomised
+## 8. Structure-source comparison is not randomised, and it is not null
 
-Whether a target has an experimental structure is itself non-random —
-well-studied targets have them. The comparison (p = 0.28–0.74, no significant
-difference) is therefore observational. The differences are small and
-consistently signed, which supports the reading, but it is not proof that
-predicted structures are equivalent.
+Whether a target has an experimental structure is itself non-random — well-studied
+targets have them — so the holo group may simply be easier. That caveat stands.
+What changed is the result it qualifies.
+
+Across all ten models, four differ at L4 with p < 0.05, **all favouring
+experimental structures**, and 8 of 10 point that way (sign test p = 0.109).
+LigUnity-pocket loses 46% of its EF1% (11.70 → 6.29). Across the 20 comparisons
+only ConGLUDe survives BH-FDR, so the honest reading is a consistent direction
+with one firmly established case
+([`results/T5_structure_source.csv`](results/T5_structure_source.csv)).
+
+The non-randomness is partly addressed: the two **sequence-only** models never
+see a structure, so if target difficulty drove the gap they would show it too.
+ConPLex (p = 0.66) and LigUnity-protein (p = 0.90) show nothing. That does not
+make the comparison randomised, but it removes the most obvious confound.
+
+⚠️ An earlier version of this section, and README finding 4, said predicted
+structures substitute with no significant difference. That rested on two models
+selected by accident — see [`PATCHES.md`](PATCHES.md).
 
 ## 9. Pockets over 511 atoms are randomly cropped
 

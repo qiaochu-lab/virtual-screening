@@ -302,6 +302,52 @@ memory. The collaborator fit batch 12 on a single 4090 — the same 24 GB we had
 batch to fit, establish what a different parallel configuration allows; and treat
 a distributed-training crash as evidence about distribution, not about capacity.
 
+### A shared mutable intermediate silently narrowed a control
+
+`t5_structure_source.py` reported whichever models happened to be in
+`results/t3/summary.json` — `for m in sorted(s)`. That file is rewritten by every
+`score_t3.py --models ...` run, so the table's contents depended on whatever
+command ran last. The published version listed BindCLIP-hardneg and
+BindCLIP-randneg, four comparisons, all non-significant, and the conclusion was
+"no significant difference anywhere; predicted structures are usable
+substitutes."
+
+Re-running with all ten models: **four differ at L4 with p < 0.05, all favouring
+experimental structures**, LigUnity-pocket losing 46% of its EF1% (11.70 → 6.29),
+and 8 of 10 pointing that way. Only ConGLUDe survives BH-FDR across the 20
+comparisons, so the corrected claim is "consistent direction, one firm case" —
+but it is not "no effect", and finding 4 in the README said the wrong thing for
+as long as the table stood.
+
+The script now requires an explicit `--models` list, prints which requested
+models are missing from the summary instead of skipping them silently, applies
+BH-FDR and a sign test itself, marks the sequence-only negative controls, and
+writes [`results/T5_structure_source.csv`](results/T5_structure_source.csv).
+
+**Same shape as the stale-export bugs above**: a shared mutable file that
+downstream code reads without asserting what it expected to find. Any script
+that consumes an intermediate should state its inputs and fail when they are
+absent, rather than reporting on whatever subset is present.
+
+### A metric floor that made one model look like an exception
+
+T3's decay was reported as the raw ratio `(L1−L4)/L1`. EF@1% has a floor at 1.0 —
+a random ranking scores 1, not 0 — so that ratio understates the loss for a model
+whose L1 already sits near the floor. SPRINT's L1 is 2.52, only 1.52 above
+random; the raw ratio calls that a 46% decay and makes it the lone outlier
+against everyone else's 64–80%, which is why the published range quietly excluded
+it and the README claimed "all ten models lose 64–77%" while listing nine.
+
+On the excess over random, `((L1−1)−(L4−1))/(L1−1)`, SPRINT is 76% and the full
+ten-model range is **68–84%**. That is also the convention the AUROC decay in the
+same tables already used, with 0.5 as its floor. Both columns are now published
+side by side.
+
+**The lesson is about baselines, not about SPRINT.** A ratio is only a decay if
+the quantity bottoms out at zero. EF, AUROC, BEDROC and PR-AUC all have non-zero
+random baselines, and mixing conventions across columns of one table is how an
+artifact turns into an exception that gets explained away.
+
 ### Metric bugs
 
 **Enrichment cutoffs must use `ceil`, not `round`.** RDKit's `CalcEnrichment`
