@@ -258,11 +258,28 @@ screening weight too. The per-task checkpoint matrix is in
 T3 requires ≥10 actives per target; the medians are 24–66 by layer and the
 maxima reach the thousands. On a 10-active target the top 1% is 6 slots, so one
 additional hit moves EF@1% by **8.5** — against layer means of 8–39. Targets at
-the floor are therefore very noisy, and the reported means weight them equally
-with targets measured far more precisely. Bootstrap intervals
+the floor are therefore very noisy, and the means weight them equally with
+targets measured a hundred times more precisely
+([`figures/fig4_actives_per_target.png`](figures/fig4_actives_per_target.png)).
+
+**Tested by raising the floor to 20, 30 and 50**
+([`results/T3_actives_gradient.csv`](results/T3_actives_gradient.csv)):
+
+- The **L1→L4 decay is stable** — every model stays within a few points of its
+  ≥10 value, DrugCLIP drifting most (68% → 59%). The headline finding survives.
+- **L1, L2 and L4 absolute levels are flat**; **L3 is not.** It drops ~17% the
+  moment the floor rises (EF1% 17.81 → 14.84) and stays down, on all four
+  metrics. L3's published number is inflated by its small-actives targets, and
+  since L3 has only 48 usable targets to begin with, at ≥50 just 20 remain.
+  **Quote L3 with the floor stated.**
+- **Model orderings hold under BEDROC and PR-AUC and not under EF1% or AUROC.**
+  At L4 the EF1% second and third place swap at every floor above 10.
+
+The floor was left at 10 in the main tables — raising it would cost 27–56% of
+targets and L3 outright — and the gradient is reported alongside instead. No
+weighting by actives count is applied; bootstrap intervals
 ([`results/T3_main_ci.csv`](results/T3_main_ci.csv)) resample targets and carry
-this variance; no weighting or higher floor was applied. L3, at 48 targets, is
-where this bites hardest.
+the variance.
 
 The decoy ratio, by contrast, is **not** a source of incomparability: 1,143 of
 1,144 targets sit at exactly 50.0×, the single exception at 43.6×.

@@ -6,7 +6,10 @@
 import numpy as np
 import pytest
 
-from metrics import bedroc, bootstrap_ci, enrichment_factor, roc_auc, top_k_recall
+import math
+
+from metrics import (bedroc, bootstrap_ci, enrichment_factor, pr_auc,
+                     roc_auc, top_k_recall)
 
 
 # ---------- enrichment factor ----------
@@ -155,3 +158,67 @@ def test_bootstrap_ci_is_deterministic_given_seed():
     a = bootstrap_ci(ef, scores, labels, n=100, seed=42)
     b = bootstrap_ci(ef, scores, labels, n=100, seed=42)
     assert a == b
+
+
+# ---------------------------------------------------------------- PR-AUC
+
+def test_pr_auc_perfect():
+    """所有 active 排最前面 → AP = 1。"""
+    scores = [9, 8, 7, 3, 2, 1]
+    labels = [1, 1, 1, 0, 0, 0]
+    assert abs(pr_auc(scores, labels) - 1.0) < 1e-12
+
+
+def test_pr_auc_worst():
+    """所有 active 排最后 → AP 取最小可能值。"""
+    scores = [9, 8, 7, 3, 2, 1]
+    labels = [0, 0, 0, 1, 1, 1]
+    # 只有走到最后才开始命中：precision 依次是 1/4, 2/5, 3/6
+    expect = (1/3) * (1/4) + (1/3) * (2/5) + (1/3) * (3/6)
+    assert abs(pr_auc(scores, labels) - expect) < 1e-12
+
+
+def test_pr_auc_random_baseline():
+    """随机排序下 AP 的期望 ≈ active 占比（不是 0.5）。
+
+    这是判读 PR-AUC 的基准线，与 ROC-AUC 的 0.5 不同，必须钉住。
+    """
+    rng = np.random.default_rng(0)
+    n, n_act = 2000, 40
+    labels = np.zeros(n, dtype=int)
+    labels[:n_act] = 1
+    vals = []
+    for _ in range(200):
+        vals.append(pr_auc(rng.random(n), labels))
+    assert abs(np.mean(vals) - n_act / n) < 0.005
+
+
+def test_pr_auc_ties_handled_as_group():
+    """全部并列 → 退化为 active 占比，与随机基线一致。"""
+    labels = [1, 0, 1, 0, 0, 0, 0, 0, 0, 0]
+    scores = [5] * 10
+    assert abs(pr_auc(scores, labels) - 0.2) < 1e-12
+
+
+def test_pr_auc_matches_sklearn():
+    """与 sklearn 的 average_precision_score 逐例一致。
+
+    sklearn 是这个指标事实上的参考实现；对不上就是我们错了。
+    """
+    sk = pytest.importorskip("sklearn.metrics")
+    rng = np.random.default_rng(7)
+    for _ in range(30):
+        n = int(rng.integers(20, 400))
+        labels = (rng.random(n) < rng.uniform(0.02, 0.4)).astype(int)
+        if labels.sum() in (0, n):
+            continue
+        # 掺入重复分数，专门考并列的处理
+        scores = np.round(rng.normal(size=n), 1)
+        ours = pr_auc(scores, labels)
+        theirs = sk.average_precision_score(labels, scores)
+        assert abs(ours - theirs) < 1e-9, (n, ours, theirs)
+
+
+def test_pr_auc_degenerate():
+    assert math.isnan(pr_auc([1, 2, 3], [0, 0, 0]))
+    assert math.isnan(pr_auc([1, 2, 3], [1, 1, 1]))

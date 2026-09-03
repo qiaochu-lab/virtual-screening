@@ -196,6 +196,66 @@ overall mean would say "ConGLUDe is better", which is wrong per class.
 0.549 (p=0.37, n.s.) but EF1% 4.00 vs 2.16 (p=0.018, significant). Virtual
 screening only cares about the top of the list. Report both.
 
+### Actives per target: does the floor drive anything?
+
+The floor is 10 actives per target and the maxima reach the thousands, so EF's
+resolution varies a hundredfold across targets (the step is ~100/A; see
+[`figures/fig4_actives_per_target.png`](../figures/fig4_actives_per_target.png)).
+The means weight a target that can only score 0 or 8.5 equally with one measured
+to 0.15. Raising the floor to 20, 30 and 50 tests whether that matters
+([`timesplit/analysis/actives_gradient.py`](../timesplit/analysis/actives_gradient.py),
+[`results/T3_actives_gradient.csv`](../results/T3_actives_gradient.csv)). The
+same runs add **PR-AUC**, which uses the whole ranking rather than a cutoff and
+so is not quantised by the actives count, and which unlike ROC-AUC is sensitive
+to the 1:50 imbalance.
+
+**Absolute levels barely move, except at L3** (LigUnity-protein, EF1%, target
+count in brackets):
+
+| Layer | ≥10 | ≥20 | ≥30 | ≥50 |
+|---|---|---|---|---|
+| L1 | 39.18 (310) | 39.50 (180) | 39.03 (131) | 39.23 (82) |
+| L2 | 30.20 (434) | 30.49 (366) | 30.83 (327) | 31.31 (258) |
+| **L3** | **17.81 (48)** | **14.84 (35)** | **15.56 (26)** | **14.95 (20)** |
+| L4 | 8.83 (224) | 8.81 (168) | 8.60 (143) | 9.49 (107) |
+
+**L3 drops ~17% as soon as the floor rises and stays down** — the same shift
+appears in BEDROC (0.355 → 0.294), PR-AUC (0.320 → 0.263) and AUROC (0.761 →
+0.720). L3's headline number is inflated by its small-actives targets. It is
+also the layer with the fewest targets to begin with (48 usable), so at ≥50 only
+20 remain and the layer stops supporting conclusions at all. **L3 numbers should
+be quoted with the floor stated.** L1, L2 and L4 are flat to within noise.
+
+**The L1→L4 decay — the headline result — is stable:**
+
+| Model | ≥10 | ≥20 | ≥30 | ≥50 |
+|---|---|---|---|---|
+| HypSeek | 82% | 85% | 83% | 81% |
+| LigUnity-protein | 79% | 80% | 80% | 78% |
+| LigUnity-pocket | 78% | 79% | 79% | 78% |
+| LiTENCLIP | 76% | 78% | 78% | 77% |
+| BindCLIP-hardneg | 70% | 75% | 74% | 71% |
+| BindCLIP-randneg | 74% | 72% | 70% | 66% |
+| DrugCLIP | 68% | 67% | 67% | **59%** |
+
+Every model stays inside a few points of its ≥10 value; DrugCLIP drifts most
+(68% → 59%) and even that leaves the finding intact. PR-AUC reproduces the
+BEDROC decay closely (top models 76/74/72/70% against 77/75/73/71%), which is
+reassuring: two metrics with different failure modes agree on the shape.
+
+**Model rankings are stable under BEDROC and PR-AUC, and not under EF1% or
+AUROC.** At L4, EF1%'s top three at the current floor is LigUnity-protein >
+LiTENCLIP > LigUnity-pocket; at every higher floor LiTENCLIP and LigUnity-pocket
+swap. AUROC's top three moves at both L1 and L4. BEDROC and PR-AUC hold their
+top three at all four floors. **Where an ordering matters, prefer BEDROC or
+PR-AUC over a single EF cutoff** — the same lesson finding 4 draws from a
+different angle.
+
+What was *not* changed: the floor stays at 10 in the main tables, because moving
+it would cost 27–56% of targets and L3 outright. The gradient is reported
+alongside instead, and the caveat is recorded in
+[`LIMITATIONS.md`](../LIMITATIONS.md).
+
 ### Robustness checks
 
 | Check | Result |

@@ -165,6 +165,7 @@ results/       machine-readable CSVs
 ├── T3_main_clean.csv           the same, with training-set contamination removed
 ├── T3_main_ci.csv              bootstrap confidence intervals
 ├── T3_targets.csv              per-target detail (class, layer, structure source)
+├── T3_actives_gradient.csv     results at actives floors of 10/20/30/50, four metrics
 ├── T3_seq_vs_pocket_per_target.csv  the sequence/pocket pair on the time split
 ├── T1_seq_vs_pocket_per_target.csv  the same pair on the three standard benchmarks
 ├── T2_on_T3.csv                affinity ranking on time-split data
@@ -176,7 +177,7 @@ results/       machine-readable CSVs
 ├── T6_rerank{,2,3}.csv         three cascade-rerank runs
 ├── T6_rerank4.csv              the same shortlist at 5 diffusion samples
 └── T6_dock.csv                 smina docking rerank, with per-target coverage
-figures/       the three summary figures, and the script that rebuilds them
+figures/       four summary figures, and the scripts that rebuild them
 ```
 
 Which task each directory serves:

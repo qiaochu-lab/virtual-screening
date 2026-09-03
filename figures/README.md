@@ -30,3 +30,13 @@ valid even though the absolute AUROC is biased. `score_dock.py` prints the
 complete-only summary as well; it points the same way with n = 5. Error bars are
 standard error across targets, and n differs between panels because the two runs
 used different shortlist depths and different layers.
+
+| `fig4_actives_per_target` | How many actives each target has, and what that does to EF's resolution | [`../results/T3_targets.csv`](../results/T3_targets.csv) |
+
+**fig 4 explains a limitation rather than a result.** EF@1%'s step size is
+about 100/A for a target with A actives, so at the ≥10 floor one extra hit moves
+EF by 8.5 — inside the range of the layer means themselves. The right panel puts
+that curve against the shaded band of layer means. The gradient analysis that
+follows from it is in
+[`../results/T3_actives_gradient.csv`](../results/T3_actives_gradient.csv);
+rebuild the figure with [`fig4_actives.py`](fig4_actives.py).

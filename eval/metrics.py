@@ -85,6 +85,51 @@ def bedroc(scores, labels, alpha=80.5):
     return (rie - rie_min) / (rie_max - rie_min)
 
 
+def pr_auc(scores, labels):
+    """PR-AUC（average precision）。
+
+    为什么在这个 benchmark 里需要它：EF@fraction 卡在一个截断位置上，命中数
+    只能取整数，所以它的取值被 active 数量化成台阶——每靶点只有 10 个 active
+    时，EF@1% 的步长约 8.5，而各层均值才 8–39。跨靶点平均时，这种粗糙测量和
+    精细测量被等权对待。PR-AUC 用整个排序、不卡截断，没有这个量化问题；
+    同时它以正类为中心，对 1:50 这样的不平衡比 ROC-AUC 敏感得多
+    （ROC-AUC 在重度不平衡下容易虚高）。
+
+    用 average precision 形式：AP = Σ (R_n − R_{n−1}) · P_n，即 sklearn 的
+    ``average_precision_score``。这是阶梯求和而非梯形插值——梯形法在 PR 曲线
+    上会高估。
+
+    并列分数按「同一组内一起进入」处理：组内所有样本共享该组结束处的
+    precision/recall，避免因排序实现不同产生偏差（与本模块其他指标一致）。
+
+    随机排序的期望值等于 active 占比，所以判读时要跟那个比，不是跟 0.5 比。
+    """
+    scores = np.asarray(scores, dtype=float)
+    labels = np.asarray(labels)
+    n_active = int(labels.sum())
+    if n_active == 0 or n_active == len(labels):
+        return float("nan")
+
+    order = np.argsort(-scores, kind="mergesort")
+    s_sorted = scores[order]
+    y_sorted = labels[order]
+
+    # 并列分数归为一组，组内一起计入
+    tp = np.cumsum(y_sorted)
+    fp = np.cumsum(1 - y_sorted)
+    # 每组最后一个位置的下标
+    group_end = np.r_[np.nonzero(np.diff(s_sorted))[0], len(s_sorted) - 1]
+
+    tp_g = tp[group_end]
+    fp_g = fp[group_end]
+    precision = tp_g / (tp_g + fp_g)
+    recall = tp_g / n_active
+
+    # AP = Σ (R_n − R_{n−1}) · P_n，R_0 = 0
+    d_recall = np.diff(np.r_[0.0, recall])
+    return float((d_recall * precision).sum())
+
+
 def top_k_recall(scores, labels, k):
     """前 k 名中召回的 active 占全部 active 的比例。"""
     labels = np.asarray(labels)
