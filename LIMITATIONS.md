@@ -269,9 +269,11 @@ targets measured a hundred times more precisely
   ≥10 value, DrugCLIP drifting most (68% → 59%). The headline finding survives.
 - **L1, L2 and L4 absolute levels are flat**; **L3 is not.** It drops ~17% the
   moment the floor rises (EF1% 17.81 → 14.84) and stays down, on all four
-  metrics. L3's published number is inflated by its small-actives targets, and
-  since L3 has only 48 usable targets to begin with, at ≥50 just 20 remain.
-  **Quote L3 with the floor stated.**
+  metrics. This is a real effect rather than noise from a shrinking sample:
+  within L3, actives count correlates negatively with score (Spearman −0.26 to
+  −0.44), and that correlation is absent in every other layer. It shows up only
+  in the four PocketAffDB-trained models, not DrugCLIP. Since L3 has just 48
+  usable targets, at ≥50 only 20 remain. **Quote L3 with the floor stated.**
 - **Model orderings hold under BEDROC and PR-AUC and not under EF1% or AUROC.**
   At L4 the EF1% second and third place swap at every floor above 10.
 

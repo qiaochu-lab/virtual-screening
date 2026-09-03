@@ -221,10 +221,38 @@ count in brackets):
 
 **L3 drops ~17% as soon as the floor rises and stays down** — the same shift
 appears in BEDROC (0.355 → 0.294), PR-AUC (0.320 → 0.263) and AUROC (0.761 →
-0.720). L3's headline number is inflated by its small-actives targets. It is
-also the layer with the fewest targets to begin with (48 usable), so at ≥50 only
-20 remain and the layer stops supporting conclusions at all. **L3 numbers should
-be quoted with the floor stated.** L1, L2 and L4 are flat to within noise.
+0.720). L1, L2 and L4 are flat to within noise.
+
+With 48 targets falling to 20, that drop could be sampling noise rather than a
+small-actives effect. It is not: within L3, **targets with fewer actives score
+systematically higher**, and the correlation is absent in every other layer
+([`timesplit/analysis/l3_actives_correlation.py`](../timesplit/analysis/l3_actives_correlation.py)).
+Spearman between actives count and score:
+
+| Model | L1 | L2 | **L3** | L4 |
+|---|---|---|---|---|
+| LigUnity-protein | −0.04 | +0.05 | **−0.29\*** | +0.07 |
+| HypSeek | +0.01 | +0.08 | **−0.28** | +0.04 |
+| LigUnity-pocket | +0.00 | +0.06 | **−0.26** | +0.09 |
+| LiTENCLIP | −0.02 | −0.01 | **−0.33\*** | +0.08 |
+| DrugCLIP | +0.02 | +0.14\* | **+0.00** | +0.14\* |
+
+(EF1%; \* = p < 0.05. On PR-AUC the L3 correlations reach −0.34 to −0.44 and are
+significant for all four.)
+
+**The effect is L3-specific and appears only in the models trained on
+PocketAffDB** — LigUnity ×2, LiTENCLIP, HypSeek — and not in DrugCLIP. L3 is
+"new target, family seen", so the layer is precisely where family-level prior
+knowledge pays off, and those four are the models with that knowledge. A
+plausible reading is that an L3 target with few actives is one whose handful of
+known ligands sits close to something the model saw in the same family, while a
+target with many actives spans more chemical space. We have not tested that, and
+it is a hypothesis rather than a result.
+
+What is established: **L3's headline number is inflated by its small-actives
+targets, and L3 has the fewest targets to begin with, so at ≥50 only 20 remain
+and the layer stops supporting conclusions at all. Quote L3 numbers with the
+floor stated.**
 
 **The L1→L4 decay — the headline result — is stable:**
 
