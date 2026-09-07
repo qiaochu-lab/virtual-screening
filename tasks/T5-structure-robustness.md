@@ -183,6 +183,46 @@ is now part of the procedure rather than a one-off.
 minimum-pocket-size filters. Targets are L3/L4 only, since the holo pipeline only
 ever needed structures for new targets.
 
+
+## Dataset v2 — results on the ≥50-actives, VSDS-vd-matched subset
+
+The advisor fixed two rules on 2026-09-04: **≥50 actives per target**, and a
+class composition matched to **VSDS-vd** (Gu et al., *Nat Mach Intell* 7:509–520,
+2025). That yields a 242-entry / 222-target subset — see
+[T3 dataset v2](T3-dataset-v2.md). It is a *filter*, not a rebuild, so every
+number below is a re-aggregation of scores that already existed; nothing was
+re-inferred.
+
+| Control | Full set (1,144) | Subset (242) | Verdict |
+|---|---|---|---|
+| **Pocket cutoff 4/6/8 Å** | 6 Å wins 12/12, −31…−75% | **6 Å wins 12/12, −24…−74%** | ✅ unchanged, still the strongest effect |
+| **Structure source** | 8/10 direction, sign p=0.109; 4 individually significant; 1 survives BH | **9/10 direction, sign p=0.021**; 1 individually significant; **0 survive BH** | ⚠️ direction firmer, per-model significance gone |
+| **holo vs apo** | 45 targets | **15 targets** | ❌ under-powered, demote to appendix |
+
+### Structure source on the subset
+
+Per-target counts drop from 65–89 to **27 (holo) / 24 (predicted)**, so the
+per-model effect sizes are no longer estimable — only LiTENCLIP stays
+individually significant (p = 0.029) and nothing survives BH-FDR across the
+10 comparisons. What *strengthens* is the direction: **9 of 10 models favour
+experimental structures (sign test p = 0.021)**, up from 8/10 (p = 0.109).
+
+The negative control still holds: the two sequence-only models, which never
+read a structure, show no gap (p = 0.50 and 0.80) — so target difficulty does
+not explain the effect.
+
+**Correct phrasing for the subset:** *the direction is highly consistent
+(9/10, p = 0.021), but individual effect sizes are not estimable at n ≈ 25.*
+
+### apo control on the subset
+
+15 targets. DrugCLIP EF1% −34.7% (paired p = 0.059), AUROC −4.1% (p = 0.28);
+BindCLIP unchanged. **Not enough to state a conclusion** — reported as an
+appendix observation only.
+
+Files: `results/T5_structure_source_subset.csv`,
+`results/T5_pocket_threshold_subset.txt`, `results/T5_apo_subset.txt`.
+
 ## Not done
 
 - MD-sampled conformers

@@ -328,6 +328,53 @@ no longer depends on one scoring engine or one shortlist depth. Two methods
 sharing nothing but the label "physics" degrade the same retrieval ordering in
 the same direction.
 
+
+## Dataset v2 — results on the ≥50-actives, VSDS-vd-matched subset
+
+The advisor fixed two rules on 2026-09-04: **≥50 actives per target**, and a
+class composition matched to **VSDS-vd** (Gu et al., *Nat Mach Intell* 7:509–520,
+2025). That yields a 242-entry / 222-target subset — see
+[T3 dataset v2](T3-dataset-v2.md). It is a *filter*, not a rebuild, so every
+number below is a re-aggregation of scores that already existed; nothing was
+re-inferred.
+
+### Recall ceiling gets *worse* on the subset
+
+| Layer | recall@50 full | recall@50 subset | recall@200 subset |
+|---|---|---|---|
+| L1 | 64.1% | **40.5%** | 67.3% |
+| L2 | 36.1% | 24.3% | 50.2% |
+| L3 | 32.3% | 14.8% | 30.3% |
+| **L4** | **17.5%** | **9.5%** | 23.8% |
+
+The ≥50-actives rule enlarges every candidate pool (median library size
+2,396 → **6,011**, median actives 47 → 118), so a fixed top-50 covers a much
+smaller slice. **On novel targets the top-50 now holds under a tenth of the
+actives** — the "the bottleneck is first-stage recall, not second-stage
+scoring" conclusion gets stronger, not weaker.
+
+Files: `results/T6_recall_subset.txt`, `results/T6_recall_full.txt`.
+
+### ⚠️ The docking rerank does *not* transfer to the subset
+
+The smina experiment docked 20 targets chosen from the full L4 (≈33 CPU-hours).
+**Only 5 of those 20 are in the subset**, and only 9 of the original 20 had
+≥2 actives inside the top-200 to score at all. Docking scores cannot be
+re-aggregated onto targets that were never docked.
+
+Three options, **undecided**:
+
+1. State plainly that the docking control was run on the full L4, not on the
+   published subset
+2. Re-pick 20 targets from the subset's L4 and re-dock (~33 CPU-hours, no GPU;
+   the subset's ≥50-actives targets should yield *more* scorable targets than
+   the original 9)
+3. Demote the docking rerank to an appendix and lead with the FEP comparison
+   plus the recall ceiling
+
+The Boltz-2 rerank and the FEP head-to-head are unaffected by the target
+change in the same way and carry the same caveat.
+
 ## Falsifiability, agreed in advance
 
 If physics methods also land near zero under identical conditions, that is a

@@ -15,6 +15,8 @@ for L in ["L1","L2","L3","L4"]:
     if not os.path.isdir(d): continue
     r50,r200,r500,ns,na=[],[],[],[],[]
     for up in sorted(os.listdir(d)):
+        if KEEP is not None and (L, up) not in KEEP:
+            continue
         try:
             p=np.load(f"{d}/{up}/saved_preds.npy").reshape(-1); y=np.load(f"{d}/{up}/saved_labels.npy")
         except Exception: continue

@@ -7,9 +7,29 @@
 ⚠️ 8Å 有 10.8% 的口袋超过 --max-pocket-atoms 511 会被截断，
 报结果时要注明，否则会把截断效应误读成口袋效应。
 """
+import argparse
 import json, os
 import numpy as np
+
+from _subset import add_subset_arg, load_subset
+
 B = "/data/work/vs-benchmark"
+
+_ap = argparse.ArgumentParser()
+add_subset_arg(_ap)
+_args = _ap.parse_args()
+KEEP = load_subset(_args.subset)
+
+
+def ef1(bucket, L):
+    """取某层的 EF1% 均值；给了子集就从 per_target 现算，不用整层的汇总值。"""
+    if not bucket:
+        return None
+    if KEEP is None:
+        return bucket.get("ef1")
+    pt = [x["ef1"] for x in bucket.get("per_target", [])
+          if (L, x["uniprot"]) in KEEP]
+    return float(np.mean(pt)) if pt else None
 
 S = {}
 for tag, f in [("6Å", "summary.json"), ("4Å", "summary_4a.json"), ("8Å", "summary_8a.json")]:
@@ -29,13 +49,14 @@ for m in MODELS:
         a = S["4Å"].get(m + "_4a", {}).get(L)
         b = S["6Å"].get(m, {}).get(L)
         c = S["8Å"].get(m + "_8a", {}).get(L)
-        if not b:
+        av, bv, cv = ef1(a, L), ef1(b, L), ef1(c, L)
+        if bv is None:
             continue
-        f4 = f"{a['ef1']:.2f}" if a else "—"
-        f8 = f"{c['ef1']:.2f}" if c else "—"
-        d4 = f"{(a['ef1']-b['ef1'])/b['ef1']*100:+.0f}%" if a else "—"
-        d8 = f"{(c['ef1']-b['ef1'])/b['ef1']*100:+.0f}%" if c else "—"
-        print("%-20s %-4s %9s %9.2f %9s %10s %10s" % (m, L, f4, b["ef1"], f8, d4, d8))
+        f4 = f"{av:.2f}" if av is not None else "—"
+        f8 = f"{cv:.2f}" if cv is not None else "—"
+        d4 = f"{(av-bv)/bv*100:+.0f}%" if av is not None else "—"
+        d8 = f"{(cv-bv)/bv*100:+.0f}%" if cv is not None else "—"
+        print("%-20s %-4s %9s %9.2f %9s %10s %10s" % (m, L, f4, bv, f8, d4, d8))
 
 print("\n" + "=" * 78)
 print("关键判断：6Å 是不是最优？")
@@ -44,9 +65,11 @@ n_best = {"4Å": 0, "6Å": 0, "8Å": 0}
 for m in MODELS:
     for L in ["L1", "L2", "L3", "L4"]:
         v = {}
-        if S["4Å"].get(m+"_4a", {}).get(L): v["4Å"] = S["4Å"][m+"_4a"][L]["ef1"]
-        if S["6Å"].get(m, {}).get(L):       v["6Å"] = S["6Å"][m][L]["ef1"]
-        if S["8Å"].get(m+"_8a", {}).get(L): v["8Å"] = S["8Å"][m+"_8a"][L]["ef1"]
+        for tag, x in (("4Å", ef1(S["4Å"].get(m+"_4a", {}).get(L), L)),
+                       ("6Å", ef1(S["6Å"].get(m, {}).get(L), L)),
+                       ("8Å", ef1(S["8Å"].get(m+"_8a", {}).get(L), L))):
+            if x is not None:
+                v[tag] = x
         if len(v) >= 2:
             n_best[max(v, key=v.get)] += 1
 tot = sum(n_best.values())

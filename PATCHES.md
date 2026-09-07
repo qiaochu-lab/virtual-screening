@@ -410,3 +410,88 @@ obviously wrong: identical OOM sizes, a table contradicting the correlation abov
 it, a fragment-sized pocket, a 0.02 similarity margin. The pattern is that
 plausible-looking output is the dangerous kind, which is why the analysis scripts
 state how to read a null result in their docstrings before printing anything.
+
+---
+
+## "Not found" silently became "not present" — a layer label that was never checked
+
+`timesplit/build/build_t3.py` decides whether a target's *family* was seen in
+training:
+
+```python
+f = fam.get(up)
+layer = "L3" if (f is not None and f in train_fams) else "L4"
+```
+
+`fam` is parsed from a precomputed CD-HIT 40% clustering file shipped with
+LigUnity. A target **absent from that file** returns `None` and falls straight
+through to L4 — the hardest layer, the one that carries the headline claim.
+Absence of evidence was recorded as evidence of absence.
+
+**61 of 254 L4 targets (24%) were not in the clustering file at all.** A
+sensitive mmseqs2 search against the training set found that 10 of them have
+≥70% identity to a training target — including `I6WXK4` × `P96830` at **100%
+identity over full length**, i.e. the same protein. Relabelling at the 40%
+threshold moves 30 targets out of L4 and changes the headline decay from −69%
+to −78%.
+
+The failure mode is not the clustering file; it is that a lookup miss and a
+genuine negative produced the same branch. Any `dict.get()` feeding a
+classification needs the miss handled explicitly.
+
+---
+
+## Alignment-free similarity search returns garbage without a coverage filter
+
+The first mmseqs run used `-e 10000` and no coverage constraint, and reported
+several "new" targets at **100% identity** to a training protein. They were
+5–10 residue fragments: `fident=1.00` with `qcov=1%`. `fident` is identity
+*over the aligned region*, so a perfect match on a handful of residues scores 1.0.
+
+Requiring the alignment to cover ≥50% of **both** sequences and `E ≤ 1e-3`
+turned that into a usable signal. The subsequent relabelling analysis
+(`--relabel-above 0.40`) initially emptied L4 entirely, because it was still
+reading the unfiltered table — the filter has to be applied where the hits are
+parsed, not downstream.
+
+---
+
+## The lmdb cursor order, for the third time
+
+`timesplit/analysis/ligand_novelty.py` asked: of the actives a model puts in its
+top 1%, how similar are they to training ligands? The first answer looked
+suspiciously like the background distribution of the whole pool.
+
+That is the signature of a molecule-order mismatch. The models read `.lmdb`,
+whose cursor order is lexicographic (`0, 1, 10, 100, …`), while the eval JSONL
+is actives-then-decoys. **Equal length does not imply equal order**, and the
+existing helper returned the JSONL order whenever the lengths matched.
+
+The fix is a hard check rather than a length check: reconstruct the order, then
+verify that every position labelled 1 really holds one of that target's actives;
+if not, try the lmdb order; if that fails too, skip the target. 31–47 targets
+per model fail both and are skipped — reported rather than silently absorbed.
+With the check in place the answer inverted: models retrieve *far more*
+familiar chemistry than the pool contains (HypSeek's L1 top-1% actives have
+median similarity 0.969 to training ligands, against a pool median of 0.727).
+
+This is the same trap as the T2 correction of 2026-08-21. Both times the tell
+was a result that looked like a random draw from the pool.
+
+---
+
+## A patch that reported success without applying
+
+Adding `per_target` output to `score_t2_v2.py` was done with three
+`str.replace()` calls followed by an unconditional `print("done")`. None of the
+three matched, the file was rewritten unchanged, the message printed, and the
+hour-long rerun produced exactly the same aggregates as before. The waste was
+only caught because the downstream subset script refused to find `per_target`.
+
+Every in-place patch now asserts before writing:
+
+```python
+assert old in s, f"no match: {old[:60]!r}"
+assert s.count(old) == 1, f"{s.count(old)} matches"
+```
+

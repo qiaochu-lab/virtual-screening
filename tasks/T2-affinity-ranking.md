@@ -97,6 +97,39 @@ against a 50% baseline.
    cleanly from the DrugCLIP-data group (+0.09 to +0.12), matching the pattern
    already seen in enrichment.
 
+
+## Dataset v2 — results on the ≥50-actives, VSDS-vd-matched subset
+
+The advisor fixed two rules on 2026-09-04: **≥50 actives per target**, and a
+class composition matched to **VSDS-vd** (Gu et al., *Nat Mach Intell* 7:509–520,
+2025). That yields a 242-entry / 222-target subset — see
+[T3 dataset v2](T3-dataset-v2.md). It is a *filter*, not a rebuild, so every
+number below is a re-aggregation of scores that already existed; nothing was
+re-inferred.
+
+`score_t2_v2.py` originally stored only per-layer aggregates, so the subset
+could not be re-aggregated at all — it now also emits `per_target`
+(uniprot / spearman / kendall / n_actives). That is the only reason it had to
+be re-run; no model was re-inferred.
+
+| Model | L1 | L2 | L3 | L4 |
+|---|---|---|---|---|
+| HypSeek | **+0.237** ± .040 | +0.118 | +0.075 | +0.088 |
+| LigUnity-protein | +0.212 ± .043 | +0.127 | +0.103 | +0.092 |
+| LigUnity-pocket | +0.193 ± .045 | +0.107 | +0.134 | +0.042 |
+| ConGLUDe | +0.149 ± .041 | +0.023 | +0.028 | +0.010 |
+| BindCLIP-randneg | +0.110 ± .043 | +0.044 | +0.000 | +0.036 |
+| LiTENCLIP | +0.108 ± .046 | +0.048 | +0.033 | +0.044 |
+
+Targets per layer: L1 50–54 · L2 136 · L3 22 · L4 62.
+
+**The conclusion is unchanged**: ranking ability is weak (HypSeek L1 +0.260 on
+the full set → **+0.237** here) and decays with target novelty exactly as
+enrichment does (0.237 → 0.088). Positive-target fraction at L1 is 82%, the
+highest anywhere in the benchmark.
+
+File: `results/T2_on_T3_subset.csv`.
+
 ### On FEP data
 
 | Model | Spearman | Pearson | Systems with correct direction |

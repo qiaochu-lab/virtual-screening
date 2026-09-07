@@ -24,6 +24,8 @@ import os
 import numpy as np
 from scipy import stats
 
+from _subset import add_subset_arg, load_subset
+
 B = "/data/work/vs"
 ALL = ["drugclip", "bindclip_randneg", "bindclip_hardneg",
        "ligunity_pocket_ranking", "ligunity_protein_ranking", "litenclip",
@@ -37,9 +39,11 @@ def main():
     ap.add_argument("--models", nargs="+", default=ALL,
                     help="要报的模型；默认全部十个。缺失的会明确报出来。")
     ap.add_argument("--summary", default=f"{B}/results/t3/summary.json")
+    add_subset_arg(ap)
     ap.add_argument("--out", default=f"{B}/results/export/T5_structure_source.csv")
     args = ap.parse_args()
 
+    keep = load_subset(args.subset)
     man = json.load(open(f"{B}/data/T3_6A/manifest.json"))
     src = {}
     for L, d in man.items():
@@ -67,7 +71,8 @@ def main():
         for L in ["L3", "L4"]:
             if L not in s[m]:
                 continue
-            r = s[m][L]["per_target"]
+            r = [x for x in s[m][L]["per_target"]
+                 if keep is None or (L, x["uniprot"]) in keep]
             h = [x["ef1"] for x in r if src.get((L, x["uniprot"])) == "pdb_holo"]
             p_ = [x["ef1"] for x in r if src.get((L, x["uniprot"])) == "boltz2_pred"]
             if len(h) < 8 or len(p_) < 8:

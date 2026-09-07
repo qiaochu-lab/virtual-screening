@@ -17,6 +17,10 @@ import json
 import os
 
 import numpy as np
+
+import argparse
+
+from _subset import add_subset_arg, load_subset
 import sys
 from scipy import stats
 
@@ -27,11 +31,13 @@ from metrics import bedroc, enrichment_factor, roc_auc  # noqa: E402
 PAIRS = [("drugclip", "drugclip_apo"), ("bindclip_randneg", "bindclip_randneg_apo")]
 
 
-def score_dir(d):
+def score_dir(d, L=None, keep=None):
     out = {}
     if not os.path.isdir(d):
         return out
     for up in os.listdir(d):
+        if keep is not None and L is not None and (L, up) not in keep:
+            continue
         try:
             p = np.load(f"{d}/{up}/saved_preds.npy").reshape(-1)
             y = np.load(f"{d}/{up}/saved_labels.npy")
@@ -42,6 +48,10 @@ def score_dir(d):
         out[up] = dict(ef1=enrichment_factor(p, y, 0.01),
                        bedroc=bedroc(p, y, 80.5), auroc=roc_auc(p, y))
     return out
+
+
+_ap = argparse.ArgumentParser(); add_subset_arg(_ap)
+KEEP = load_subset(_ap.parse_args().subset)
 
 
 def main():
@@ -55,8 +65,10 @@ def main():
     for holo_m, apo_m in PAIRS:
         h, a = {}, {}
         for L in ["L3", "L4"]:
-            h |= {f"{L}/{k}": v for k, v in score_dir(f"{B}/results/t3_raw/{holo_m}/T3/{L}").items()}
-            a |= {f"{L}/{k}": v for k, v in score_dir(f"{B}/results/t3_raw/{apo_m}/T3/{L}").items()}
+            h |= {f"{L}/{k}": v for k, v in score_dir(
+                f"{B}/results/t3_raw/{holo_m}/T3/{L}", L, KEEP).items()}
+            a |= {f"{L}/{k}": v for k, v in score_dir(
+                f"{B}/results/t3_raw/{apo_m}/T3/{L}", L, KEEP).items()}
         common = sorted(set(h) & set(a))
         if len(common) < 5:
             print(f"{holo_m}: 共同靶点只有 {len(common)} 个，先等跑完")

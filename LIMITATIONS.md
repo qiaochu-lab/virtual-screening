@@ -344,3 +344,55 @@ Intervals now exist for the whole main table
 ordering is not resolvable. Quote the decay within a model, and the gap between
 the strong group and the weak one; do not quote "model A beats model B at L4".
 L3 (48 targets) should not be used for model comparison at all.
+
+---
+
+## 18. The dataset-v2 subset is thin where it matters most
+
+The ≥50-actives + VSDS-vd-matched subset has **54 targets at L4** (116 at the
+≥50 filter alone, 254 in the full set). Relabelling just **6** of them — the
+ones with ≥40% training homology — moves L4 EF1% by 20–25% and the headline
+decay from −69% to −78%.
+
+A layer where six targets swing the main conclusion is not a layer that
+supports a precise effect size. Raising the quota from 250 to 350 restores L4
+to 75 targets at the cost of class deviation rising from 4.8pp to 7.9pp; that
+trade has not been decided.
+
+L3 is worse: **20 targets, and that is the entire supply** at ≥50 actives. No
+choice of quota fixes it.
+
+## 19. Two protein classes cannot be filled at all
+
+At ≥50 actives the pool holds **6 nuclear receptors and 2 cytochrome P450s**;
+matching VSDS-vd's proportions at 147 targets would need 17 and 9. Taking every
+one still falls short.
+
+This is structural, not a filtering choice: both families were characterised
+early and are small, so almost no new members appear after the 2024-12 cutoff —
+**L3 and L4 contain zero of either**. A time-split benchmark cannot be class-balanced
+against a benchmark that is free to choose its targets. Forcing VSDS-vd's exact
+proportions would cap the whole dataset at 49 targets (P450 is the binding
+constraint), discarding 129 of 141 available kinases to do it.
+
+## 20. L1 is closer to a memorisation test than an enrichment test
+
+32.1% of L1 actives are exact InChIKey matches to training ligands (decoy
+background 3.7%), their median Tanimoto to the training set is 0.727, and 53.9%
+sit above 0.7. A ligand-only baseline with no protein input reaches 98.7% of the
+theoretical EF ceiling there.
+
+L1 remains valid as the **control layer** — it demonstrates the pipeline is
+wired correctly — but an L1 enrichment number should not be read as evidence of
+pocket–ligand understanding. L2, L3 and L4 are clean by the same measurements:
+their actives are *more* novel than the cross-target decoys.
+
+## 21. The docking rerank was run on targets that are no longer in the dataset
+
+The smina control docked 20 targets picked from the full L4. **5 of those 20
+survive into the v2 subset**, and only 9 of the original 20 had enough actives
+inside the top-200 to be scored at all. Docking scores cannot be re-aggregated
+onto targets that were never docked, so that control currently describes the
+full L4, not the published subset. Undecided whether to re-dock (~33 CPU-hours),
+state the discrepancy, or demote the control.
+

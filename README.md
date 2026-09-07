@@ -19,6 +19,8 @@ what question it asks, what data it uses, how it was run, and what came out.
 | **T1** Enrichment | Do published enrichment numbers reproduce on standard benchmarks? | ✅ complete — 10 models × 3 benchmarks | [T1](tasks/T1-enrichment.md) |
 | **T2** Affinity ranking | Can these models rank binding strength, not just separate binders from non-binders? | ✅ answered — **weakly, and it decays with novelty**; the CASF/T3 gap is explained | [T2](tasks/T2-affinity-ranking.md) 🔬 |
 | **T3** Time-split | Do they generalise to targets that appeared after training? | ✅ main result, 10 models × 4 layers | [T3](tasks/T3-time-split.md) |
+| **T3 v2** Dataset revision | ≥50 actives, class composition matched to VSDS-vd | ✅ 242 entries / 222 targets; every downstream analysis re-aggregated | [T3 v2](tasks/T3-dataset-v2.md) |
+| **T3** Leakage audit | Is the benchmark actually solvable without the protein? Are the "novel" targets novel? | ✅ three diagnostics — **L1 is largely a memorisation test, L3/L4 are clean** | [Leakage](tasks/T3-leakage.md) |
 | **T4** Target fishing | Run retrieval backwards: molecule → target | not started (deprioritised) | [T4](tasks/T4-target-fishing.md) |
 | **T5** Structure robustness | Do the conclusions survive changing structure source, pocket definition, and apo conformation? | ✅ three controls done | [T5](tasks/T5-structure-robustness.md) 🔬 |
 | **T6** Physics complementarity | Can physics methods supply the ranking ability retrieval lacks? | ✅ ranking: yes (ρ 0.615 vs 0.40). ❌ cascade rerank: no benefit; two independent physics methods, one significant | [T6](tasks/T6-physics.md) 🔬 |
@@ -52,7 +54,36 @@ already working in this area.
    same tables already used this convention.
    → [T3](tasks/T3-time-split.md)
 
-2. **Affinity ranking is weak but real, and it decays like enrichment does.**
+2. **A ligand-only baseline reaches 98.7% of the theoretical ceiling — at every
+   layer.** Scoring each candidate purely by its 2D fingerprint similarity to the
+   target's other actives (no protein at all) gives EF@1% ≈ 50.4 against a ceiling
+   of 51.0, at L1 *and* L4. Actives of one target are largely one congeneric
+   series; cross-target decoys are not. The baseline sees the target's actives and
+   the models do not, so it is an **upper bound**, not an indictment — but it
+   reframes the decay: the ceiling is flat across layers while models fall from 38
+   to 9, so **what the models lose on novel targets is access to a memorisable
+   chemical series**, not chemistry ability. Normalised against that ceiling, the
+   best model extracts **76% of the available signal at L1 and 19% at L4**.
+   → [Leakage audit](tasks/T3-leakage.md)
+
+3. **Ligand-side leakage is entirely confined to L1.** 32.1% of L1 actives are
+   exact InChIKey matches to a training ligand (decoy background: 3.7%), and their
+   median Tanimoto to the training set is 0.727 with 53.9% above 0.7. L2/L3/L4
+   actives are *more* novel than the decoys (median 0.37–0.42 vs 0.419). Models
+   also preferentially retrieve the familiar: HypSeek's top-1% actives at L1 have
+   a median similarity of **0.969** to training ligands.
+   → [Leakage audit](tasks/T3-leakage.md)
+
+4. **The L3/L4 split had a fall-through bug: 24% of L4 targets were never
+   checked.** Family membership came from a precomputed CD-HIT file, and a target
+   *absent* from that file fell through to L4 — "not found" was treated as "no
+   homologous family". A sensitive mmseqs search against the training set finds
+   ≥70% homologues for 10% of the supposedly novel targets, including 100%
+   full-length cross-species orthologs. Relabelling at the 40% threshold moves 30
+   targets and restores the decay from −69% to −78%.
+   → [Leakage audit](tasks/T3-leakage.md)
+
+5. **Affinity ranking is weak but real, and it decays like enrichment does.**
    Per-target Spearman on post-cutoff data runs +0.09 to +0.26 at L1 and falls to
    +0.02 to +0.10 at L4; on congeneric FEP benchmarks it is ≈ +0.4, and on the
    14 targets shared by both the two are statistically indistinguishable
@@ -68,11 +99,11 @@ already working in this area.
    range recovers 75–91% of the difference. Report the observed T3 number, but
    do not read it as these models ranking worse on post-cutoff data than on CASF.
 
-3. **Model ranking reverses by target class.** Sequence-only models win on
+6. **Model ranking reverses by target class.** Sequence-only models win on
    kinases; geometry-aware models win on other enzymes. Reporting only the
    overall mean is misleading. → [T3](tasks/T3-time-split.md)
 
-4. **Mildly sensitive to structure source, extremely sensitive to pocket
+7. **Mildly sensitive to structure source, extremely sensitive to pocket
    definition.** Moving the pocket cutoff off the 6 Å the models were trained on
    costs 31–75%, with 6 Å winning 12 of 12 cells. Swapping experimental
    structures for Boltz-2 predictions costs less but not nothing: **8 of 10
@@ -85,7 +116,7 @@ already working in this area.
    accident rather than design ([`PATCHES.md`](PATCHES.md)).
    → [T5](tasks/T5-structure-robustness.md)
 
-5. **A co-folding model ranks affinity well, but reranking a retrieval
+8. **A co-folding model ranks affinity well, but reranking a retrieval
    shortlist with it does not help.** Three runs, two layers: on known targets
    the retrieval score is informative inside its own top-50 (AUROC 0.806) and
    Boltz-2 reranking *degrades* it (0.720); on novel targets the retrieval score
@@ -102,7 +133,7 @@ already working in this area.
    749 complexes) moves AUROC by 0.002, every p-value above 0.9. Structure
    quality is not the limiting factor. → [T6](tasks/T6-physics.md)
 
-6. **A co-folding model ranks affinity where retrieval cannot.** On the 16 FEP
+9. **A co-folding model ranks affinity where retrieval cannot.** On the 16 FEP
    systems, same ligands and same metric, Boltz-2 reaches Spearman +0.615
    (Kendall τ 0.474, against a published free-energy method's 0.503) while the
    retrieval models sit at +0.28 to +0.40. It is not a clean sweep — retrieval
@@ -110,7 +141,7 @@ already working in this area.
    loses — which is what makes the two families worth combining rather than
    ranking. → [T6](tasks/T6-physics.md)
 
-7. **Sequence and pocket trade places by benchmark — neither representation
+10. **Sequence and pocket trade places by benchmark — neither representation
    wins consistently.** LigUnity ships a pocket branch and a sequence branch from
    one release — same training set, same ligand encoder, same checkpoint scheme.
    Paired per target, the sequence branch wins DEKOIS and T3's L1/L2 (60–69% of
@@ -122,7 +153,7 @@ already working in this area.
    so does the ranking of two branches of one model.
    → [T3](tasks/T3-time-split.md)
 
-8. **Training data explains performance tiers better than architecture.** The
+11. **Training data explains performance tiers better than architecture.** The
    models trained on PocketAffDB all land at L1 EF1% 32–39; the three on
    DrugCLIP's data all land at 17–19 — across differences in retrieval
    augmentation and molecular encoder. The same split holds on DUD-E, where the
@@ -130,7 +161,7 @@ already working in this area.
    [`figures/`](figures/) fig 1 and fig 2, which are coloured by training set
    rather than architecture. → [T3](tasks/T3-time-split.md)
 
-9. **A checkpoint selected for affinity ranking is also the better screener.**
+12. **A checkpoint selected for affinity ranking is also the better screener.**
    HypSeek releases only `_rk`, selected on FEP ranking. A collaborator's
    paper-faithful `_vs` reproduction, run through our pipeline, trails it at
    every T3 layer — EF1% 30.70 vs 36.63 at L1, 5.75 vs 7.34 at L4 — while the
@@ -140,7 +171,7 @@ already working in this area.
    negative pool of 4 against the official 24) and is retracted.
    → [`MODELS_TRAINING.md`](MODELS_TRAINING.md)
 
-10. **The released weight is not the published model.** HypSeek's HuggingFace
+13. **The released weight is not the published model.** HypSeek's HuggingFace
     checkpoint scores *above* the paper's own screening numbers — DUD-E EF1%
     56.39 against a published 51.44 — measured with a pipeline that reproduces
     the paper's LigUnity baseline to four decimals. Whatever you download is not

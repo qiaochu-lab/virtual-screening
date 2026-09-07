@@ -55,3 +55,5 @@ one bucket:
 Every script carries a docstring saying what the check is for and **how to read
 its output**, including what a null result would mean — written before the
 output existed.
+- [T3 dataset v2](T3-dataset-v2.md) — the ≥50-actives, VSDS-vd-matched subset
+- [T3 leakage audit](T3-leakage.md) — ligand-only baseline, target mirroring, novelty tiers
