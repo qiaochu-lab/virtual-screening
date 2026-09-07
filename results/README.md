@@ -19,5 +19,6 @@
 | `T3_ligand_only.csv` | per-target ligand-only baseline (no protein input) |
 | `T3_normalized_by_ceiling.csv` | model EF1% divided by that ceiling |
 | `T3_ligand_novelty.csv` | novelty tiers: pool composition and what models retrieve |
+| `T3_novelty_tiered_ef.csv` | enrichment computed separately per novelty tier |
 | `T3_target_mirroring.csv` | each T3 target's closest training-set homologue (mmseqs, cov ≥50%) |
 | `T3_target_redundancy.csv` | all-vs-all identity within the subset (pairs ≥20%) |
