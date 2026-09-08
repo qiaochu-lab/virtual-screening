@@ -1,0 +1,19 @@
+variant,benchmark,n_targets,ef1,ef5,bedroc,auroc
+hypseek_rk (我们原用),DUDE,102,56.3907,17.8672,0.8837,0.9668
+hypseek_rk (我们原用),DEKOIS,81,28.8349,17.2443,0.8892,0.9636
+hypseek_rk (我们原用),PCBA,15,8.3401,3.4682,0.0977,0.6131
+hypseek_official_vs a=0,DUDE,102,51.4138,16.2997,0.7892,0.9435
+hypseek_official_vs a=0,DEKOIS,81,25.5186,14.9630,0.7718,0.9255
+hypseek_official_vs a=0,PCBA,15,6.8157,3.3859,0.0816,0.6225
+hypseek_official_vs a=1,DUDE,102,53.0186,16.5751,0.8129,0.9497
+hypseek_official_vs a=1,DEKOIS,81,25.6634,14.9528,0.7751,0.9206
+hypseek_official_vs a=1,PCBA,15,5.2099,2.7696,0.0592,0.6002
+hypseek_official_rk a=0,DUDE,102,56.3907,17.8672,0.8837,0.9668
+hypseek_official_rk a=0,DEKOIS,81,28.8349,17.2443,0.8892,0.9636
+hypseek_official_rk a=0,PCBA,15,8.3401,3.4682,0.0977,0.6131
+hypseek_official_rk a=1,DUDE,102,57.5234,18.1154,0.9012,0.9697
+hypseek_official_rk a=1,DEKOIS,81,29.8379,17.4864,0.9147,0.9649
+hypseek_official_rk a=1,PCBA,15,8.0127,3.2188,0.0888,0.5950
+hypseek_vs_collab (代哥训),DUDE,102,49.3410,15.8980,0.7589,0.9388
+hypseek_vs_collab (代哥训),DEKOIS,81,25.6433,14.9888,0.7748,0.9284
+hypseek_vs_collab (代哥训),PCBA,15,6.7615,3.2038,0.0805,0.6196

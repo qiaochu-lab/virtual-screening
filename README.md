@@ -174,20 +174,48 @@ already working in this area.
    rather than architecture. → [T3](tasks/T3-time-split.md)
 
 13. **A checkpoint selected for affinity ranking is also the better screener.**
-   HypSeek releases only `_rk`, selected on FEP ranking. A collaborator's
-   paper-faithful `_vs` reproduction, run through our pipeline, trails it at
-   every T3 layer — EF1% 30.70 vs 36.63 at L1, 5.75 vs 7.34 at L4 — while the
+   HypSeek ships two weights from one run: `_vs` selected on screening, `_rk` on
+   FEP ranking. Both are now public (the author released them in
+   [issue #4](https://github.com/jianhuiwemi/HypSeek/issues/4)), and `_rk` beats
+   `_vs` on **all seven screening measurements** — DUD-E 56.39 vs 51.41,
+   DEKOIS 28.83 vs 25.52, LIT-PCBA 8.34 vs 6.82, and every T3 layer
+   (L1 36.63 vs 32.11, L4 7.34 vs 7.07). An earlier version of this finding
+   compared `_rk` against a *self-trained* `_vs` with a known training defect;
+   the official weight makes the comparison sound.
+   → [`results/T1_hypseek_official.md`](results/T1_hypseek_official.md)
+
+   A collaborator's paper-faithful `_vs` reproduction also trails it at
    L1→L4 decay is indifferent to which weight is used (−50% vs −54%).
    ⚠️ An earlier version of this finding said retraining the screening weight
    makes a model *worse*; that was a deficit in our own training (a contrastive
    negative pool of 4 against the official 24) and is retracted.
    → [`MODELS_TRAINING.md`](MODELS_TRAINING.md)
 
-14. **The released weight is not the published model.** HypSeek's HuggingFace
-    checkpoint scores *above* the paper's own screening numbers — DUD-E EF1%
-    56.39 against a published 51.44 — measured with a pipeline that reproduces
-    the paper's LigUnity baseline to four decimals. Whatever you download is not
-    what Table 1 reports. → [`MODELS_TRAINING.md`](MODELS_TRAINING.md)
+14. **Three independent groups cannot reproduce HypSeek's published weight from
+    its published recipe.** Following the paper, this project's `_vs` lands 16%
+    below the reported DUD-E EF@1% (43.29 vs 51.44), a collaborator's 4% below
+    (49.34), and a third party in
+    [issue #4](https://github.com/jianhuiwemi/HypSeek/issues/4) 10% below
+    (46.05) — the last having verified identical training inputs and swept
+    random seeds. The author's own released weight reproduces the paper exactly
+    (we measure 51.41), so the gap is in the recipe, not the evaluation. Ours has
+    a diagnosed cause (contrastive negative pool of 4 against the official 24);
+    the other two do not.
+    ⚠️ An earlier version of this finding claimed the released weight was not
+    the published model, on the grounds that we measured 56.39 against a
+    published 51.44. That compared `_rk` to the paper's `_vs` number — different
+    checkpoints. **Retracted.**
+    → [`results/T1_hypseek_official.md`](results/T1_hypseek_official.md)
+
+15. **The official evaluation runs with the protein-sequence pathway switched
+    off, contradicting the paper.** `alpha_prot` defaults to 1 in training but
+    `test_task.py` reads it as `getattr(self.args, "alpha_prot", 0)` and argparse
+    never exposed the name, so every published evaluation number was produced
+    with that pathway disabled — while the paper states that removing it costs
+    performance. Turning it on raises DUD-E EF@1% from 51.41 to 53.02, but
+    *lowers* LIT-PCBA from 6.82 to 5.21. The pathway helps on synthetic decoys
+    and hurts on experimentally confirmed ones, which is the same axis finding 3
+    is about. → [`results/T1_hypseek_official.md`](results/T1_hypseek_official.md)
 
 ## Repository layout
 

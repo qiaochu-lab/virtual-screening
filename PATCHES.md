@@ -495,3 +495,29 @@ assert old in s, f"no match: {old[:60]!r}"
 assert s.count(old) == 1, f"{s.count(old)} matches"
 ```
 
+---
+
+### A default that hid a contradiction with the paper
+
+`three_hybrid_loss.py` reads `alpha_prot` — the weight on the protein-sequence
+pathway — as `float(getattr(args, "alpha_prot", 1.0))`. `test_task.py` reads the
+same name as `getattr(self.args, "alpha_prot", 0)`. Argparse never defined it,
+so **training always ran with the pathway on and evaluation always ran with it
+off**, and nothing in the config surfaced the difference. The paper states that
+removing the sequence pathway costs performance.
+
+Exposed as a real flag so the setting is measurable rather than implicit:
+
+```python
+parser.add_argument("--alpha-prot", type=float, default=0.0,
+                    help="protein-sequence pathway weight (eval default 0, training default 1)")
+```
+
+Both settings are now reported. Turning it on raises DUD-E EF@1% from 51.41 to
+53.02 and *lowers* LIT-PCBA from 6.82 to 5.21.
+
+Note this flag has no effect on T3: `test_t3_target` — written for this project —
+scores with `res = pocket_reps @ mol_reps.T` and never computes `prot_scores`.
+Every HypSeek T3 number here is pocket-pathway-only. That is a stated convention,
+not a defect, but it has to be stated.
+

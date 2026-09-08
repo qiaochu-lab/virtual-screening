@@ -260,12 +260,18 @@ which ran `_rk`, selected on FEP ranking — the only weight its authors release
 Comparing it to models represented by their screening weights is not apples to
 apples.
 
-Measured rather than assumed: we trained the screening-selected weight from the
-published recipe (two seeds) and it is **worse** at screening — T3 L1 EF1% 22.2
-against `_rk`'s 36.6, and 20–24% lower on the standard benchmarks. So the
-asymmetry does not flatter HypSeek's screening numbers; `_rk` is its stronger
-screening weight too. The per-task checkpoint matrix is in
-[`MODELS.md`](MODELS.md).
+Measured against the **official** `_vs`, which the author released on
+2026-09-07 in [issue #4](https://github.com/jianhuiwemi/HypSeek/issues/4):
+`_rk` is the stronger screening weight on all seven measurements — DUD-E 56.39
+vs 51.41, DEKOIS 28.83 vs 25.52, LIT-PCBA 8.34 vs 6.82, and every T3 layer. So
+the asymmetry does not flatter HypSeek's screening numbers.
+
+⚠️ An earlier version of this section made the same claim from a **self-trained**
+`_vs` (T3 L1 EF1% 22.2 against 36.6). That weight has a diagnosed training defect
+— a contrastive negative pool of 4 against the official 24 — so it could not
+support the argument, and README finding 14 had already retracted the conclusion
+that rested on it. The official weight now does support it. The per-task
+checkpoint matrix is in [`MODELS.md`](MODELS.md).
 
 ## 17. Per-target actives counts vary by two orders of magnitude
 

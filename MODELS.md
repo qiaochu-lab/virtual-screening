@@ -43,9 +43,19 @@ Training data separates the tiers better than architecture does.
 ## Checkpoint choices worth knowing
 
 **HypSeek ships two weights from one training run** — `_vs` selected on CASF
-BEDROC (screening) and `_rk` selected on FEP (ranking). Only `_rk` is public, so
-that is what was evaluated. This is itself evidence for T2's premise: the authors
-found one weight could not do both jobs well.
+BEDROC (screening) and `_rk` selected on FEP (ranking). This is itself evidence
+for T2's premise: the authors found one weight could not do both jobs well.
+
+Only `_rk` was public when this benchmark was built, so that is what every
+HypSeek number here was measured with. The author released `_vs` on 2026-09-07
+in [issue #4](https://github.com/jianhuiwemi/HypSeek/issues/4); both are now
+measured side by side in
+[`results/T1_hypseek_official.md`](results/T1_hypseek_official.md). The released
+`_rk` is byte-identical to the copy used throughout
+(md5 `02d7574254bc…`), and `_rk` outscores `_vs` on every screening
+measurement — so reporting `_rk` did not inflate HypSeek's numbers relative to
+its own screening weight, though it does mean **the screening tables report a
+ranking-selected checkpoint**.
 
 Using `_rk` also turns out to matter: it is **the best ranker in the benchmark**
 (T3 Spearman +0.260 at L1, ahead of LigUnity-protein's +0.230 and DrugCLIP's
