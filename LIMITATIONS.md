@@ -555,6 +555,48 @@ answers. §6 settles *whose training set the labels come from*; it does not
 settle *at what level similarity should be measured*. The second question needs
 its own experiment.
 
+**That experiment has now been run, and L4 survives it.** Comajuncosa-Creus et
+al. (*Nat Commun* 2024) released PocketVec descriptors for the human pocketome —
+49,511 pockets over 10,539 UniProts, each a 128-dimensional ranking of how a
+fixed lead-like library docks into that pocket. They report **over 3.5 million**
+pocket pairs at distance < 0.17 whose proteins have TM-score < 0.35 and sequence
+identity < 30%, which is precisely the failure mode this section worries about.
+
+Matching our targets against those descriptors
+([`timesplit/analysis/pocket_neighbors.py`](timesplit/analysis/pocket_neighbors.py)
+→ [`results/T3_pocket_neighbors.csv`](results/T3_pocket_neighbors.csv)): for each
+test target take its minimum cosine distance to **(A)** every pocket of every
+training target, and to **(B)** an equal number of pockets sampled from human
+proteins in neither the training set nor T3. Paired per target:
+
+| Layer | n | to training | to control | Δ | paired p | closer to training |
+|---|---|---|---|---|---|---|
+| L1 | 265 | 0.0983 | 0.1132 | **−0.0109** | 1.7e-21 | 74% |
+| L2 | 342 | 0.1017 | 0.1140 | −0.0084 | 3.6e-23 | 71% |
+| L3 | 24 | 0.1034 | 0.1087 | −0.0059 | 0.0115 | 75% |
+| **L4** | **123** | **0.1149** | **0.1144** | **+0.0013** | **0.153** | **44%** |
+
+**L4 targets are no closer to training pockets than to arbitrary human pockets.**
+The gradient across layers is monotone and matches the layer definitions exactly,
+which is also a check on the layering itself. L3 retains a small but significant
+proximity — expected, since L3 is defined as *family seen, target unseen*.
+
+**The control is what makes this readable.** A first pass reported the fraction
+of targets below the authors' 0.17 similarity threshold and got **100% at every
+layer**, which says nothing: taking a minimum over 9,726 reference pockets is an
+extreme-value statistic, and PocketVec vectors are rankings of 1–128, so two
+*random* permutations sit at cosine distance ≈ 0.253 rather than 1. Absolute
+thresholds do not survive a min-over-thousands; only the paired contrast does.
+
+Three limits on the claim. PocketVec covers the **human** proteome only, so 123
+of 254 L4 targets (48%) have descriptors and the cross-species orthologs we know
+are in L4 are exactly the ones missing — this is a lower bound on any leakage.
+The effect sizes are small in absolute terms (~0.01 against a random baseline of
+0.253); the result rests on the pairing, not on the distances. And these are the
+authors' Pfam-domain pockets, not our 6 Å ligand-induced ones, so the question
+answered is "does this protein have a pocket resembling a training protein's"
+rather than "is the pocket our models were shown similar".
+
 **One methodological note, recorded because the first attempt was wrong.**
 Difficulty was first divided out per target as
 `EF(model, t) / median(EF(other models, t))`. That ratio is unusable: the
