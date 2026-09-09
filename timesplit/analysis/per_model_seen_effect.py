@@ -69,7 +69,13 @@ def load_sets():
 
 
 def main():
-    keep = {r["uniprot"] for r in csv.DictReader(
+    # ⚠️ 键必须是 (层, 靶点) 不能只用靶点：350 子集是 328 条 / 293 个唯一 uniprot，
+    # 35 个 uniprot 出现在多个层。只按 uniprot 过滤会把「该靶点在别的层的记录」
+    # 也算进来——实测 seen+unseen 报到 417，比子集本身的 328 条还多 89 条。
+    # 这里另有一层：EF 原来按 uniprot 建字典，同一靶点在两个层就会被后一层覆盖，
+    # 取到哪个值取决于层的遍历顺序。改成按 (层, 靶点) 建键，靶点内名次也在
+    # (层, 靶点) 内部算——这本来就是更正确的口径。
+    keep = {(r["layer"], r["uniprot"]) for r in csv.DictReader(
         open(f"{B}/results/export/T3_vsds_matched.csv"))}
     SETS = load_sets()
     S = json.load(open(f"{B}/results/t3/summary.json"))
@@ -78,8 +84,8 @@ def main():
     for m in S:
         for L in LAYERS:
             for r in S[m][L]["per_target"]:
-                if r["uniprot"] in keep:
-                    EF.setdefault(r["uniprot"], {})[m] = r["ef1"]
+                if (L, r["uniprot"]) in keep:
+                    EF.setdefault((L, r["uniprot"]), {})[m] = r["ef1"]
 
     # 只用十个模型都有结果的靶点，名次才是可比的
     full = sorted(t for t in EF if len(EF[t]) == len(S))
@@ -102,8 +108,8 @@ def main():
         T = SETS[tag]
         es, eu, ks, ku = [], [], [], []
         for t in full:
-            (es if t in T else eu).append(EF[t][m])
-            (ks if t in T else ku).append(RANK[t][m])
+            (es if t[1] in T else eu).append(EF[t][m])
+            (ks if t[1] in T else ku).append(RANK[t][m])
         if len(es) < 5 or len(eu) < 5:
             print(f"{m}: 有一边样本太少（{len(es)}/{len(eu)}），跳过"); continue
         u = mannwhitneyu(es, eu, alternative="greater")

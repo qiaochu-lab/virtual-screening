@@ -118,14 +118,19 @@ def main():
     ap.add_argument("--out", default=f"{B}/results/export/T3_per_model_layers.csv")
     args = ap.parse_args()
 
-    keep = {r["uniprot"] for r in csv.DictReader(open(args.subset))}
+    # ⚠️ 键必须是 (层, 靶点) 不能只用靶点：350 子集是 328 条 / 293 个唯一 uniprot，
+    # 35 个 uniprot 出现在多个层。只按 uniprot 过滤会把「该靶点在别的层的记录」
+    # 也算进来——实测 seen+unseen 报到 417，比子集本身的 328 条还多 89 条。
+    keep = {(r["layer"], r["uniprot"]) for r in csv.DictReader(open(args.subset))}
     orig = {r["uniprot"]: r["layer"] for r in csv.DictReader(open(args.subset))}
     print(f"子集靶点 {len(keep)}")
 
     SETS = {"A": load_A(), "B": load_B(), "C": load_C(), "D": load_D()}
+    ups = {u for _, u in keep}          # keep 是 (层, 靶点) 对，覆盖率要按靶点算
     for k, v in SETS.items():
+        n = len(v & ups)
         print(f"  训练集 {k}: {len(v):,} UniProt，覆盖子集 "
-              f"{len(v & keep)}/{len(keep)} ({100*len(v & keep)/len(keep):.0f}%)")
+              f"{n}/{len(ups)} 个唯一靶点 ({100*n/len(ups):.0f}%)")
 
     S = json.load(open(args.summary))
     rows = [["model", "train_set", "n_seen", "n_unseen", "ef1_seen", "ef1_unseen",
@@ -147,7 +152,7 @@ def main():
         for L in LAYERS:
             for r in S[m][L]["per_target"]:
                 u = r["uniprot"]
-                if u not in keep:
+                if (L, u) not in keep:
                     continue
                 (seen if u in T else unseen).append(r)
                 if orig.get(u) == "L1":

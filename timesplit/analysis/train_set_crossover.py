@@ -89,8 +89,11 @@ def main():
                          "全量版是稳健性检查：「仅 P」格从 7 个涨到 28 个，"
                          "小样本假象会在那里现形")
     args = ap.parse_args()
+    # ⚠️ 键必须是 (层, 靶点) 不能只用靶点：350 子集是 328 条 / 293 个唯一 uniprot，
+    # 35 个 uniprot 出现在多个层。只按 uniprot 过滤会把「该靶点在别的层的记录」
+    # 也算进来——实测 seen+unseen 报到 417，比子集本身的 328 条还多 89 条。
     keep = None if args.subset == "all" else {
-        r["uniprot"] for r in csv.DictReader(open(args.subset))}
+        (r["layer"], r["uniprot"]) for r in csv.DictReader(open(args.subset))}
     A, Bs = load_sets()
     S = json.load(open(f"{B}/results/t3/summary.json"))
 
@@ -98,8 +101,8 @@ def main():
     for m in S:
         for L in LAYERS:
             for r in S[m][L]["per_target"]:
-                if keep is None or r["uniprot"] in keep:
-                    EF.setdefault(r["uniprot"], {})[m] = r["ef1"]
+                if keep is None or (L, r["uniprot"]) in keep:
+                    EF.setdefault((L, r["uniprot"]), {})[m] = r["ef1"]
     full = sorted(t for t in EF if len(EF[t]) == len(S))
 
     RANK = {}
@@ -113,7 +116,7 @@ def main():
     print(f"亲和力半 L（blend，只有 B 训过）: {len(L):,} UniProt")
     CELL = {}
     for t in full:
-        a, b = t in P, t in L
+        a, b = t[1] in P, t[1] in L
         CELL[t] = ("P∩L" if a and b else "仅 P" if a else
                    "仅 L" if b else "都没有")
     cells = ["P∩L", "仅 P", "仅 L", "都没有"]

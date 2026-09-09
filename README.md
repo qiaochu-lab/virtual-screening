@@ -388,20 +388,19 @@ already working in this area.
     affinity labels for 2,196 targets.
 
     Re-cutting L1–L4 per model against the corrected union still separates the
-    two families, slightly more than before: **51–58% decay for the three
-    structure-only models against 69–74% for the four with affinity labels**,
-    where the shared L1→L4 labels had them overlapping. Ranking the ten models
-    *within each target*, which cancels target difficulty, the four gain
-    **+0.70 to +1.86 rank places** on targets in their own training set; the
-    three structure-only models gain **−0.10 to −0.13**, i.e. nothing — though
-    that null is weak evidence, since all seven trained on those same targets
-    and none can stand out. Splitting by which half a target came from, the four
-    rank **1.54 places better** on targets only the affinity half contains
-    (exact permutation p = 0.0095). Repeated on all 635 common targets rather
-    than the 350-quota subset — which grows the thin structure-only cell from 7
-    targets to 28 — the gap is 1.61 places at the **identical p = 0.0095**, and
-    all four models fall on the same side, so the one exception in the subset
-    (HypSeek, +0.30) does not survive the larger sample.
+    two families: **49–58% decay for the three structure-only models against
+    66–71% for the four with affinity labels**, where the shared L1→L4 labels had
+    them overlapping. Ranking the ten models *within each target*, which cancels
+    target difficulty, the four gain **+0.83 to +1.86 rank places** on targets in
+    their own training set; the three structure-only models gain **−0.19 to
+    +0.09**, i.e. nothing — though that null is weak evidence, since all seven
+    trained on those same targets and none can stand out. Splitting by which half
+    a target came from, the four rank **1.73 places better** on targets only the
+    affinity half contains (exact permutation p = 0.0095, 2 of 210 splits).
+    Repeated on all 840 common records rather than the 350-quota subset — which
+    grows the thin structure-only cell from 7 to 28 — the gap is **1.85 places at
+    p = 0.0048, a perfect ten-model separation**, and the one exception in the
+    subset (HypSeek, +0.12) does not survive the larger sample.
     → [`tasks/T3-leakage.md`](tasks/T3-leakage.md)
 
     ⚠️ **This finding replaces an earlier version that was wrong.** It read
