@@ -76,10 +76,17 @@ target in five is not actually new, so **their measured decay understates the
 true decay**. The cross-model comparison of *absolute* L4 values is affected;
 the within-model L1→L4 gradient is not.
 
-## 3. Two models' training sets are unavailable
+## 3. One model's training set is unavailable
 
-ConGLUDe and SPRINT do not publish target lists in a usable form, so their layer
-labels are inherited from LigUnity's split and are approximate.
+**ConGLUDe** is the only remaining gap. Its list is on Zenodo
+(`LB_train_val.zip`, record 20354834), which returned 504 on every attempt; its
+layer labels are inherited from LigUnity's split and are approximate.
+
+**SPRINT is no longer in this group.** `merged_data.zip` on the MERGED release
+yields **336 training UniProt accessions** — an order of magnitude fewer proteins
+than either pocket-family set. Only 33 of the 350-quota subset's targets fall
+inside it, so its own seen/unseen split has almost no power (p = 0.84) and its
+layer labels remain effectively inherited.
 
 **ConPLex is no longer in this group.** It publishes training sequences without
 accessions, which is enough: reverse-looking them up with mmseqs (identity, both
@@ -458,3 +465,39 @@ But the general point stands: **a benchmark cannot certify a model whose
 training set it cannot see**, and three of ten models here were in that position
 until this check. Detail and reproduction in
 [`tasks/T1-enrichment.md`](tasks/T1-enrichment.md#conplex-trained-on-dud-e).
+
+## 24. What the per-model layering does and does not settle
+
+[`tasks/T3-leakage.md` §6](tasks/T3-leakage.md) re-cuts the layers using each
+model's own training set. Two limits on how far that result reaches.
+
+**The A-only cell holds 13 targets.** The crossover that separates PocketAffDB
+membership from `train_no_test_af` membership compares targets only one set
+contains. B-only has 32; A-only has 13. Two of the four PocketAffDB models reach
+significance individually (p = 0.009, 0.005); the other two are directionally
+consistent but not significant. The evidence that survives is at **group** level
+— all four B models on one side of zero, all six others on the other, exact
+p = 0.0048 — not per model. Widening the A-only cell needs a larger subset, not
+a better test.
+
+**Seen/unseen is decided by sequence, and sequence is the weakest layer of
+protein similarity.** Membership here means exact UniProt match, or ≥95%
+sequence identity for the two sets reconstructed by mmseqs. Pocket-level and
+interaction-pattern-level similarity can be high where sequence identity is low,
+so some targets counted as "unseen" are near-neighbours of training targets by a
+criterion this analysis never applies. That biases every decay number in the
+same direction — **understating** it — and it is orthogonal to the question §6
+answers. §6 settles *whose training set the labels come from*; it does not
+settle *at what level similarity should be measured*. The second question needs
+its own experiment.
+
+**One methodological note, recorded because the first attempt was wrong.**
+Difficulty was first divided out per target as
+`EF(model, t) / median(EF(other models, t))`. That ratio is unusable: the
+denominator approaches zero on hard targets and the quotient explodes, giving
+DrugCLIP a median fold of 1.85 and a mean fold of 0.57 — opposite directions
+from the same data. The reported analysis uses within-target **rank** across the
+ten models instead, which cancels difficulty without dividing by anything. The
+ratio version is kept in
+[`results/T3_per_model_layers_ctrl.csv`](results/T3_per_model_layers_ctrl.csv)
+only so the discrepancy is inspectable.

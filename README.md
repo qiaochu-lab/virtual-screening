@@ -194,6 +194,8 @@ already working in this area.
    four PocketAffDB models take the top four places. Visible directly in
    [`figures/`](figures/) fig 1 and fig 2, which are coloured by training set
    rather than architecture. → [T3](tasks/T3-time-split.md)
+   *Finding 18 sharpens this: only one of the two training sets confers a
+   target-specific advantage.*
 
 14. **A checkpoint selected for affinity ranking is also the better screener.**
    HypSeek ships two weights from one run: `_vs` selected on screening, `_rk` on
@@ -254,6 +256,25 @@ already working in this area.
     0.577** while every other model moves between −10% and +7%. T3 is unaffected
     — its training set covers 19.4% of T3 targets, the same band as the rest.
     → [`tasks/T1-enrichment.md`](tasks/T1-enrichment.md#conplex-trained-on-dud-e)
+
+18. **Only one of the two training sets confers a target-specific advantage, and
+    the layering is not what produced the decay.** Re-cutting L1–L4 per model
+    using each model's *own* training set separates the two families further,
+    not less: 51–58% decay for the DrugCLIP-set models against 68–72% for the
+    PocketAffDB models, where the shared labels had them overlapping at 45–69%
+    and 69–72%. Every model then scores higher on targets it trained on — but
+    ranking the ten models *within each target*, which cancels target difficulty,
+    splits them cleanly. The four PocketAffDB models gain 0.9–1.8 rank places on
+    their own targets; the three DrugCLIP-set models gain **−0.10 to −0.13**,
+    i.e. nothing. A four-cell crossover confirms it: on targets only PocketAffDB
+    contains, all four of its models rank better and all six other models rank
+    worse, with no exception (group difference 2.41 places, exact p = 0.0048) —
+    and the DrugCLIP-set models' value (+0.90) is indistinguishable from that of
+    models that never saw those targets (+1.03). **PocketAffDB membership is
+    worth ~2.4 rank places; `train_no_test_af` membership is worth nothing
+    measurable.** Caveat: the A-only cell holds 13 targets, so the per-model
+    significance is weak and the evidence is at group level.
+    → [`tasks/T3-leakage.md`](tasks/T3-leakage.md)
 
 ## Repository layout
 
