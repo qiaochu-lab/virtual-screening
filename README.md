@@ -44,6 +44,14 @@ already working in this area.
 
 ## Headline findings
 
+0. **Read in compounds rather than percentages, a novel-target campaign still
+   beats random tenfold.** Ordering the top 100 molecules buys **59 real actives
+   on a familiar target and 20 on a novel one** (LigUnity-protein), against a base
+   rate near 2%. Switching the cutoff from "top 1% of the pool" to "top 100,
+   whatever the pool" moves every model's decay by at most 8 percentage points
+   and reorders nothing, so the decay below is not an artefact of the metric.
+   → [`results/T3_recall_at_k.csv`](results/T3_recall_at_k.csv)
+
 1. **All ten models lose 68–84% of their above-random enrichment on post-cutoff
    targets.** Absolute performance differs fifteenfold between the best and worst
    model; the *decay* is nearly identical. This is a property of the method

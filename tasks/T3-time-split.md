@@ -371,6 +371,59 @@ at 76–77%, DrugCLIP/BindCLIP smallest at 64–70%).
 retrieval at all — only 4 points less than LigUnity. Retrieval augmentation
 explains part of it, not all.
 
+## Recall@K: what the decay means in compounds
+
+EF@1% answers "how concentrated are the actives in the top 1%". It does not
+answer "how many real hits does one screening campaign buy", and those are
+different questions whenever candidate pools differ in size — the top 1% of a
+1,784-molecule target is 18 slots; of a 160,000-molecule target it is 1,600.
+A wet-lab budget is a fixed *count*, not a fraction.
+
+`timesplit/analysis/recall_at_k.py` → `results/T3_recall_at_k.csv`, on the
+350-quota subset. **Hit@100** is the number of true actives among the top 100
+ranked compounds; **EF@100** divides out that target's active rate, so 1.0 is
+random and it is directly comparable to EF@1%.
+
+| Model | Hit@100 L1 | Hit@100 L4 | EF@100 L1 | EF@1% L1 | EF@100 decay | EF@1% decay |
+|---|---|---|---|---|---|---|
+| LigUnity-protein | **59.4** | 19.9 | 30.3 | 40.1 | 69% | 73% |
+| LigUnity-pocket | 53.7 | 19.6 | 27.4 | 34.8 | 66% | 74% |
+| HypSeek `_rk` | 53.7 | 17.4 | 27.5 | 34.4 | 70% | 76% |
+| LiTENCLIP | 49.9 | 18.4 | 25.5 | 32.2 | 66% | 72% |
+| BindCLIP-hardneg | 31.4 | 10.7 | 16.0 | 19.3 | 70% | 71% |
+| BindCLIP-randneg | 30.5 | 13.1 | 15.6 | 18.8 | 61% | 65% |
+| DrugCLIP | 27.8 | 16.3 | 14.2 | 17.1 | 44% | 51% |
+| SPRINT | 4.7 | 2.8 | 2.4 | 2.7 | 71% | 66% |
+
+**Three things this adds.**
+
+**1. The decay is not an artefact of the 1% cutoff.** Switching from "top 1% of
+the pool" to "top 100, whatever the pool" moves every decay by at most 8
+percentage points and changes no ordering. Anyone who suspects EF@1% of being a
+convenient metric can read the same conclusion off a fixed-budget one.
+
+**2. In compounds: ordering 100 molecules buys ~59 real actives on a familiar
+target and ~20 on a novel one.** Against a base rate near 2%, 20 hits per 100 is
+still 10× random — the L4 number is a real capability, not noise. The headline
+"68–84% of the enrichment is lost" and "a novel-target campaign still beats
+random tenfold" are both true, and the second is the one a chemist acts on.
+
+**3. Hit@100 is flat between L1 and L2 for the strongest models** (LigUnity-protein
+59.35 vs 59.29) even though Recall@100 halves (54.9% → 34.3%). L2 targets simply
+have more actives (median 177 vs 99), so the same 100 slots yield the same count
+from a lower recall. **How many hits you get is driven as much by how many exist
+as by how well the model ranks** — which is why Recall and Hit have to be read
+together, and why neither replaces EF.
+
+⚠️ **Recall@K is not pool-size-neutral either.** Fixing K favours targets with
+small pools, and layer pool medians differ (L1 5,044 · L2 9,017 · L4 7,488). That
+is why EF@100 is reported alongside: it removes the base rate, and it is the
+column to use for cross-layer comparison. Raw Recall@100 is for reading within a
+layer.
+
+⚠️ **L3 is 19 targets** and several models score it below L4 (DrugCLIP 9.0% vs
+10.7%, LiTENCLIP 11.2% vs 14.6%). Do not read an L3→L4 ordering off this table.
+
 ## Limits to state when reporting
 
 - Absolute numbers are **not** comparable to published values (different decoys)

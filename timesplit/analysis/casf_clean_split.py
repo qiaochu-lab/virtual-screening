@@ -69,8 +69,11 @@ def scoring(score, y):
             float(stats.pearsonr(score[ok], y[ok]).statistic))
 
 
-def ranking(per):
-    """per: uniprot -> [(score, act)]；返回 (平均 ρ, 靶点数)。"""
+def ranking(per, boot=2000, seed=0):
+    """per: uniprot -> [(score, act)]；返回 (平均 ρ, 靶点数, (lo, hi))。
+
+    靶点数只有十几个，均值没有区间就没法读，所以对靶点做自助重采样。
+    """
     rs = []
     for v in per.values():
         if len(v) < 3:
@@ -81,7 +84,18 @@ def ranking(per):
         r = stats.spearmanr(s, [x[1] for x in v]).statistic
         if not np.isnan(r):
             rs.append(r)
-    return (float(np.mean(rs)), len(rs)) if rs else (float("nan"), 0)
+    if not rs:
+        return float("nan"), 0, (float("nan"), float("nan"))
+    a = np.array(rs)
+    rng = np.random.default_rng(seed)
+    bs = a[rng.integers(0, len(a), size=(boot, len(a)))].mean(axis=1)
+    return float(a.mean()), len(a), (float(np.percentile(bs, 2.5)),
+                                     float(np.percentile(bs, 97.5)))
+
+
+def thorndike(r, k):
+    """范围受限校正（case II）：把在窄展布上测到的 r 折算到宽 k 倍的展布上。"""
+    return r * k / np.sqrt(1 + r * r * (k * k - 1))
 
 
 def main():
@@ -98,11 +112,12 @@ def main():
     truth = load_truth()
 
     # 靶点分类：全脏 / 全净 / 混合
-    tcx = defaultdict(list)
+    tcx = defaultdict(list)                     # uniprot -> [pdb]
     for pdb, (_a, up) in truth.items():
-        tcx[up].append(pdb in over)
+        tcx[up].append(pdb)
     tclass = {}
-    for up, flags in tcx.items():
+    for up, pdbs in tcx.items():
+        flags = [p in over for p in pdbs]
         tclass[up] = "全脏" if all(flags) else ("全净" if not any(flags) else "混合")
     n_all = len(tclass)
     print(f"CASF：{len(truth)} 个复合物 / {n_all} 个靶点簇")
@@ -112,7 +127,33 @@ def main():
         print(f"  {c} 靶点 {len(ups):3d}  复合物 "
               f"{sum(len(tcx[u]) for u in ups):3d}")
 
+    # ⚠️ 必须先排掉的混杂：干净靶点会不会本身亲和力展布就窄？
+    # 那样排序 ρ 低就又是范围受限（t2_gap.py 那条），不是泄漏。
+    print("\n混杂检查：各类靶点的靶点内 pAff 展布")
+    print("%-8s %8s %10s %12s %10s" % ("靶点类", "靶点数", "配体中位", "SD 中位", "极差中位"))
+    spread = {}
+    for c in ("全脏", "混合", "全净"):
+        sds, rngs, ns = [], [], []
+        for u, k in tclass.items():
+            if k != c:
+                continue
+            acts = [truth[p][0] for p in tcx[u] if not np.isnan(truth[p][0])]
+            if len(acts) < 3:
+                continue
+            sds.append(np.std(acts, ddof=1))
+            rngs.append(max(acts) - min(acts))
+            ns.append(len(acts))
+        if sds:
+            spread[c] = (np.median(sds), np.median(rngs))
+            print("%-8s %8d %10.0f %12.3f %10.3f" %
+                  (c, len(sds), np.median(ns), np.median(sds), np.median(rngs)))
+    if "全脏" in spread and "全净" in spread:
+        ratio = spread["全脏"][0] / spread["全净"][0]
+        print(f"  展布比（全脏/全净）= {ratio:.2f}"
+              f"{'  ← 接近 1，排序 ρ 的差不是展布造成的' if 0.85 < ratio < 1.18 else '  ← 偏离 1，两组不可直接比，须先做范围受限校正'}")
+
     rows = [["model", "metric", "split", "n", "spearman", "pearson"]]
+    rank_res = {}
     print("\n打分力（跨复合物）与排序力（靶点内）")
     print("=" * 96)
     print("%-22s %10s %10s %10s %10s %10s %10s" %
@@ -154,10 +195,11 @@ def main():
                 if keep is not None and tclass.get(g) != keep:
                     continue
                 per[g].append((s, a))
-            rr, nt = ranking(per)
+            rr, nt, ci = ranking(per)
             cells.append(f"{rr:+.3f}({nt})" if nt else "—")
             if nt:
                 rows.append([m, "ranking", name, nt, f"{rr:.4f}", ""])
+                rank_res.setdefault(m, {})[name] = (rr, nt, ci)
 
         print("%-22s %10s %10s %10s %10s %10s %10s" % (m, *cells))
 
@@ -167,6 +209,28 @@ def main():
     with open(args.out, "w", newline="") as f:
         csv.writer(f).writerows(rows)
     print(f"\n写入 {args.out}")
+    # 全净靶点的展布比全脏窄，所以直接比 ρ 不公平——先按 Thorndike 折算到同一展布
+    k = spread["全脏"][0] / spread["全净"][0] if ("全脏" in spread and "全净" in spread) else None
+    if k:
+        print(f"\n把「全净靶点」的 ρ 按展布比 k={k:.2f} 校正到「全脏靶点」的展布上")
+        print("（自助区间 = 对靶点重采样 2000 次的 95%）")
+        print("%-22s %22s %22s %12s" %
+              ("模型", "全脏靶点 ρ [95%]", "全净靶点 ρ [95%]", "全净校正后"))
+        print("-" * 84)
+        for m, d in rank_res.items():
+            if "全脏靶点" not in d or "全净靶点" not in d:
+                continue
+            (rd, nd, cd), (rc, nc, cc) = d["全脏靶点"], d["全净靶点"]
+            corr = thorndike(rc, k)
+            rows.append([m, "ranking", "全净靶点_校正", nc, f"{corr:.4f}", ""])
+            gap = "泄漏解释成立" if corr < cd[0] else "区间重叠，分不开"
+            print("%-22s %22s %22s %12s  %s" %
+                  (m, f"{rd:+.3f} [{cd[0]:+.3f},{cd[1]:+.3f}]",
+                   f"{rc:+.3f} [{cc[0]:+.3f},{cc[1]:+.3f}]",
+                   f"{corr:+.3f}", gap))
+        print("-" * 84)
+        print("「泄漏解释成立」= 校正后的全净值仍落在全脏的 95% 区间之下")
+
     print("\n读法：净复合物 / 全净靶点这两列掉得多，说明 CASF 的成绩靠泄漏撑；"
           "基本不动，则范围受限（t2_gap.py）仍是 CASF–T3 差距的主解释。")
 
