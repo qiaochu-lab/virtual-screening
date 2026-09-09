@@ -55,6 +55,42 @@ def max_sim(smi):
     return max(DataStructs.BulkTanimotoSimilarity(f, TRAIN_FPS))
 
 
+def model_order(up, L, n, rec, labels, b_root):
+    """还原模型看到的分子顺序并**硬校验**；对不上返回 None。
+
+    ⚠️ 只比长度是不够的。模型读 lmdb，游标是字典序（0, 1, 10, 100, …），
+    与评测集 jsonl 的「活性+诱饵」顺序不同而**长度相同**。本项目已经因为
+    只比长度而静默错配三次（PATCHES.md）。所以还原顺序后必须验
+    「标签为 1 的位置上确实是该靶点的 active」，验不过就跳过该靶点。
+    """
+    act = {x["smiles"] for x in rec["actives"]}
+
+    def ok(seq):
+        if seq is None or len(seq) != n:
+            return None
+        got = {seq[i] for i in range(n) if labels[i] == 1}
+        return seq if got == act else None
+
+    r = ok([x["smiles"] for x in rec["actives"]] +
+           [x["smiles"] for x in rec["decoys"]])
+    if r is not None:
+        return r
+    path = f"{b_root}/data/T3_6A/{L}/{up}/{up}_lig.lmdb"
+    if not os.path.exists(path):
+        return None
+    try:
+        import lmdb, pickle
+        e = lmdb.open(path, subdir=False, readonly=True, lock=False)
+        out = []
+        with e.begin() as t:
+            for _k, v in t.cursor():
+                out.append(pickle.loads(v)["smi"])
+        e.close()
+    except Exception:
+        return None
+    return ok(out)
+
+
 def tier_of(v):
     for lo, hi, name in TIERS:
         if lo <= v < hi:
@@ -146,6 +182,7 @@ def main():
             if not os.path.isdir(d):
                 continue
             found = []
+            n_bad = 0
             for r in recs[L]:
                 up = r["uniprot"]
                 try:
@@ -155,10 +192,9 @@ def main():
                     continue
                 if len(p) != len(y):
                     continue
-                # 模型看到的分子顺序 = actives 后接 decoys（与评测集一致）
-                order = [x["smiles"] for x in r["actives"]] + \
-                        [x["smiles"] for x in r["decoys"]]
-                if len(order) != len(y):
+                order = model_order(up, L, len(y), r, y, B)
+                if order is None:          # 顺序验不过，跳过而不是猜
+                    n_bad += 1
                     continue
                 k = int(np.ceil(0.01 * len(y)))
                 top = np.argsort(-p)[:k]
@@ -172,6 +208,9 @@ def main():
                   + "  ".join(f"{t[2]} {100*c[t[2]]/n:4.1f}%" for t in TIERS))
             rows.append([m, L, n, f"{np.median(found):.4f}"]
                         + [f"{100*c[t[2]]/n:.2f}" for t in TIERS])
+            if n_bad:
+                print("%-26s %-4s ⚠️ 分子顺序校验未通过而跳过 %d 个靶点"
+                      % ("", L, n_bad))
         print()
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
