@@ -141,7 +141,8 @@ def main():
         with ProcessPoolExecutor(args.workers, initializer=_init,
                                  initargs=(tfps,)) as ex:
             for i, (s, v) in enumerate(zip(smis, ex.map(max_sim, smis,
-                                                        chunksize=200))):
+                                                        chunksize=200),
+                                           strict=True)):
                 nov[s] = v
                 if (i + 1) % 20000 == 0:
                     print(f"  {i+1:,}/{len(smis):,}", flush=True)

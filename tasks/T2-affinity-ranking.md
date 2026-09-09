@@ -123,21 +123,43 @@ could not be re-aggregated at all — it now also emits `per_target`
 (uniprot / spearman / kendall / n_actives). That is the only reason it had to
 be re-run; no model was re-inferred.
 
+⚠️ **This table was regenerated on 2026-09-09.** The version published before
+that date was produced from a corrupted intermediate — `score_t2_v2.py` had the
+per-target patch applied twice, so `ups.append(up)` ran twice per target while
+the value lists ran once, and `zip(ups, new_r, new_t, ns)` silently truncated to
+the shorter list. Every target was therefore labelled with **another target's**
+correlation, and only the first half of targets appeared at all. The aggregate
+statistics were never affected — they are computed from the value lists directly
+— so the full-set table above and every conclusion resting on it stand. Only the
+subset re-aggregation, which filters by uniprot, was wrong. See
+[`PATCHES.md`](../PATCHES.md).
+
 | Model | L1 | L2 | L3 | L4 |
 |---|---|---|---|---|
-| HypSeek | **+0.237** ± .040 | +0.118 | +0.075 | +0.088 |
-| LigUnity-protein | +0.212 ± .043 | +0.127 | +0.103 | +0.092 |
-| LigUnity-pocket | +0.193 ± .045 | +0.107 | +0.134 | +0.042 |
-| ConGLUDe | +0.149 ± .041 | +0.023 | +0.028 | +0.010 |
-| BindCLIP-randneg | +0.110 ± .043 | +0.044 | +0.000 | +0.036 |
-| LiTENCLIP | +0.108 ± .046 | +0.048 | +0.033 | +0.044 |
+| **HypSeek `_rk`** | **+0.225** ± .041 | +0.144 | +0.087 | **+0.139** |
+| LigUnity-protein | +0.221 ± .036 | +0.116 | +0.008 | +0.102 |
+| LigUnity-pocket | +0.174 ± .037 | +0.121 | +0.044 | +0.092 |
+| ConGLUDe | +0.109 ± .030 | +0.046 | +0.027 | +0.056 |
+| LiTENCLIP | +0.103 ± .031 | +0.081 | −0.002 | +0.092 |
+| BindCLIP-hardneg | +0.087 ± .032 | +0.039 | −0.007 | +0.050 |
+| BindCLIP-randneg | +0.073 ± .031 | +0.060 | −0.025 | +0.022 |
+| DrugCLIP | +0.044 ± .035 | +0.037 | +0.004 | −0.005 |
+| SPRINT | +0.013 ± .029 | +0.053 | +0.054 | +0.071 |
+| ConPLex | −0.001 ± .028 | +0.004 | −0.018 | −0.024 |
 
-Targets per layer: L1 50–54 · L2 136 · L3 22 · L4 62.
+Targets per layer: L1 47–55 · L2 138–170 · L3 16–19 · L4 59–68, each within the
+subset's own 56 / 178 / 19 / 75. (The corrupted version reported up to 72 at L1,
+above the subset's own L1 count — the arithmetic impossibility that exposed it.)
 
-**The conclusion is unchanged**: ranking ability is weak (HypSeek L1 +0.260 on
-the full set → **+0.237** here) and decays with target novelty exactly as
-enrichment does (0.237 → 0.088). Positive-target fraction at L1 is 82%, the
-highest anywhere in the benchmark.
+**The weakness holds; the decay does not.** HypSeek falls +0.260 → +0.096 across
+layers on the full set but only **+0.225 → +0.139** on this subset, and L4
+(+0.139) sits *above* L3 (+0.087). The subset's rule is ≥50 actives per target,
+so a per-target Spearman here rests on many more ligands than one drawn from the
+full set's long tail of 10-active targets. Read that as the layer-wise decay in
+T2 being partly a small-sample effect at L4, not as two datasets disagreeing.
+
+This does not rescue ranking ability: **+0.139 is still weak**, and the
+decomposition below shows what carries even that much.
 
 File: `results/T2_on_T3_subset.csv`.
 
@@ -534,6 +556,61 @@ ours system by system (verified).
 +0.545/+0.438 while Uni-FEP gets 0.120; same on HIF-2α and TNKS2. That is the
 empirical basis for calling the two families *complementary* rather than one
 dominating.
+
+### Head to head with a QM-based scorer, on the same targets and the same ligands
+
+The Boltz-2 comparison above runs on 16 FEP systems, which are not T3 targets. A
+collaborator's AIMNet2 pipeline (`xianyang123-bit/aimnet_score_pipelines`) scored
+**93 T3 targets** directly — every one of them in our eval set — which allows the
+comparison the FEP table cannot make: same targets, same layers.
+
+⚠️ **What that pipeline is.** Its README states it plainly: *"a reconstruction of
+the composite energy expression using public checkpoints, **not an official
+affinity-trained AIMNet2(Score) release**."* Composite = minimized interaction +
+desolvation + local ligand strain, on AIMNet2(2025) member 0; lower is better, and
+it is correlated against pAffinity as **negative** energy. Fixed-pocket
+minimization converged for 1,440 of 1,667 cases (86.4%); non-converged results are
+retained and flagged rather than dropped, so there is no convergence-selection
+bias. Cite it as a reconstruction, never as "AIMNet2(Score) results" — the same
+care the Uni-FEP row above needs.
+
+**The comparison has to be paired on ligands, not just on targets.** That pipeline
+scores **10 actives per target**; T2 uses every active a target has (median
+24–118). A Spearman over 10 points against one over 100 is not a comparison of
+methods, it is a comparison of sample sizes. So we restrict our models to exactly
+the molecules AIMNet2 scored, matched by InChIKey, and pair per target
+([`timesplit/analysis/paired_aimnet.py`](../timesplit/analysis/paired_aimnet.py)
+→ [`results/T2_paired_vs_aimnet.csv`](../results/T2_paired_vs_aimnet.csv)):
+
+| Model | L1 retrieval ρ | L1 AIMNet2 ρ | Δ | paired p | wins |
+|---|---|---|---|---|---|
+| **HypSeek `_rk`** | **+0.292** | −0.030 | **+0.322** | **0.005** | 16/21 |
+| **LigUnity-protein** | **+0.227** | −0.030 | **+0.257** | **0.012** | 16/21 |
+| **LigUnity-pocket** | +0.173 | −0.030 | +0.203 | **0.044** | 14/21 |
+| ConGLUDe | +0.205 | −0.022 | +0.227 | 0.076 | 14/21 |
+| LiTENCLIP | +0.136 | −0.030 | +0.166 | 0.089 | 14/21 |
+| DrugCLIP | +0.049 | −0.029 | +0.078 | 0.54 | 11/22 |
+
+**On L2, L3 and L4 — 18 model × layer comparisons — not one is significant**
+(every p > 0.10).
+
+> **On familiar targets retrieval wins outright; on novel targets the two are
+> statistically indistinguishable.**
+
+**What this does not license.** At L3 the AIMNet2 point estimate (+0.197) exceeds
+five of the six retrieval models, and it is the layer where the reconstruction
+scores best while retrieval scores worst — the shape a crossover would have. **No
+paired test reaches significance**, with 17–20 targets of 10 ligands each. Report
+the crossover as a direction the data is consistent with, not as a result. The
+experiment that would settle it is the same one throughout T2: more ligands per
+target, not more targets.
+
+Two checks worth recording. Restricting our models to those 10 ligands moves
+HypSeek's L1 from +0.260 to **+0.292**, so the ligand subsetting introduces no
+visible bias. And roughly 11 targets per model are dropped because neither
+molecule order reproduces the labels — read straight off
+[`results/frozen/T3_model_order.csv`](../results/frozen/T3_model_order.csv)
+rather than rediscovered, which is what those tables are for.
 
 **Unused metric worth adding:** `eval/metrics.py::pairwise_accuracy(tol=...)`
 skips ligand pairs whose measured difference falls inside experimental error

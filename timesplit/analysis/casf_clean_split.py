@@ -189,7 +189,9 @@ def main():
 
         for name, keep in (("全部", None), ("全脏靶点", "全脏"), ("全净靶点", "全净")):
             per = defaultdict(list)
-            for s, a, g in zip(score, y, up):
+            # strict=True：三者由同一个 ids 构造，长度必须相等。裸 zip 遇到
+            # 不等长会静默截断——本项目的四次索引 bug 有三次是这样躲过检查的。
+            for s, a, g in zip(score, y, up, strict=True):
                 if np.isnan(a):
                     continue
                 if keep is not None and tclass.get(g) != keep:

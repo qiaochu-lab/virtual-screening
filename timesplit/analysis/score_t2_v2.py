@@ -35,6 +35,14 @@ import numpy as np
 from rdkit import Chem, RDLogger
 from scipy import stats
 
+# 顺序守卫：拼接逐分子数据前先验证 LMDB 游标序与 saved_labels 一致。
+# 这个 bug 让 T2 的结论错过两次，且完全不报错。见 eval/order_guard.py
+import sys as _sys
+_sys.path.insert(0, "/data/yicheng/xqc/vs-benchmark/eval")
+from order_guard import assert_cursor_order as _assert_order
+_assert_order()
+
+
 RDLogger.DisableLog("rdApp.*")
 B = "/data/work/vs-benchmark"
 MIN_ACT = 10
@@ -97,6 +105,7 @@ def main():
             if not os.path.isdir(d):
                 continue
             new_r, old_r, new_t, ns, skip = [], [], [], [], 0
+            ups = []   # 逐靶点留痕：换靶点子集重新汇总时用，不必重跑
             for up in sorted(os.listdir(d)):
                 rec = EV[L].get(up)
                 if rec is None:
@@ -133,6 +142,7 @@ def main():
                 if not np.isfinite(r):
                     continue
                 new_r.append(r); new_t.append(t); ns.append(len(pairs))
+                ups.append(up)
 
                 # 旧口径：模型 active 下标（升序）直接对评测集 active 顺序
                 pa_old = [float(a["paff"]) for a in rec["actives"]]
@@ -149,7 +159,11 @@ def main():
                              "kendall": float(np.mean(new_t)),
                              "frac_positive": float((new_r > 0).mean()),
                              "median_n_actives": int(np.median(ns)),
-                             "spearman_old": float(np.mean(old_r)) if old_r else None}
+                             "spearman_old": float(np.mean(old_r)) if old_r else None,
+                             "per_target": [
+                                 {"uniprot": u, "spearman": float(a),
+                                  "kendall": float(b), "n_actives": int(c)}
+                                 for u, a, b, c in zip(ups, new_r, new_t, ns)]}
             print("%-26s %-4s %7d %14s %14s %10.3f %8.0f%%" %
                   (m, L, len(new_r),
                    f"{new_r.mean():+.3f}±{new_r.std(ddof=1)/np.sqrt(len(new_r)):.3f}",
