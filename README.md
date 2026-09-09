@@ -19,9 +19,9 @@ what question it asks, what data it uses, how it was run, and what came out.
 | **T1** Enrichment | Do published enrichment numbers reproduce on standard benchmarks? | ✅ complete — 10 models × 3 benchmarks | [T1](tasks/T1-enrichment.md) |
 | **T2** Affinity ranking | Can these models rank binding strength, not just separate binders from non-binders? | ✅ answered — **weakly, and it decays with novelty**; the CASF/T3 gap is explained | [T2](tasks/T2-affinity-ranking.md) 🔬 |
 | **T3** Time-split | Do they generalise to targets that appeared after training? | ✅ main result, 10 models × 4 layers | [T3](tasks/T3-time-split.md) |
-| **T3 v2** Dataset revision | ≥50 actives, class composition matched to VSDS-vd | ✅ 242 entries / 222 targets; every downstream analysis re-aggregated | [T3 v2](tasks/T3-dataset-v2.md) |
+| **T3 v2** Dataset revision | ≥50 actives, class composition matched to VSDS-vd | ✅ 328 entries / 293 targets (quota 350); every downstream analysis re-aggregated | [T3 v2](tasks/T3-dataset-v2.md) |
 | **T5** Target swap | Do the models use the protein at all, or only the ligand? | ✅ 10 models × L1/L4 × 3 rounds — **AUROC collapses to 0.500** | [Target swap](tasks/T5-target-swap.md) |
-| **T3** Leakage audit | Is the benchmark actually solvable without the protein? Are the "novel" targets novel? | ✅ three diagnostics — **L1 is largely a memorisation test, L3/L4 are clean** | [Leakage](tasks/T3-leakage.md) |
+| **T3** Leakage audit | Is the benchmark actually solvable without the protein? Are the "novel" targets novel? | ✅ three diagnostics — **L1 is largely a memorisation test for the affinity-half models, L3/L4 are clean** | [Leakage](tasks/T3-leakage.md) |
 | **T4** Target fishing | Run retrieval backwards: molecule → target | not started (deprioritised) | [T4](tasks/T4-target-fishing.md) |
 | **T5** Structure robustness | Do the conclusions survive changing structure source, pocket definition, and apo conformation? | ✅ three controls done | [T5](tasks/T5-structure-robustness.md) 🔬 |
 | **T6** Physics complementarity | Can physics methods supply the ranking ability retrieval lacks? | ✅ ranking: yes (ρ 0.615 vs 0.40). ❌ cascade rerank: no benefit; two independent physics methods, one significant | [T6](tasks/T6-physics.md) 🔬 |
@@ -109,8 +109,11 @@ already working in this area.
    enriches 4.5-fold — not the 9.4 the main table reports.** Splitting each
    layer's actives by their Tanimoto distance to the training set and computing
    enrichment per tier: at L4, LigUnity-protein reaches **27.1 on chemistry it
-   has seen (≥0.7) and 4.5 on chemistry it has not (<0.35)**. DrugCLIP falls
-   *below random* (0.6) on the novel tier at L3. **Ligand novelty costs more than
+   has seen (≥0.7) and 4.5 on chemistry it has not (<0.35)** — both tiers cut
+   against the affinity half, which is LigUnity-protein's own training set.
+   (An earlier version added "DrugCLIP falls below random on the novel tier at
+   L3"; that tier was cut against somebody else's ligands. Against DrugCLIP's own
+   13,590, it reaches 9.7 on its novel tier — see the per-model figures below.) **Ligand novelty costs more than
    target novelty** — changing the target alone (L1→L4, familiar chemistry) costs
    1.9×, changing the chemistry alone costs 4–6× — and re-cutting the same
    analysis per model, with each model's own training set deciding which targets
