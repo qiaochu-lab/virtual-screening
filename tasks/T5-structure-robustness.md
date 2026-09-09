@@ -188,24 +188,24 @@ ever needed structures for new targets.
 
 The advisor fixed two rules on 2026-09-04: **≥50 actives per target**, and a
 class composition matched to **VSDS-vd** (Gu et al., *Nat Mach Intell* 7:509–520,
-2025). That yields a 242-entry / 222-target subset — see
+2025). The final quota of 350 yields a **328-entry / 293-target** subset — see
 [T3 dataset v2](T3-dataset-v2.md). It is a *filter*, not a rebuild, so every
 number below is a re-aggregation of scores that already existed; nothing was
 re-inferred.
 
-| Control | Full set (1,144) | Subset (242) | Verdict |
+| Control | Full set (1,144) | **Subset (328)** | Verdict |
 |---|---|---|---|
-| **Pocket cutoff 4/6/8 Å** | 6 Å wins 12/12, −31…−75% | **6 Å wins 12/12, −24…−74%** | ✅ unchanged, still the strongest effect |
-| **Structure source** | 8/10 direction, sign p=0.109; 4 individually significant; 1 survives BH | **9/10 direction, sign p=0.021**; 1 individually significant; **0 survive BH** | ⚠️ direction firmer, per-model significance gone |
-| **holo vs apo** | 45 targets | **15 targets** | ❌ under-powered, demote to appendix |
+| **Pocket cutoff 4/6/8 Å** | 6 Å wins 12/12, −31…−75% | **6 Å wins 12/12** | ✅ unchanged, still the strongest effect |
+| **Structure source** | 8/10 direction, sign p=0.109; 4 individually significant; 1 survives BH | **10/10 direction, sign p=0.0020**; 2 individually significant; **0 survive BH** | ⚠️ direction now unanimous, per-model significance gone |
+| **holo vs apo** | 45 targets | **18 targets** | ❌ under-powered, demote to appendix |
 
 ### Structure source on the subset
 
-Per-target counts drop from 65–89 to **27 (holo) / 24 (predicted)**, so the
-per-model effect sizes are no longer estimable — only LiTENCLIP stays
-individually significant (p = 0.029) and nothing survives BH-FDR across the
-10 comparisons. What *strengthens* is the direction: **9 of 10 models favour
-experimental structures (sign test p = 0.021)**, up from 8/10 (p = 0.109).
+Per-target counts drop from 65–89 to **25–35 (holo) / 30–34 (predicted)**, so the
+per-model effect sizes are no longer estimable — only LigUnity-pocket (p = 0.019)
+and SPRINT (p = 0.023) stay individually significant, and nothing survives BH-FDR
+across the 10 comparisons. What *strengthens* is the direction: **all 10 models
+favour experimental structures (sign test p = 0.0020)**, up from 8/10 (p = 0.109).
 
 The negative control still holds: the two sequence-only models, which never
 read a structure, show no gap (p = 0.50 and 0.80) — so target difficulty does

@@ -333,7 +333,7 @@ the same direction.
 
 The advisor fixed two rules on 2026-09-04: **≥50 actives per target**, and a
 class composition matched to **VSDS-vd** (Gu et al., *Nat Mach Intell* 7:509–520,
-2025). That yields a 242-entry / 222-target subset — see
+2025). The final quota of 350 yields a **328-entry / 293-target** subset — see
 [T3 dataset v2](T3-dataset-v2.md). It is a *filter*, not a rebuild, so every
 number below is a re-aggregation of scores that already existed; nothing was
 re-inferred.

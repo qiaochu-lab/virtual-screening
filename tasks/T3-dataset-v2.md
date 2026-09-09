@@ -111,12 +111,21 @@ perspective of virtual screening*, **Nature Machine Intelligence** 7(3):509–52
 
 ## 2. 子集怎么选的
 
-`timesplit/build/select_vsds_matched.py`（默认配额 250）→ `results/T3_vsds_matched.csv`
+`timesplit/build/select_vsds_matched.py --quota 350` → `results/T3_vsds_matched.csv`
 
-**242 条 = 222 个唯一靶点**（20 个靶点同时出现在 L1 和 L2，因为 L1/L2 是按
+**328 条 = 293 个唯一靶点**（35 个靶点同时出现在多个层，因为 L1/L2 是按
 **配体骨架**分的，同一靶点可以两边都有）。
 
-分层：**L1 40 · L2 128 · L3 20 · L4 54**
+分层：**L1 56 · L2 178 · L3 19 · L4 75**
+
+⚠️ **「35 个靶点跨层」这件事有操作后果**：凡是拿这个 CSV 当过滤器的脚本，
+键必须是 **(层, 靶点)** 不能只用靶点。只按靶点过滤会把该靶点在别的层的记录
+也算进来——这个坑在 §6 的逐模型分析里出现过，`seen+unseen` 报到 417、
+比子集本身的 328 条还多 89 条。
+
+⚠️ 本节下面的配平算法、类别构成、冗余分析三段是**按 250 配额那一版写的**
+（242 条 / 222 靶点 / L1 40·L2 128·L3 20·L4 54）。方法学不变，
+但具体数字是旧配额的，最终采用的是 350。当前子集的完整统计见 §0。
 
 ### 配平算法
 
@@ -160,7 +169,9 @@ perspective of virtual screening*, **Nature Machine Intelligence** 7(3):509–52
 | 300 | 284 | 6.1pp | 48 | 152 | 19 | 65 |
 | 400 | 369 | 9.5pp | 63 | 201 | 19 | 86 |
 
-`--quota` 调整。**L4 只有 54 个是这个方案最贵的代价**（全量 ≥50 时有 116 个）。
+`--quota` 调整。**最终采用 350**：实得 328 条，L1 56 · L2 178 · L3 19 · L4 75，
+L4 从 250 配额的 54 个涨到 75 个——L4 太小是这个方案最贵的代价
+（全量 ≥50 时有 116 个），所以往大了取。
 
 ---
 
@@ -168,6 +179,7 @@ perspective of virtual screening*, **Nature Machine Intelligence** 7(3):509–52
 
 `timesplit/analysis/target_redundancy.py` → `results/T3_target_redundancy.csv`
 
+（下面这段是 250 配额那版的 222 个靶点算的，结论不因配额改变。）
 222 个靶点全对全局部比对（BLOSUM62，identity / min(len)），24,531 对：
 中位 **2.9%**，**没有任何一对 ≥90%**，最高 87.3%，≥70% 只有 9 对（0.04%）。
 
