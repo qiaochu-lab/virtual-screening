@@ -119,11 +119,19 @@ already working in this area.
    analysis per model, with each model's own training set deciding which targets
    are novel, puts the realistic cell (novel target, novel chemistry) at 3.8–7.9
    against 53.1 for the easy one: a 12-fold span within one model and one metric.
-   The two novelties are approximately **independent, not compounding**: the
-   novel/familiar ratio has median 0.26 on seen targets and 0.26 on unseen. An
-   earlier version of this finding claimed they amplified each other; that came
-   from LigUnity-protein alone (3.1× amplification, off an 18-target cell) and
-   three of the other four models run the other way. **Corrected.**
+   The two novelties are **independent, not compounding**, and that now rests on
+   a formal test rather than a ratio comparison. Fitting
+   `logit P(active in top 1%) ~ TargetSeen + LigandNovelty + TargetSeen ×
+   LigandNovelty` per model against each model's *own* training ligands, with
+   target-level bootstrap for the standard errors, both main effects are large
+   (**β_target +0.94, β_ligand +0.72** pooled) and **the interaction is zero:
+   β = −0.038, 95% CI [−0.292, +0.291], p = 0.87** over 6,601 target×tier cells
+   and nine models. Eight of the nine per-model estimates are negative, but those
+   nine share the same 264–323 targets and are not independent replicates — the
+   pooled CI is the only citable statement. An earlier version of this finding
+   claimed the two amplified each other; that came from LigUnity-protein alone
+   (3.1×, off an 18-target cell). **Corrected.**
+   → [`results/T3_novelty_interaction.csv`](results/T3_novelty_interaction.csv)
    → [Leakage audit](tasks/T3-leakage.md)
 
 4. **Swapping the target to an unrelated protein collapses every model to
