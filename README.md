@@ -141,14 +141,40 @@ already working in this area.
    targets and restores the decay from −69% to −78%.
    → [Leakage audit](tasks/T3-leakage.md)
 
-7. **Affinity ranking is weak but real, and it decays like enrichment does.**
-   Per-target Spearman on post-cutoff data runs +0.09 to +0.26 at L1 and falls to
-   +0.02 to +0.10 at L4; on congeneric FEP benchmarks it is ≈ +0.4, and on the
-   14 targets shared by both the two are statistically indistinguishable
-   (+0.41 vs +0.29, p = 0.27). The checkpoint selected upstream *for ranking*
-   (HypSeek `_rk`) leads every layer. ⚠️ An earlier version of this README
-   reported ranking as **zero** on T3 — that was a molecule-ordering bug in our
-   analysis code, documented in [`PATCHES.md`](PATCHES.md).
+7. **Affinity ranking is weak but real — and it is carried entirely by
+   familiar chemistry.** Per-target Spearman on post-cutoff data runs +0.09 to
+   +0.26 at L1 and falls to +0.02 to +0.10 at L4; on congeneric FEP benchmarks it
+   is ≈ +0.4, and on the 14 targets shared by both the two are statistically
+   indistinguishable (+0.41 vs +0.29, p = 0.27). The checkpoint selected upstream
+   *for ranking* (HypSeek `_rk`) leads every layer.
+
+   **Splitting each target's actives by ligand novelty changes what that decay
+   means.** Paired within target, familiar chemistry (max Tanimoto to training
+   ≥ 0.5) against novel (< 0.5): at L1 the three strongest models score +0.16 to
+   +0.28 on the familiar half and **+0.01 to +0.08 on the novel half**
+   (p = 0.0001–0.0013, surviving BH-FDR over 14 tests). At L4 **every** model has
+   p > 0.19 — the effect is gone because the familiar half has fallen to meet the
+   novel one. The novel half does not decay from L1 to L4 (+0.01…+0.08 →
+   +0.05…+0.09): **it is already at floor at L1**. So the layer-wise decay in T2
+   is the familiar-chemistry half falling, not ranking ability degrading with
+   target novelty. Confounder checked — L1's familiar half also has a 35% wider
+   affinity spread, and the effect survives the Thorndike correction.
+   ⚠️ An earlier version of this README reported ranking as **zero** on T3 — that
+   was a molecule-ordering bug in our analysis code, documented in
+   [`PATCHES.md`](PATCHES.md).
+   → [T2](tasks/T2-affinity-ranking.md)
+
+   **Half of CASF-2016 is in these models' training files, by construction.**
+   148 of 285 CASF PDB IDs (51.9%) appear verbatim in the PocketAffDB training
+   labels — identity, not similarity. The training code drops DUD-E, LIT-PCBA and
+   DEKOIS targets from training and **does not drop CASF**, and the PDBbind half
+   of the labels is unfiltered in the released weight. So of the four benchmarks
+   these weights are evaluated on, CASF is the one where the test proteins were
+   seen. Its measurable cost is narrower than the overlap suggests: splitting
+   CASF into fully-contaminated and fully-clean targets and correcting for the
+   clean targets' 35% narrower affinity spread, only **HypSeek `_rk`** keeps a
+   gap outside the bootstrap interval (+0.800 → +0.399 corrected) — which is
+   awkward precisely because it is the model leading that table.
    → [T2](tasks/T2-affinity-ranking.md)
 
    **The T3-vs-CASF gap is our filter, not the models.** The same models score

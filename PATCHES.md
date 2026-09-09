@@ -620,3 +620,42 @@ like it uses 39% of the available range when it actually uses 77%.
 
 38 metric tests pass after the change.
 
+## family_queue.sh 的空闲 GPU 检测匹配不上自己的进程名
+
+`family_queue.sh` 挑卡时先收集「已被本队列占用的卡」，模式写的是：
+
+```bash
+grep -oE '[r]un_swap_fam\.sh [a-z_]+ ([0-9])'
+```
+
+但实际起来的进程叫 `run_swap_fam_pocket.sh` / `run_swap_fam_seq.sh`
+（`run_swap_fam.sh` 只是个分发器，起完就退出）。模式匹配不上，`USED` 恒为空，
+选卡就只剩「利用率 <15%」这一条判据——而一个刚起来的任务要几十秒才把利用率
+拉上去，这段窗口里它看起来是空闲的。
+
+2026-09-09 那轮的日志留了痕：
+
+```
+[14:41] 起 drugclip round1 GPU0
+[14:42] 起 bindclip_randneg round1 GPU0   ← 同一张
+[14:43] 起 bindclip_hardneg round1 GPU1
+[14:47] 起 conglude round1 GPU1           ← 同一张
+```
+
+**没有 OOM**（两个任务 8.3 GB + 5.6 GB，24 GB 的卡放得下），而且用掉的卡比
+4 张上限还少，所以那一轮结果是有效的。但这是运气：换两个显存大的模型就会崩。
+
+修法是把模式改成匹配真实进程名：
+
+```bash
+grep -oE 'run_swap_fam(_pocket|_seq)?\.sh [a-z_0-9]+ ([0-9])'
+```
+
+**同一类坑在本项目里出现过第二次。**上一次是 `swap_queue.sh` 的 `running()`
+用 `grep -cE 'run_swap_...'` 把自己的命令行也数了进去，四个槽实际只能跑三个，
+修法是用 `[r]un_swap` 这种字符类让 grep 不匹配自己。两次都是**进程名模式和
+实际进程对不上**，方向相反：一次多算，一次少算。
+
+写这类调度脚本时，模式改完先跑一次
+`ps -eo args --no-headers | grep -oE '<你的模式>'`
+看它到底抓到了什么，别靠读代码确认。

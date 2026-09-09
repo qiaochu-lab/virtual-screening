@@ -1,0 +1,141 @@
+model,layer,tier,n_targets,n_actives_median,spearman_mean,spearman_sem,frac_positive
+hypseek_rk,L1,全新 <0.35,6,16,0.0764,0.1835,0.667
+hypseek_rk,L1,远 0.35–0.5,81,11,0.0925,0.0459,0.605
+hypseek_rk,L1,近 0.5–0.7,136,12,0.1821,0.0355,0.691
+hypseek_rk,L1,极近 ≥0.7,224,16,0.3219,0.0216,0.835
+hypseek_rk,L1,pooled,257,,0.2611,0.0194,0.805
+hypseek_rk,L2,全新 <0.35,199,34,0.0618,0.0236,0.573
+hypseek_rk,L2,远 0.35–0.5,356,36,0.0961,0.0184,0.612
+hypseek_rk,L2,近 0.5–0.7,301,23,0.1825,0.0203,0.721
+hypseek_rk,L2,极近 ≥0.7,117,12,0.1905,0.0379,0.701
+hypseek_rk,L2,pooled,401,,0.1205,0.0151,0.656
+hypseek_rk,L3,全新 <0.35,19,46,0.0705,0.0687,0.632
+hypseek_rk,L3,远 0.35–0.5,30,18,0.0798,0.0702,0.700
+hypseek_rk,L3,近 0.5–0.7,18,14,0.0463,0.0790,0.611
+hypseek_rk,L3,极近 ≥0.7,8,10,0.1472,0.1100,0.625
+hypseek_rk,L3,pooled,38,,0.1406,0.0371,0.868
+hypseek_rk,L4,全新 <0.35,86,25,0.0482,0.0336,0.558
+hypseek_rk,L4,远 0.35–0.5,154,27,0.0981,0.0256,0.610
+hypseek_rk,L4,近 0.5–0.7,89,13,0.0641,0.0432,0.584
+hypseek_rk,L4,极近 ≥0.7,35,16,0.2246,0.0622,0.800
+hypseek_rk,L4,pooled,187,,0.0998,0.0210,0.631
+ligunity_protein_ranking,L1,全新 <0.35,6,16,-0.2639,0.1662,0.333
+ligunity_protein_ranking,L1,远 0.35–0.5,82,11,0.0255,0.0436,0.512
+ligunity_protein_ranking,L1,近 0.5–0.7,137,12,0.1342,0.0347,0.664
+ligunity_protein_ranking,L1,极近 ≥0.7,228,16,0.3096,0.0221,0.820
+ligunity_protein_ranking,L1,pooled,261,,0.2324,0.0181,0.797
+ligunity_protein_ranking,L2,全新 <0.35,199,34,0.0507,0.0242,0.538
+ligunity_protein_ranking,L2,远 0.35–0.5,356,36,0.0959,0.0181,0.635
+ligunity_protein_ranking,L2,近 0.5–0.7,301,23,0.1379,0.0213,0.658
+ligunity_protein_ranking,L2,极近 ≥0.7,117,12,0.2195,0.0375,0.709
+ligunity_protein_ranking,L2,pooled,401,,0.1082,0.0151,0.638
+ligunity_protein_ranking,L3,全新 <0.35,19,46,0.0163,0.0741,0.684
+ligunity_protein_ranking,L3,远 0.35–0.5,30,18,-0.0036,0.0477,0.567
+ligunity_protein_ranking,L3,近 0.5–0.7,18,14,-0.0076,0.0778,0.500
+ligunity_protein_ranking,L3,极近 ≥0.7,8,10,0.1666,0.1026,0.875
+ligunity_protein_ranking,L3,pooled,38,,0.0397,0.0308,0.658
+ligunity_protein_ranking,L4,全新 <0.35,86,25,0.0702,0.0369,0.570
+ligunity_protein_ranking,L4,远 0.35–0.5,154,27,0.0455,0.0267,0.597
+ligunity_protein_ranking,L4,近 0.5–0.7,89,13,0.1182,0.0381,0.629
+ligunity_protein_ranking,L4,极近 ≥0.7,35,16,0.1209,0.0632,0.600
+ligunity_protein_ranking,L4,pooled,187,,0.0880,0.0210,0.652
+ligunity_pocket_ranking,L1,全新 <0.35,6,16,0.1547,0.1024,0.500
+ligunity_pocket_ranking,L1,远 0.35–0.5,82,11,0.0580,0.0462,0.512
+ligunity_pocket_ranking,L1,近 0.5–0.7,137,12,0.1129,0.0371,0.650
+ligunity_pocket_ranking,L1,极近 ≥0.7,228,16,0.2754,0.0220,0.798
+ligunity_pocket_ranking,L1,pooled,261,,0.2242,0.0195,0.751
+ligunity_pocket_ranking,L2,全新 <0.35,199,34,0.0549,0.0233,0.583
+ligunity_pocket_ranking,L2,远 0.35–0.5,356,36,0.0970,0.0176,0.638
+ligunity_pocket_ranking,L2,近 0.5–0.7,301,23,0.1326,0.0211,0.641
+ligunity_pocket_ranking,L2,极近 ≥0.7,117,12,0.2046,0.0364,0.658
+ligunity_pocket_ranking,L2,pooled,401,,0.0984,0.0147,0.656
+ligunity_pocket_ranking,L3,全新 <0.35,19,46,0.0950,0.0831,0.632
+ligunity_pocket_ranking,L3,远 0.35–0.5,30,18,0.1307,0.0561,0.667
+ligunity_pocket_ranking,L3,近 0.5–0.7,18,14,-0.0168,0.0925,0.556
+ligunity_pocket_ranking,L3,极近 ≥0.7,8,10,-0.0147,0.1138,0.375
+ligunity_pocket_ranking,L3,pooled,38,,0.1399,0.0368,0.711
+ligunity_pocket_ranking,L4,全新 <0.35,86,25,0.0560,0.0326,0.581
+ligunity_pocket_ranking,L4,远 0.35–0.5,154,27,0.0432,0.0253,0.558
+ligunity_pocket_ranking,L4,近 0.5–0.7,89,13,0.0542,0.0406,0.573
+ligunity_pocket_ranking,L4,极近 ≥0.7,35,16,0.1112,0.0614,0.629
+ligunity_pocket_ranking,L4,pooled,187,,0.0769,0.0210,0.642
+litenclip,L1,全新 <0.35,6,16,-0.1909,0.1801,0.333
+litenclip,L1,远 0.35–0.5,82,11,-0.0333,0.0438,0.488
+litenclip,L1,近 0.5–0.7,137,12,0.0167,0.0341,0.518
+litenclip,L1,极近 ≥0.7,228,16,0.2589,0.0226,0.741
+litenclip,L1,pooled,261,,0.1774,0.0195,0.713
+litenclip,L2,全新 <0.35,199,34,0.0640,0.0226,0.568
+litenclip,L2,远 0.35–0.5,356,36,0.0253,0.0185,0.539
+litenclip,L2,近 0.5–0.7,301,23,0.1069,0.0214,0.641
+litenclip,L2,极近 ≥0.7,117,12,0.1256,0.0381,0.598
+litenclip,L2,pooled,401,,0.0537,0.0149,0.561
+litenclip,L3,全新 <0.35,19,46,-0.0218,0.0679,0.526
+litenclip,L3,远 0.35–0.5,30,18,0.1455,0.0658,0.633
+litenclip,L3,近 0.5–0.7,18,14,0.1067,0.1208,0.556
+litenclip,L3,极近 ≥0.7,8,10,0.2254,0.0954,0.875
+litenclip,L3,pooled,38,,0.0947,0.0427,0.632
+litenclip,L4,全新 <0.35,86,25,0.0798,0.0354,0.628
+litenclip,L4,远 0.35–0.5,154,27,0.0427,0.0265,0.545
+litenclip,L4,近 0.5–0.7,89,13,0.0096,0.0397,0.506
+litenclip,L4,极近 ≥0.7,35,16,0.0417,0.0652,0.657
+litenclip,L4,pooled,187,,0.0400,0.0215,0.551
+drugclip,L1,全新 <0.35,6,16,0.0839,0.1926,0.833
+drugclip,L1,远 0.35–0.5,84,11,0.0148,0.0444,0.512
+drugclip,L1,近 0.5–0.7,144,12,0.0776,0.0342,0.583
+drugclip,L1,极近 ≥0.7,237,15,0.1463,0.0226,0.671
+drugclip,L1,pooled,270,,0.0869,0.0199,0.615
+drugclip,L2,全新 <0.35,203,34,0.0526,0.0220,0.562
+drugclip,L2,远 0.35–0.5,367,37,0.0249,0.0180,0.520
+drugclip,L2,近 0.5–0.7,312,23,0.0213,0.0206,0.538
+drugclip,L2,极近 ≥0.7,120,12,0.0754,0.0363,0.583
+drugclip,L2,pooled,415,,0.0421,0.0150,0.549
+drugclip,L3,全新 <0.35,19,46,-0.0276,0.0546,0.421
+drugclip,L3,远 0.35–0.5,31,18,0.0305,0.0574,0.484
+drugclip,L3,近 0.5–0.7,19,14,0.0621,0.0941,0.579
+drugclip,L3,极近 ≥0.7,8,10,-0.0490,0.1177,0.375
+drugclip,L3,pooled,39,,0.0329,0.0470,0.462
+drugclip,L4,全新 <0.35,87,27,0.0129,0.0338,0.448
+drugclip,L4,远 0.35–0.5,155,27,-0.0058,0.0268,0.503
+drugclip,L4,近 0.5–0.7,89,13,-0.0310,0.0374,0.472
+drugclip,L4,极近 ≥0.7,35,16,-0.0844,0.0578,0.371
+drugclip,L4,pooled,188,,0.0130,0.0201,0.543
+bindclip_randneg,L1,全新 <0.35,6,16,-0.0438,0.1460,0.500
+bindclip_randneg,L1,远 0.35–0.5,84,11,-0.0040,0.0447,0.476
+bindclip_randneg,L1,近 0.5–0.7,144,12,0.0526,0.0348,0.569
+bindclip_randneg,L1,极近 ≥0.7,237,15,0.1421,0.0223,0.662
+bindclip_randneg,L1,pooled,270,,0.1033,0.0191,0.637
+bindclip_randneg,L2,全新 <0.35,203,34,0.0604,0.0223,0.571
+bindclip_randneg,L2,远 0.35–0.5,367,37,0.0329,0.0167,0.545
+bindclip_randneg,L2,近 0.5–0.7,312,23,0.0459,0.0212,0.571
+bindclip_randneg,L2,极近 ≥0.7,120,12,0.0059,0.0387,0.467
+bindclip_randneg,L2,pooled,415,,0.0549,0.0141,0.590
+bindclip_randneg,L3,全新 <0.35,19,46,0.0071,0.0644,0.632
+bindclip_randneg,L3,远 0.35–0.5,31,18,-0.0355,0.0639,0.419
+bindclip_randneg,L3,近 0.5–0.7,19,14,0.0191,0.0720,0.421
+bindclip_randneg,L3,极近 ≥0.7,8,10,0.2431,0.2042,0.625
+bindclip_randneg,L3,pooled,39,,-0.0488,0.0392,0.462
+bindclip_randneg,L4,全新 <0.35,87,27,0.0943,0.0341,0.586
+bindclip_randneg,L4,远 0.35–0.5,155,27,0.0353,0.0251,0.523
+bindclip_randneg,L4,近 0.5–0.7,89,13,0.0874,0.0417,0.584
+bindclip_randneg,L4,极近 ≥0.7,35,16,-0.0227,0.0566,0.486
+bindclip_randneg,L4,pooled,188,,0.0496,0.0199,0.548
+bindclip_hardneg,L1,全新 <0.35,6,16,-0.2164,0.1655,0.333
+bindclip_hardneg,L1,远 0.35–0.5,84,11,0.0190,0.0432,0.500
+bindclip_hardneg,L1,近 0.5–0.7,144,12,0.0520,0.0316,0.562
+bindclip_hardneg,L1,极近 ≥0.7,237,15,0.1634,0.0220,0.696
+bindclip_hardneg,L1,pooled,270,,0.1130,0.0184,0.656
+bindclip_hardneg,L2,全新 <0.35,203,34,0.0370,0.0248,0.532
+bindclip_hardneg,L2,远 0.35–0.5,367,37,0.0356,0.0183,0.531
+bindclip_hardneg,L2,近 0.5–0.7,312,23,0.0271,0.0199,0.526
+bindclip_hardneg,L2,极近 ≥0.7,120,12,0.0238,0.0366,0.500
+bindclip_hardneg,L2,pooled,415,,0.0334,0.0148,0.545
+bindclip_hardneg,L3,全新 <0.35,19,46,0.0503,0.0646,0.526
+bindclip_hardneg,L3,远 0.35–0.5,31,18,0.0319,0.0513,0.516
+bindclip_hardneg,L3,近 0.5–0.7,19,14,-0.0037,0.0956,0.579
+bindclip_hardneg,L3,极近 ≥0.7,8,10,0.1936,0.1692,0.625
+bindclip_hardneg,L3,pooled,39,,0.0575,0.0445,0.590
+bindclip_hardneg,L4,全新 <0.35,87,27,0.0235,0.0366,0.483
+bindclip_hardneg,L4,远 0.35–0.5,155,27,0.0870,0.0268,0.606
+bindclip_hardneg,L4,近 0.5–0.7,89,13,0.0493,0.0414,0.562
+bindclip_hardneg,L4,极近 ≥0.7,35,16,-0.0717,0.0642,0.400
+bindclip_hardneg,L4,pooled,188,,0.0674,0.0205,0.617

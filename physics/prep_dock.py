@@ -55,6 +55,16 @@ def main():
     ap.add_argument("--topn", type=int, default=200,
                     help="每靶点取检索模型的 top-N 送对接（深于 Boltz-2 那轮的 50）")
     ap.add_argument("--model", default="ligunity_protein_ranking")
+    ap.add_argument("--subset", default=None,
+                    help="csv：只从这批靶点里选（例如 350 配额子集）")
+    ap.add_argument("--seed", type=int, default=1,
+                    help="靶点抽样种子。不给 --subset 时保持旧行为（字母序取前 N）")
+    ap.add_argument("--max-box", type=float, default=0.0,
+                    help="盒子体积上限 Å³，0 = 不限。"
+                         "大盒子会撞 run_dock.sh 的 90 分钟上限、一个分数都出不来，"
+                         "所以选靶点时就该排除，而不是跑完才发现")
+    ap.add_argument("--report-boxes", action="store_true",
+                    help="只打印候选靶点的盒子体积分布，不生成任何文件")
     ap.add_argument("--out", default=f"{B}/dock")
     args = ap.parse_args()
 
@@ -75,9 +85,21 @@ def main():
     root = f"{B}/results/t3_raw/{args.model}/T3/{args.layer}"
     hq = set(json.load(open(f"{B}/data/t3/target_quality.json"))["high_quality"])
 
-    picked, manifest = [], []
+    keep = None
+    if args.subset:
+        import csv as _csv
+        keep = {r["uniprot"] for r in _csv.DictReader(open(args.subset))
+                if r.get("layer") == args.layer}
+        print(f"限定在子集的 {args.layer}：{len(keep)} 个靶点")
+
+    # 合格靶点先全收，再抽样。旧行为是 sorted() 取前 N —— 那是**字母序**，
+    # 不是随机也不是按质量，等于按 UniProt 号选靶点。给了 --subset 就改成
+    # 固定种子随机抽，避免这个偏差。
+    cand = []
     for up in sorted(os.listdir(root)):
         if up not in pockets or up not in ev or up not in hq:
+            continue
+        if keep is not None and up not in keep:
             continue
         try:
             pr = np.load(f"{root}/{up}/saved_preds.npy").reshape(-1)
@@ -86,10 +108,36 @@ def main():
             continue
         if len(pr) != len(y) or y.sum() < 5:
             continue
-        picked.append((up, pr, y))
-        if len(picked) >= args.targets:
-            break
-    print(f"选中靶点 {len(picked)}", flush=True)
+        cand.append((up, pr, y))
+    if keep is not None and len(cand) > args.targets:
+        import random
+        random.Random(args.seed).shuffle(cand)
+    # 盒子体积在选靶点时就要看：它由口袋大小决定，和能不能跑完直接相关。
+    # 旧版是选完才发现有的跑不动，白烧机时。
+    vol = {}
+    for up, _pr, _y in cand:
+        c = np.asarray(pockets[up]["pocket_coordinates"], dtype=float)
+        sz = (c.max(0) + PAD) - (c.min(0) - PAD)
+        vol[up] = float(sz[0] * sz[1] * sz[2])
+    if args.report_boxes:
+        for up in sorted(vol, key=vol.get):
+            print("  %-10s %9.0f Å³" % (up, vol[up]))
+        v = sorted(vol.values())
+        print(f"\n候选 {len(v)} 个：中位 {v[len(v)//2]:.0f}，"
+              f"四分位 {v[len(v)//4]:.0f}–{v[3*len(v)//4]:.0f}，"
+              f"范围 {v[0]:.0f}–{v[-1]:.0f}")
+        for t in (25000, 30000, 35000):
+            print(f"  ≤{t:,} Å³ 的有 {sum(1 for x in v if x <= t)} 个")
+        return
+    if args.max_box > 0:
+        n0 = len(cand)
+        cand = [x for x in cand if vol[x[0]] <= args.max_box]
+        print(f"盒子体积 ≤{args.max_box:,.0f} Å³：{len(cand)}/{n0} 个候选通过")
+
+    picked, manifest = cand[:args.targets], []
+    print(f"合格靶点 {len(cand)}，选中 {len(picked)}"
+          + (f"（seed={args.seed} 随机抽）" if keep is not None else "（字母序前 N）"),
+          flush=True)
 
     os.makedirs(args.out, exist_ok=True)
     n_lig = 0
@@ -104,17 +152,34 @@ def main():
                         "-xr", "-p", "7.4"], capture_output=True)
         # 配体：按检索分数取 top-N，顺序保留以便和检索原序比较
         rec = ev[up]
-        smis = [m["smiles"] for m in rec["actives"]] + [m["smiles"] for m in rec["decoys"]]
-        if len(smis) != len(pr):
-            e = lmdb.open(f"{B}/data/T3_6A/{args.layer}/{up}/{up}_lig.lmdb",
-                          subdir=False, readonly=True, lock=False)
-            smis = []
-            with e.begin() as t:
-                for _k, v in t.cursor():
-                    smis.append(pickle.loads(v)["smi"])
-            e.close()
-        if len(smis) != len(pr):
-            print(f"  {up} 顺序对不上，跳过")
+        # ⚠️ 分子顺序必须硬校验，只比长度不够：模型读 lmdb，游标是字典序
+        # （0, 1, 10, 100, …），和 jsonl 顺序不同而长度相同，会静默错配。
+        # 这个坑在本项目里出现过三次。校验方式是「标签为 1 的位置上确实是
+        # 该靶点的 active」，两种顺序都试，都不过就跳过。
+        act = {m["smiles"] for m in rec["actives"]}
+
+        def ok(seq):
+            if seq is None or len(seq) != len(pr):
+                return None
+            got = {seq[i] for i in range(len(seq)) if y[i] == 1}
+            return seq if got == act else None
+
+        smis = ok([m["smiles"] for m in rec["actives"]]
+                  + [m["smiles"] for m in rec["decoys"]])
+        if smis is None:
+            try:
+                e = lmdb.open(f"{B}/data/T3_6A/{args.layer}/{up}/{up}_lig.lmdb",
+                              subdir=False, readonly=True, lock=False)
+                cur = []
+                with e.begin() as t:
+                    for _k, v in t.cursor():
+                        cur.append(pickle.loads(v)["smi"])
+                e.close()
+                smis = ok(cur)
+            except Exception:
+                smis = None
+        if smis is None:
+            print(f"  {up} 分子顺序校验不过，跳过")
             continue
         top = np.argsort(-pr)[:args.topn]
         rows = [{"idx": int(i), "rank": r, "smiles": smis[i], "label": int(y[i]),

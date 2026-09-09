@@ -7,6 +7,13 @@ binding strength**?
 answers; both reasons are now isolated — an ordering bug in our analysis (since
 fixed) and range restriction from this benchmark's own `pAff ≥ 6` filter.
 
+**Two findings added 2026-09-09, both of which narrow what this task can claim:**
+splitting the actives by ligand novelty shows the ranking correlation is at
+floor on unfamiliar chemistry at *every* layer, so the L1→L4 curve is not a
+target-novelty effect; and **51.9% of CASF-2016 is literally in these models'
+training files**, by a training-code decision that excludes DUD-E / DEKOIS /
+LIT-PCBA targets but not CASF.
+
 > 🔬 **Physics collaborators: this task and T6 are where physics methods matter
 > most.** See "Where physics fits" at the bottom.
 
@@ -62,7 +69,7 @@ so the size of the correction is auditable.
 
 ## Results
 
-### On T3 data — weak but real, and it decays like enrichment does
+### On T3 data — weak but real, and it tracks chemical familiarity
 
 Per-target Spearman between model score and measured pAffinity, averaged over
 targets ([`timesplit/analysis/score_t2_v2.py`](../timesplit/analysis/score_t2_v2.py)):
@@ -89,6 +96,10 @@ against a 50% baseline.
    +0.260 → +0.096, LigUnity-protein +0.230 → +0.089. The novel-target penalty
    applies to both capabilities, which is a stronger version of T3's finding than
    we had before.
+   ⚠️ **This layer-wise reading is superseded below.** Splitting each layer's
+   actives by ligand novelty shows the decay is not a target-novelty effect at
+   all — on novel chemistry the correlation is already at floor at L1. See
+   *Ranking ability is carried by familiar chemistry*.
 2. **The checkpoint selected for ranking is the best ranker.** HypSeek's `_rk`
    weight — chosen upstream on a FEP validation set — leads every layer. Earlier
    this document claimed the opposite; that claim came from the buggy path.
@@ -130,6 +141,75 @@ highest anywhere in the benchmark.
 
 File: `results/T2_on_T3_subset.csv`.
 
+### Ranking ability is carried by familiar chemistry
+
+The layer-wise table above holds the target constant and lets the *chemistry*
+vary with it: at L1, 53.9% of actives are near-duplicates of a training ligand
+(Tanimoto ≥ 0.7); at L4, 6.4%. So "ρ falls from +0.26 to +0.10 across layers"
+confounds two things at once — the same mistake the enrichment table made before
+it was split by novelty tier (main table L4 EF1% 9.38 → 27.1 on seen chemistry,
+4.5 on unseen).
+
+Splitting each target's actives by their maximum Tanimoto to the training
+ligands and computing the per-target Spearman **within each tier**
+([`timesplit/analysis/t2_novelty_tiers.py`](../timesplit/analysis/t2_novelty_tiers.py)
+→ [`results/T2_novelty_tiers.csv`](../results/T2_novelty_tiers.csv),
+[`T2_novelty_paired.csv`](../results/T2_novelty_paired.csv)):
+
+**Paired within target, familiar half (≥0.5) vs novel half (<0.5), Wilcoxon:**
+
+| Model | L1 familiar | L1 novel | Δ | p | wins |
+|---|---|---|---|---|---|
+| LigUnity-protein | +0.242 | **+0.011** | +0.231 | **0.0001** | 55/79 |
+| LiTENCLIP | +0.156 | **−0.038** | +0.194 | **0.0009** | 50/79 |
+| HypSeek `_rk` | +0.281 | **+0.080** | +0.201 | **0.0013** | 50/78 |
+| LigUnity-pocket | +0.195 | +0.070 | +0.125 | 0.024 | 47/79 |
+| DrugCLIP | +0.070 | +0.023 | +0.048 | 0.21 | 47/81 |
+| BindCLIP-randneg | +0.044 | +0.006 | +0.038 | 0.44 | 44/81 |
+| BindCLIP-hardneg | +0.063 | +0.023 | +0.040 | 0.38 | 44/81 |
+
+Across the 14 tests (7 models × L1/L4), BH-FDR keeps the first three;
+LigUnity-pocket's 0.024 does not clear the threshold (0.0143).
+
+**At L4 every model has p > 0.19**, with Δ between +0.03 and −0.05. The effect
+is gone.
+
+**The shape that matters:**
+
+| | novel chemistry (<0.5) | familiar chemistry (≥0.5) |
+|---|---|---|
+| **L1** | +0.011 … +0.080 | +0.156 … +0.281 |
+| **L4** | +0.049 … +0.087 | +0.035 … +0.104 |
+
+**On novel chemistry there is no L1→L4 decay, because there is nothing left to
+decay — the correlation is already at floor at L1.** The entire layer-wise decay
+in T2 lives in the familiar-chemistry half (HypSeek +0.281 → +0.104,
+LigUnity-protein +0.242 → +0.064).
+
+> These models rank affinity **among molecules resembling ones they were trained
+> on**. Presented with chemistry they have not seen, they are at ρ ≈ 0 on
+> familiar and novel targets alike.
+
+Note this is a *different* shape from the enrichment side, where L4 novel
+chemistry still enriched 4.5-fold over random. Retrieval retains some ability to
+find novel actives on novel targets; ordering them by strength it does not.
+
+⚠️ **Confounder checked.** At L1 the familiar half also has a 35% wider
+within-target affinity spread (median SD 0.790 vs 0.586; L2/L3/L4 are 0.98–1.16,
+i.e. no difference). Correcting the L1 novel half up to the familiar half's
+spread (Thorndike case II, k = 1.35) moves HypSeek +0.080 → +0.107 and
+LigUnity-protein +0.011 → +0.015 — far below their familiar halves. The effect
+survives.
+
+**Two limits on this table:**
+
+1. The four-tier version of it has only **6 targets** in L1's `<0.35` tier — too
+   thin to read. Every claim here rests on the two-half split.
+2. Novelty is measured against **PocketAffDB's** 428,767 training ligands. The
+   DrugCLIP-family models (DrugCLIP, BindCLIP ×2) train on a different ligand
+   set, so for those three rows the tiering is an approximation. Their per-model
+   ligand lists would be needed to fix it; see [`LIMITATIONS.md`](../LIMITATIONS.md).
+
 ### On FEP data
 
 | Model | Spearman | Pearson | Systems with correct direction |
@@ -169,9 +249,111 @@ path would have to be ported, and the two forks that do have it shipped it
 broken (see [`PATCHES.md`](../PATCHES.md)). Recorded as a coverage gap rather
 than done badly.
 
-⚠️ CASF complexes come from PDBbind, which overlaps these models' training data,
-and the field selects checkpoints on CASF — so this is close to in-distribution.
-Five ligands per cluster also makes each per-target Spearman coarse.
+#### Half of CASF is literally in the training set
+
+The caveat this section used to carry — "CASF comes from PDBbind, which overlaps
+these models' training data" — was qualitative. It is now measured, and the
+number is large
+([`timesplit/analysis/casf_train_overlap.py`](../timesplit/analysis/casf_train_overlap.py),
+[`results/T2_casf_train_overlap.txt`](../results/T2_casf_train_overlap.txt)):
+
+| | overlap with PocketAffDB training files |
+|---|---|
+| **CASF PDB IDs** | **148 / 285 = 51.9%** |
+| CASF ligands (InChIKey) | 82 / 276 = 29.7% |
+| CASF UniProts | 49 / 68 = 72.1% |
+
+This is **identity, not similarity** — the same deposition, e.g. CASF `4eky`
+(P00489) against training entry `4ekyA--4eky_D1J_A_1.lmdb` (P00489). No
+threshold to argue about. (`1p1n` is in the overlap list, which is the very
+example Graber et al. use to argue that *sequence identity* cannot detect
+leakage; here it is not similar, it is the same entry.)
+
+**And it is by construction, not accident.** `unimol/tasks/train_task.py` builds
+the list of targets to drop from training as:
+
+```python
+if self.args.valid_set == "CASF":
+    # remove all testset protein by default
+    testset_uniprot_lst  = [x[0] for x in json.load(open("dude.json"))]
+    testset_uniprot_lst += [x[0] for x in json.load(open("PCBA.json"))]
+    testset_uniprot_lst += [x[0] for x in json.load(open("dekois.json"))]
+```
+
+DUD-E, LIT-PCBA and DEKOIS targets are removed. **CASF is not in the list**,
+despite the branch being named for it. And the PDBbind half of the training
+labels (`pair_label_1`) is filtered *only* under the `no_similar_protein`
+variants — the default released weight does not filter it at all. CASF is drawn
+from PDBbind. That is the mechanism behind the 51.9%.
+
+**Consequence for the whole benchmark**: of the four benchmarks these weights
+are evaluated on, DUD-E / DEKOIS / LIT-PCBA had their targets deliberately
+excluded from training and **CASF did not**. T1's numbers are the relatively
+clean ones; CASF is the exception.
+
+#### What the leakage is actually worth: only one model, and only for ranking
+
+Splitting the 68 target clusters into fully-contaminated (21), mixed (28) and
+fully-clean (19)
+([`timesplit/analysis/casf_clean_split.py`](../timesplit/analysis/casf_clean_split.py),
+[`results/T2_casf_clean_split.csv`](../results/T2_casf_clean_split.csv)):
+
+⚠️ **A confounder has to be removed first.** The fully-clean targets have a
+*narrower* within-target affinity spread than the contaminated ones (median SD
+1.375 vs 1.854, ratio **1.35**) — the same restriction-of-range mechanism this
+document uses below to explain the CASF/T3 gap. It cannot be invoked only when
+convenient. Correcting the clean column to the contaminated column's spread
+(Thorndike case II) and bootstrapping over targets (2,000 draws):
+
+| Model | fully-contaminated ρ [95%] | fully-clean ρ [95%] | clean, range-corrected | verdict |
+|---|---|---|---|---|
+| **HypSeek `_rk`** | +0.800 [+0.708, +0.877] | +0.307 [+0.114, +0.493] | **+0.399** | **leakage effect holds** |
+| LigUnity-pocket | +0.554 [+0.346, +0.731] | +0.264 [−0.071, +0.579] | +0.347 | intervals overlap |
+| LigUnity-protein | +0.254 [−0.092, +0.562] | +0.150 [−0.136, +0.429] | +0.200 | intervals overlap |
+| LiTENCLIP | +0.485 [+0.277, +0.662] | +0.393 [+0.143, +0.621] | +0.499 | overlap (higher once corrected) |
+
+**Scoring power shows no effect at all** — on clean complexes LigUnity-protein
+*rises* 0.077 → 0.301 and LiTENCLIP 0.244 → 0.394.
+
+So the honest statement is narrow: **the overlap is real and large, but its
+measurable effect appears in one model, in one metric.** What makes that
+uncomfortable rather than reassuring is *which* model — HypSeek `_rk` is the
+checkpoint that leads the CASF table (scoring power 0.627 against
+LigUnity-pocket's 0.360), and the claim that one checkpoint leads every axis we
+measure rests partly on complexes it was trained on.
+
+**Do not write "CASF's numbers are all leakage."** Three of four models cannot
+be separated, n is 13 and 14 targets, and this is an observational split:
+contaminated targets are the long-studied PDBbind classics, which differ from
+the clean ones in label quality as well as spread, and only spread was corrected.
+
+Because the "clean" group is clean only by *exact PDB ID*, some of those 19
+targets are plausibly near-neighbours of training targets by pocket or
+interaction similarity ([`LIMITATIONS.md`](../LIMITATIONS.md) §24). The bias
+direction is therefore known: **0.800 vs 0.399 is a lower bound on the gap.**
+
+#### The intervention that would have settled it does not exist
+
+The obvious causal test is to hold the 285 complexes fixed and vary only the
+model: LigUnity ships three checkpoints trained at different
+`--protein-similarity-thres` (1.0 = no filtering, the released default; 0.8;
+0.3). We ran all four extra variants on CASF
+([`run_casf_thres.sh`](../physics/run_casf_thres.sh),
+[`results/T2_casf_thres_intervention.csv`](../results/T2_casf_thres_intervention.csv)).
+
+**The design does not test what it looks like it tests.** As the code above
+shows, the filter removes training proteins similar to *DUD-E / LIT-PCBA /
+DEKOIS* targets — never CASF. Bootstrapping the dirty-vs-clean interaction over
+complexes (5,000 draws), one of four contrasts has an interval excluding zero
+(pocket 1.0→0.8: −0.247 [−0.449, −0.047]), which is most plausibly mediated by
+CASF and DUD-E sharing targets rather than by any CASF-specific filtering.
+
+**Recorded as a negative result: no public checkpoint was trained with CASF
+excluded, so the causal version of this experiment cannot be run without
+retraining.** The two facts above — 51.9% identity overlap, and the training
+code that produces it — do not need it.
+
+⚠️ Five ligands per cluster also makes each per-target Spearman coarse.
 
 ### The paired test, redone
 
@@ -243,11 +425,26 @@ Note what this does **not** license: the corrected numbers are an estimate of
 what these models would score on a CASF-like spread, not a measurement. Report
 the observed T3 value, and cite the correction as the explanation for the gap.
 
+⚠️ **And the target of the correction is itself contaminated.** This argument
+treats CASF's ρ ≈ 0.42–0.55 as "what these models score when the spread is
+normal". Half of CASF is in their training data (above), so that reference value
+is inflated by an unknown amount. For HypSeek the fully-clean, spread-corrected
+CASF ranking ρ is **+0.399**, while T3's L1 corrected to CASF's spread is
+**+0.477** — the gap does not merely close, it reverses. Those two numbers are
+corrected to *different* reference spreads (CASF overall SD 1.576 vs the
+contaminated targets' 1.854) and so must not be subtracted from one another;
+recomputing both against one common spread is the open item. **Until that is
+done, "range restriction explains 75–91% of the gap" should be stated as one of
+two live explanations, not the settled one.**
+
 ### What the corrected picture looks like
 
-> These models **do** rank affinity, weakly. On post-cutoff targets the
-> correlation is ρ ≈ 0.1–0.26 and decays with target novelty; on curated
-> congeneric benchmarks it is ρ ≈ 0.4. On the shared targets the two are
+> These models **do** rank affinity, weakly, **and only among chemistry they
+> have seen**. On post-cutoff targets the correlation is ρ ≈ 0.1–0.26 overall,
+> but splitting by ligand novelty puts the novel half at ρ ≈ 0.01–0.08 at L1 and
+> ρ ≈ 0.05–0.09 at L4 — at floor in both, so what decays across layers is the
+> familiar-chemistry half, not ranking ability as such. On curated congeneric
+> benchmarks it is ρ ≈ 0.4, and on the shared targets FEP and T3 are
 > statistically indistinguishable. Meanwhile a co-folding model with an affinity
 > head reaches ρ = 0.615 on the same FEP ligands — **the gap between retrieval
 > and physics is quantitative, not categorical.**
@@ -316,6 +513,10 @@ zero.
 | Score the FEP systems | [`physics/score_fep.py`](../physics/score_fep.py) |
 | **The paired test on the 14 shared targets** — the experiment that corrected the conclusion | [`physics/fep_vs_t3_same_targets.py`](../physics/fep_vs_t3_same_targets.py) |
 | Compare against the published physics reference | [`physics/fep_compare_physics.py`](../physics/fep_compare_physics.py) |
+| **Per-target Spearman split by ligand-novelty tier**, with molecule-order validation and the paired familiar/novel test | [`timesplit/analysis/t2_novelty_tiers.py`](../timesplit/analysis/t2_novelty_tiers.py) |
+| **CASF split into contaminated / clean targets**, with the spread confounder and Thorndike correction | [`timesplit/analysis/casf_clean_split.py`](../timesplit/analysis/casf_clean_split.py) |
+| Measure the CASF ↔ training-set overlap | [`timesplit/analysis/casf_train_overlap.py`](../timesplit/analysis/casf_train_overlap.py) |
+| Run CASF under the three training-filter checkpoints (**negative result**) | [`physics/run_casf_thres.sh`](../physics/run_casf_thres.sh) |
 | Metric implementations (`spearman`, `kendall_tau`, `r2_score`, `pairwise_accuracy`) | [`eval/metrics.py`](../eval/metrics.py) |
 
 Two of these exist because of a reporting problem rather than a modelling one:
