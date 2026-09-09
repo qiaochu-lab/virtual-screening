@@ -580,3 +580,43 @@ running(){ ps -eo args --no-headers | grep -cE 'run_swap_(full|seq)\.sh' ; }
 four slots ran three jobs. Bracketing one character — `[r]un_swap` — stops the
 pattern from matching itself.
 
+---
+
+### EF exceeded its own ceiling, and the docstring named the wrong ceiling
+
+`enrichment_factor` resolved ties through average ranks:
+
+```python
+ranks = _ranks(scores)
+n_active_top = int(labels[ranks <= n_top].sum())
+```
+
+A tie group straddling the cutoff gets one shared average rank, so **the whole
+group** passes `ranks <= n_top` — `n_active_top` can exceed `n_top`. The
+ligand-only baseline, whose Tanimoto scores tie constantly, reported EF@1% of
+**51.13 against a structural ceiling of 51.00**. The same mechanism drops whole
+groups whose average rank lands past the cutoff, which is why L1 read 94.2% of
+ceiling while L2–L4 read 99–100%; that asymmetry was an artefact, not chemistry.
+
+Ties are now resolved by expected value — a group straddling the cutoff
+contributes its actives in proportion to the slots left:
+
+```python
+if size <= left:
+    got += act; left -= size
+else:
+    got += act * left / size; left = 0
+```
+
+Measured before changing anything: on real model scores the difference is at
+most **0.04 EF units (0.1%)**, and zero for HypSeek — continuous scores barely
+tie. So no published T1/T2/T3/T5/T6 number moves. Only the ligand-only baseline
+was affected, and it now reads 99.6–99.9% of ceiling across all four layers.
+
+The docstring also claimed the ceiling is `1/fraction`. It is
+`min(1/fraction, n_total/n_active)` — at 1:50 actives are 1/51 of the pool, so
+EF@1% tops out at **51, not 100**. Under the wrong figure a model at 39 looks
+like it uses 39% of the available range when it actually uses 77%.
+
+38 metric tests pass after the change.
+

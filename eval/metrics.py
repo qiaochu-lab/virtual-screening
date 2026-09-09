@@ -26,24 +26,48 @@ def enrichment_factor(scores, labels, fraction):
 
     EF = (前 N 名中的 active 数 / N) / (总 active 数 / 总数)
 
-    理论上限为 1/fraction（所有 active 都排在最前面时取到）。
+    理论上限是 ``min(1/fraction, n_total/n_active)``——**不是 1/fraction**。
+    在 1:50 的活性:诱饵比例下，活性只占 1/51，所以 EF@1% 最高只能到 51 而非 100。
+    早先的注释写成 1/fraction，会让人以为 39 只用掉了量程的 39%，实际是 77%。
 
     取整规则用 **ceil**，与 RDKit ``CalcEnrichment`` 一致
     （其源码为 ``numPerFrac = [math.ceil(numMol * f) for f in fractions]``）。
     这一点很容易搞错：改用 round 会在 ``n * fraction`` 非整数时产生偏差，
     实测 DUD-E 上 102 个靶点有 37 个受影响，均值差 0.2%。
+
+    并列按**期望值处理**：跨越截断线的并列组，只计入按比例应得的那部分活性。
+    之前用平均秩 ``labels[ranks <= n_top]``，一个横跨截断线的大并列组会被
+    **整组**计入，于是 ``n_active_top`` 可能超过 ``n_top``、EF 超过理论上限——
+    纯配体基线（Tanimoto 取值离散、并列极多）实测报出 51.13，上限是 51.00。
+    对真实模型的连续分数几乎无影响（实测最大差 0.04，即 0.1%）。
     """
     labels = np.asarray(labels)
+    scores = np.asarray(scores, dtype=float)
     n_total = len(labels)
     n_active = int(labels.sum())
     if n_active == 0 or n_total == 0:
         return float("nan")
 
     n_top = max(1, int(math.ceil(n_total * fraction)))
-    ranks = _ranks(scores)
-    n_active_top = int(labels[ranks <= n_top].sum())
+    order = np.argsort(-scores, kind="mergesort")
+    s_sorted, y_sorted = scores[order], labels[order]
 
-    return (n_active_top / n_top) / (n_active / n_total)
+    got, left, i = 0.0, n_top, 0
+    while i < n_total and left > 0:
+        j = i
+        while j < n_total and s_sorted[j] == s_sorted[i]:
+            j += 1
+        size = j - i
+        act = int(y_sorted[i:j].sum())
+        if size <= left:
+            got += act
+            left -= size
+        else:                      # 并列组跨过截断线，按比例计入
+            got += act * left / size
+            left = 0
+        i = j
+
+    return (got / n_top) / (n_active / n_total)
 
 
 def roc_auc(scores, labels):
