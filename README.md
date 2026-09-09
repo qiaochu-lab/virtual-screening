@@ -81,11 +81,17 @@ already working in this area.
    layer's actives by their Tanimoto distance to the training set and computing
    enrichment per tier: at L4, LigUnity-protein reaches **27.1 on chemistry it
    has seen (≥0.7) and 4.5 on chemistry it has not (<0.35)**. DrugCLIP falls
-   *below random* (0.6) on the novel tier at L3. The two novelties also
-   compound: changing the target alone (L1→L4, familiar chemistry) costs 1.9×,
-   changing the chemistry alone (within L4) costs 6.0× — and the same chemistry
-   change costs only 2.0× at L1. **Ligand novelty hurts more than target
-   novelty, and hurts far more once the target is novel too.**
+   *below random* (0.6) on the novel tier at L3. **Ligand novelty costs more than
+   target novelty** — changing the target alone (L1→L4, familiar chemistry) costs
+   1.9×, changing the chemistry alone costs 4–6× — and re-cutting the same
+   analysis per model, with each model's own training set deciding which targets
+   are novel, puts the realistic cell (novel target, novel chemistry) at 3.8–7.9
+   against 53.1 for the easy one: a 12-fold span within one model and one metric.
+   The two novelties are approximately **independent, not compounding**: the
+   novel/familiar ratio has median 0.26 on seen targets and 0.26 on unseen. An
+   earlier version of this finding claimed they amplified each other; that came
+   from LigUnity-protein alone (3.1× amplification, off an 18-target cell) and
+   three of the other four models run the other way. **Corrected.**
    → [Leakage audit](tasks/T3-leakage.md)
 
 4. **Swapping the target to an unrelated protein collapses every model to

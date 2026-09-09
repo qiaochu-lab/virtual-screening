@@ -88,6 +88,9 @@ def main():
                              "hypseek_rk", "litenclip", "drugclip", "conglude"])
     ap.add_argument("--layers", nargs="+", default=["L1", "L2", "L3", "L4"])
     ap.add_argument("--subset", default=None)
+    ap.add_argument("--target-groups", default=None,
+                    help="csv：uniprot,group。给了就按这一列分组而不是按 L1–L4，"
+                         "用来做「每个模型按自己训练集判 seen/unseen」的版本")
     ap.add_argument("--out", default=f"{B}/results/export/T3_novelty_tiered_ef.csv")
     args = ap.parse_args()
 
@@ -96,28 +99,41 @@ def main():
         keep = {(r["layer"], r["uniprot"]) for r in csv.DictReader(open(args.subset))}
         print(f"子集过滤：{len(keep)} 条")
 
+    # 分组：默认按层；给了 --target-groups 就按那一列（跨层合并同组靶点）
+    groups = None
+    if args.target_groups:
+        groups = {r["uniprot"]: r["group"]
+                  for r in csv.DictReader(open(args.target_groups))}
+        print(f"按 {args.target_groups} 分组，{len(set(groups.values()))} 组 / "
+              f"{len(groups)} 个靶点")
+
     nov = json.load(open(args.novelty))
     recs = {L: [json.loads(x) for x in open(f"{args.eval_dir}/{L}.jsonl")]
             for L in args.layers}
 
-    rows = [["model", "layer", "tier", "n_targets", "n_actives",
+    rows = [["model", "group", "tier", "n_targets", "n_actives",
              "recall_at_1pct", "ef_tier"]]
     print("\n各新颖度档的富集（EF_t = 该档 recall@1% / 0.01；1.0 = 随机）")
     print("=" * 96)
-    hdr = "%-24s %-4s" % ("模型", "层") + "".join("%18s" % t[2] for t in TIERS)
+    col = "组" if groups else "层"
+    hdr = "%-24s %-8s" % ("模型", col) + "".join("%18s" % t[2] for t in TIERS)
     for m in args.models:
         print("\n" + hdr)
         print("-" * 96)
+        # bucket: 组名 -> tier -> [每靶点的 EF_t]；按层跑但按组累加
+        bucket = collections.defaultdict(lambda: collections.defaultdict(list))
+        count = collections.defaultdict(collections.Counter)
+        n_bad = 0
         for L in args.layers:
             d = f"{args.raw}/{m}/T3/{L}"
             if not os.path.isdir(d):
                 continue
-            per = collections.defaultdict(list)   # tier -> [ef per target]
-            cnt = collections.Counter()
-            n_bad = 0
             for r in recs[L]:
                 up = r["uniprot"]
                 if keep is not None and (L, up) not in keep:
+                    continue
+                g = groups.get(up) if groups else L
+                if g is None:
                     continue
                 try:
                     p = np.load(f"{d}/{up}/saved_preds.npy").reshape(-1)
@@ -145,22 +161,29 @@ def main():
                         hit[t] += 1
                 for t in tot:
                     if tot[t] >= MIN_T:
-                        per[t].append((hit[t] / tot[t]) / FRAC)
-                        cnt[t] += tot[t]
-            if not per:
-                continue
+                        bucket[g][t].append((hit[t] / tot[t]) / FRAC)
+                        count[g][t] += tot[t]
+        order_g = (sorted(bucket) if groups else
+                   [L for L in args.layers if L in bucket])
+        for g in order_g:
             cells = []
             for _, _, t in TIERS:
-                v = per.get(t)
+                v = bucket[g].get(t)
                 cells.append(f"{np.mean(v):.1f} (n={len(v)})" if v else "—")
                 if v:
-                    rows.append([m, L, t, len(v), cnt[t],
+                    rows.append([m, g, t, len(v), count[g][t],
                                  f"{np.mean(v)*FRAC:.4f}", f"{np.mean(v):.2f}"])
-            print("%-24s %-4s" % (m, L) + "".join("%18s" % c for c in cells)
-                  + (f"   ⚠️{n_bad} 个靶点顺序校验不过" if n_bad else ""))
+            print("%-24s %-8s" % (m, g) + "".join("%18s" % c for c in cells))
+        if n_bad:
+            print("%-24s %-8s ⚠️ %d 个靶点顺序校验不过，已跳过" % ("", "", n_bad))
     print("=" * 96)
     print("读法：括号里是该档有 ≥3 个活性、因而参与统计的靶点数。")
     print("     同一行左右对比 = 同一模型对「新化学」和「熟化学」的富集差距。")
+    if groups:
+        print("     上下对比 = 同一化学新颖度下，靶点见没见过带来的差距。")
+        print("     ⚠️ 新颖度档本身是按 PocketAffDB 的配体算的，不是按各模型自己的"
+              "训练配体，")
+        print("        所以这张表解决了靶点侧的循环性，没解决配体侧的。")
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     with open(args.out, "w", newline="") as f:

@@ -501,3 +501,35 @@ ten models instead, which cancels difficulty without dividing by anything. The
 ratio version is kept in
 [`results/T3_per_model_layers_ctrl.csv`](results/T3_per_model_layers_ctrl.csv)
 only so the discrepancy is inspectable.
+
+## 25. Half of CASF-2016 is in the PocketAffDB training set
+
+**148 of CASF-2016's 285 complexes (51.9%) appear in PocketAffDB by exact PDB
+ID.** Not "a similar structure" — the same deposition. PocketAffDB stores each
+assay's pockets as `2q5sA--2q5s_NZA_A_1.lmdb`, whose first four characters are
+the PDB entry, so the two sets join directly. The match is not an artefact of
+that truncation: 123 of the 148 also agree on UniProt, e.g. CASF `4eky`
+(P00489) against training `4ekyA--4eky_D1J_A_1.lmdb` (P00489).
+
+Two weaker overlaps, for scale: **49 of 68 CASF UniProt accessions (72.1%)** are
+in PocketAffDB, and **82 of 276 CASF ligands (29.7%)** match a training ligand by
+exact InChIKey.
+
+Four of the five models measured on CASF here — LigUnity ×2, LiTENCLIP and
+HypSeek — train on PocketAffDB, and T2 uses the *ranking* checkpoint. LigUnity's
+model card states that test proteins were removed when training the **screening**
+weight; it says nothing about the ranking weight, and this measurement is
+consistent with no removal having happened there.
+
+This does not yet change any reported number. What it means is that **CASF
+cannot be read as a held-out test for those four models** until the clean and
+contaminated halves are scored separately. That rescoring is in progress in the
+T2 workstream; the overlap itself is reproducible with
+[`timesplit/analysis/casf_train_overlap.py`](timesplit/analysis/casf_train_overlap.py)
+→ [`results/T2_casf_train_overlap.txt`](results/T2_casf_train_overlap.txt).
+
+For context, Graber et al. (*Nat Mach Intell*, 2025, doi
+10.1038/s42256-025-01124-5) report 49% of CASF having a near neighbour in
+**PDBbind**, using a combined structure/ligand/affinity criterion. The 51.9%
+here is a different and stricter thing — exact identity, against the training set
+our models actually used.
