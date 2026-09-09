@@ -201,14 +201,55 @@ spread (Thorndike case II, k = 1.35) moves HypSeek +0.080 → +0.107 and
 LigUnity-protein +0.011 → +0.015 — far below their familiar halves. The effect
 survives.
 
-**Two limits on this table:**
+**One limit on this table:** its four-tier version has only **6 targets** in
+L1's `<0.35` tier — too thin to read. Every claim above rests on the two-half
+split.
 
-1. The four-tier version of it has only **6 targets** in L1's `<0.35` tier — too
-   thin to read. Every claim here rests on the two-half split.
-2. Novelty is measured against **PocketAffDB's** 428,767 training ligands. The
-   DrugCLIP-family models (DrugCLIP, BindCLIP ×2) train on a different ligand
-   set, so for those three rows the tiering is an approximation. Their per-model
-   ligand lists would be needed to fix it; see [`LIMITATIONS.md`](../LIMITATIONS.md).
+#### Measured against each model's own training ligands, all seven show it
+
+The table above tiers every model against **PocketAffDB's** 428,767 training
+ligands. DrugCLIP and BindCLIP ×2 do not train on those: their ligands are the
+66,164 pocket–ligand pairs of `train_no_test_af`, **13,590 unique molecules —
+31.6× smaller**. Recomputing the novelty cache against that set
+([`timesplit/analysis/novelty_drugclip.py`](../timesplit/analysis/novelty_drugclip.py))
+changes the picture of the candidate pool completely:
+
+| reference set | T3 median max-Tanimoto | ≥0.7 | ≥0.5 | <0.35 |
+|---|---|---|---|---|
+| affinity half, 428,767 ligands | 0.419 | 8.8% | ~46% | 23.6% |
+| **`train_no_test_af`, 13,590** | **0.303** | **0.9%** | **5.3%** | **72.6%** |
+
+Against their own training set, **72.6% of T3 is novel chemistry for the
+DrugCLIP family** — so the familiar/novel *halves* split barely exists for them
+(5.3% above 0.5), and the three non-significant rows above were partly an
+artifact of tiering them against somebody else's data.
+
+Re-running with the corrected cache
+([`results/T2_novelty_paired_Agroup.csv`](../results/T2_novelty_paired_Agroup.csv)),
+and using the contrast that this reference set can actually support — the
+extreme tiers rather than the halves:
+
+| Model | L1 ≥0.7 | L1 <0.35 | Δ | p | wins |
+|---|---|---|---|---|---|
+| DrugCLIP | +0.241 | −0.004 | +0.244 | **0.00017** | 33/46 |
+| BindCLIP-randneg | +0.195 | +0.010 | +0.185 | **0.013** | 29/46 |
+| BindCLIP-hardneg | +0.193 | +0.037 | +0.156 | **0.012** | 27/46 |
+
+**All three are significant.** The effect is not a property of the PocketAffDB
+group — it is a property of all seven models tested, once each is measured
+against the data it actually saw.
+
+⚠️ **Which contrast is usable depends on the reference set, and the two groups
+need different ones.** Against the 428,767-ligand set, the extreme tiers leave
+only 5–9 targets with ≥5 actives in both, so the halves split is the usable
+contrast; against the 13,590-ligand set the halves are diluted (n = 148, p =
+0.08–0.60) while the extreme tiers have 46 targets. Both are reported above;
+neither is cherry-picked, but they are not interchangeable and should not be
+compared across groups as if they were the same statistic.
+
+An earlier version of this section concluded that the effect held only for the
+PocketAffDB-trained models. That was an artifact of the shared novelty cache and
+is **withdrawn**.
 
 ### On FEP data
 
