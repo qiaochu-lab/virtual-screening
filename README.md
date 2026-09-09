@@ -258,14 +258,16 @@ already working in this area.
    two training sets alone; it would take retraining on one with the other held
    fixed. The claim as stated is about the *half*, not about labels per se.
 
-   That gap also **rules memorisation out for the three structure-only models.**
-   Scored against its *own* 13,590 training ligands rather than the affinity
-   half's, **72.6% of T3's molecules are novel chemistry to DrugCLIP and only
-   0.9% reach the "very close" tier** (against 23.6% and 8.8% under the affinity
-   half). Its L1 enrichment of 17–19 is therefore earned on chemistry that is
-   almost entirely new to it. **"The models are recalling familiar chemical
-   series" is a statement about the four affinity-trained models, not about all
-   ten.** → [`tasks/T3-leakage.md`](tasks/T3-leakage.md)
+   The correct reference set also matters for reading ligand novelty. Scored
+   against its *own* 13,590 training ligands rather than the affinity half's,
+   **72.6% of T3's molecules are novel chemistry to DrugCLIP and only 0.9% reach
+   the "very close" tier** (against 23.6% and 8.8% under the affinity half). But
+   the familiar-chemistry effect survives that correction: at L1, DrugCLIP still
+   enriches **9.7 on its novel tier against 25.4 on its familiar one**, and the
+   BindCLIP pair 11.5→30.9 and 11.9→26.8 — a 2.3–2.7× gap where the wrong
+   reference had shown 5.2×. **Smaller, but the same shape as the four
+   affinity-trained models.**
+   → [`tasks/T3-leakage.md`](tasks/T3-leakage.md)
 
 14. **A checkpoint selected for affinity ranking is also the better screener.**
    HypSeek ships two weights from one run: `_vs` selected on screening, `_rk` on
