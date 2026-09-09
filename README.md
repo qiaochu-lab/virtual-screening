@@ -20,6 +20,7 @@ what question it asks, what data it uses, how it was run, and what came out.
 | **T2** Affinity ranking | Can these models rank binding strength, not just separate binders from non-binders? | ✅ answered — **weakly, and it decays with novelty**; the CASF/T3 gap is explained | [T2](tasks/T2-affinity-ranking.md) 🔬 |
 | **T3** Time-split | Do they generalise to targets that appeared after training? | ✅ main result, 10 models × 4 layers | [T3](tasks/T3-time-split.md) |
 | **T3 v2** Dataset revision | ≥50 actives, class composition matched to VSDS-vd | ✅ 242 entries / 222 targets; every downstream analysis re-aggregated | [T3 v2](tasks/T3-dataset-v2.md) |
+| **T5** Target swap | Do the models use the protein at all, or only the ligand? | ✅ 10 models × L1/L4 × 3 rounds — **AUROC collapses to 0.500** | [Target swap](tasks/T5-target-swap.md) |
 | **T3** Leakage audit | Is the benchmark actually solvable without the protein? Are the "novel" targets novel? | ✅ three diagnostics — **L1 is largely a memorisation test, L3/L4 are clean** | [Leakage](tasks/T3-leakage.md) |
 | **T4** Target fishing | Run retrieval backwards: molecule → target | not started (deprioritised) | [T4](tasks/T4-target-fishing.md) |
 | **T5** Structure robustness | Do the conclusions survive changing structure source, pocket definition, and apo conformation? | ✅ three controls done | [T5](tasks/T5-structure-robustness.md) 🔬 |
@@ -78,7 +79,19 @@ already working in this area.
    novelty, and hurts far more once the target is novel too.**
    → [Leakage audit](tasks/T3-leakage.md)
 
-4. **Ligand-side leakage is entirely confined to L1.** 32.1% of L1 actives are
+4. **Swapping the target to an unrelated protein collapses every model to
+   chance.** Holding the candidate pool fixed — same molecules, same labels, same
+   order — and replacing only the target identity drops EF@1% by **83–99%** and
+   lands AUROC at **0.471–0.522, median 0.500** across eight models at L4. Not
+   degraded: indistinguishable from a coin flip. This is what rules out the
+   reading that finding 2 invites — the models are *not* ignoring the protein.
+   The dependence also scales with capability: the strongest model loses 99.3%
+   of its enrichment, while SPRINT, whose AUROC barely clears chance to begin
+   with (0.589/0.558), is the only model that does not significantly degrade
+   (p = 0.077). **Weak models are not more robust; they were never using the
+   target.** → [Target swap](tasks/T5-target-swap.md)
+
+5. **Ligand-side leakage is entirely confined to L1.** 32.1% of L1 actives are
    exact InChIKey matches to a training ligand (decoy background: 3.7%), and their
    median Tanimoto to the training set is 0.727 with 53.9% above 0.7. L2/L3/L4
    actives are *more* novel than the decoys (median 0.37–0.42 vs 0.419). Models
@@ -86,7 +99,7 @@ already working in this area.
    a median similarity of **0.969** to training ligands.
    → [Leakage audit](tasks/T3-leakage.md)
 
-5. **The L3/L4 split had a fall-through bug: 24% of L4 targets were never
+6. **The L3/L4 split had a fall-through bug: 24% of L4 targets were never
    checked.** Family membership came from a precomputed CD-HIT file, and a target
    *absent* from that file fell through to L4 — "not found" was treated as "no
    homologous family". A sensitive mmseqs search against the training set finds
@@ -95,7 +108,7 @@ already working in this area.
    targets and restores the decay from −69% to −78%.
    → [Leakage audit](tasks/T3-leakage.md)
 
-6. **Affinity ranking is weak but real, and it decays like enrichment does.**
+7. **Affinity ranking is weak but real, and it decays like enrichment does.**
    Per-target Spearman on post-cutoff data runs +0.09 to +0.26 at L1 and falls to
    +0.02 to +0.10 at L4; on congeneric FEP benchmarks it is ≈ +0.4, and on the
    14 targets shared by both the two are statistically indistinguishable
@@ -111,11 +124,11 @@ already working in this area.
    range recovers 75–91% of the difference. Report the observed T3 number, but
    do not read it as these models ranking worse on post-cutoff data than on CASF.
 
-7. **Model ranking reverses by target class.** Sequence-only models win on
+8. **Model ranking reverses by target class.** Sequence-only models win on
    kinases; geometry-aware models win on other enzymes. Reporting only the
    overall mean is misleading. → [T3](tasks/T3-time-split.md)
 
-8. **Mildly sensitive to structure source, extremely sensitive to pocket
+9. **Mildly sensitive to structure source, extremely sensitive to pocket
    definition.** Moving the pocket cutoff off the 6 Å the models were trained on
    costs 31–75%, with 6 Å winning 12 of 12 cells. Swapping experimental
    structures for Boltz-2 predictions costs less but not nothing: **8 of 10
@@ -128,7 +141,7 @@ already working in this area.
    accident rather than design ([`PATCHES.md`](PATCHES.md)).
    → [T5](tasks/T5-structure-robustness.md)
 
-9. **A co-folding model ranks affinity well, but reranking a retrieval
+10. **A co-folding model ranks affinity well, but reranking a retrieval
    shortlist with it does not help.** Three runs, two layers: on known targets
    the retrieval score is informative inside its own top-50 (AUROC 0.806) and
    Boltz-2 reranking *degrades* it (0.720); on novel targets the retrieval score
@@ -145,7 +158,7 @@ already working in this area.
    749 complexes) moves AUROC by 0.002, every p-value above 0.9. Structure
    quality is not the limiting factor. → [T6](tasks/T6-physics.md)
 
-10. **A co-folding model ranks affinity where retrieval cannot.** On the 16 FEP
+11. **A co-folding model ranks affinity where retrieval cannot.** On the 16 FEP
    systems, same ligands and same metric, Boltz-2 reaches Spearman +0.615
    (Kendall τ 0.474, against a published free-energy method's 0.503) while the
    retrieval models sit at +0.28 to +0.40. It is not a clean sweep — retrieval
@@ -153,7 +166,7 @@ already working in this area.
    loses — which is what makes the two families worth combining rather than
    ranking. → [T6](tasks/T6-physics.md)
 
-11. **Sequence and pocket trade places by benchmark — neither representation
+12. **Sequence and pocket trade places by benchmark — neither representation
    wins consistently.** LigUnity ships a pocket branch and a sequence branch from
    one release — same training set, same ligand encoder, same checkpoint scheme.
    Paired per target, the sequence branch wins DEKOIS and T3's L1/L2 (60–69% of
@@ -165,7 +178,7 @@ already working in this area.
    so does the ranking of two branches of one model.
    → [T3](tasks/T3-time-split.md)
 
-12. **Training data explains performance tiers better than architecture.** The
+13. **Training data explains performance tiers better than architecture.** The
    models trained on PocketAffDB all land at L1 EF1% 32–39; the three on
    DrugCLIP's data all land at 17–19 — across differences in retrieval
    augmentation and molecular encoder. The same split holds on DUD-E, where the
@@ -173,7 +186,7 @@ already working in this area.
    [`figures/`](figures/) fig 1 and fig 2, which are coloured by training set
    rather than architecture. → [T3](tasks/T3-time-split.md)
 
-13. **A checkpoint selected for affinity ranking is also the better screener.**
+14. **A checkpoint selected for affinity ranking is also the better screener.**
    HypSeek ships two weights from one run: `_vs` selected on screening, `_rk` on
    FEP ranking. Both are now public (the author released them in
    [issue #4](https://github.com/jianhuiwemi/HypSeek/issues/4)), and `_rk` beats
@@ -191,7 +204,7 @@ already working in this area.
    negative pool of 4 against the official 24) and is retracted.
    → [`MODELS_TRAINING.md`](MODELS_TRAINING.md)
 
-14. **Three independent groups cannot reproduce HypSeek's published weight from
+15. **Three independent groups cannot reproduce HypSeek's published weight from
     its published recipe.** Following the paper, this project's `_vs` lands 16%
     below the reported DUD-E EF@1% (43.29 vs 51.44), a collaborator's 4% below
     (49.34), and a third party in
@@ -207,7 +220,7 @@ already working in this area.
     checkpoints. **Retracted.**
     → [`results/T1_hypseek_official.md`](results/T1_hypseek_official.md)
 
-15. **The official evaluation runs with the protein-sequence pathway switched
+16. **The official evaluation runs with the protein-sequence pathway switched
     off, contradicting the paper.** `alpha_prot` defaults to 1 in training but
     `test_task.py` reads it as `getattr(self.args, "alpha_prot", 0)` and argparse
     never exposed the name, so every published evaluation number was produced

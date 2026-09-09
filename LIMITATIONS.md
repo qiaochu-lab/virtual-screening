@@ -402,3 +402,17 @@ onto targets that were never docked, so that control currently describes the
 full L4, not the published subset. Undecided whether to re-dock (~33 CPU-hours),
 state the discrepancy, or demote the control.
 
+## 22. The target swap only used unrelated substitutes
+
+Every substitute was drawn at random from the same layer, subject to a pocket-size
+match. So the result establishes that replacing a target with an **unrelated**
+one destroys performance — it does not distinguish whether the model recognises
+the *specific target* or its *family*. A within-family swap (same CD-HIT 40%
+cluster) would separate those, and has not been run.
+
+This matters for interpretation: "the model uses target information" is
+supported, but "the model resolves individual targets" is not.
+
+Only L1 and L4 were run. Each target drew 3 substitutes, and substitutes were not
+deduplicated across targets.
+

@@ -521,3 +521,62 @@ scores with `res = pocket_reps @ mol_reps.T` and never computes `prot_scores`.
 Every HypSeek T3 number here is pocket-pathway-only. That is a stated convention,
 not a defect, but it has to be stated.
 
+---
+
+### The swap directory is named after the substitute, and the first analysis assumed otherwise
+
+The target-swap experiment holds the ligand pool fixed and replaces only the
+target. The obvious implementation — swap `{target}_pocket.lmdb` in place —
+does not work: these models read the protein sequence **from the directory
+name**, not from the lmdb. So the swap tree has to name the directory after the
+substitute `T'` and link `T`'s ligand pool into it under `T'`'s filenames.
+
+Which means the pairing is `swap/{T'}` against `correct/{T}`, and the first
+analysis paired `swap/{T}` against `correct/{T}` instead. That directory holds
+`T`'s own pocket with *someone else's* ligands — a comparison between two
+different molecule sets, reported as a −98% collapse before the check caught it.
+
+The check that caught it compares the label arrays element-wise:
+
+```python
+if len(yc) != len(ys) or not np.array_equal(yc, ys):
+    skipped += 1
+    continue
+```
+
+Under the wrong pairing every pair failed (4791 vs 3364 molecules, and so on).
+Under the right pairing all 19 passed. The scorer now runs this on every pair
+and reports the skip count rather than silently dropping.
+
+The number that came out of the corrected analysis happened to be −98% as well,
+which is worth stating plainly: **the invalid comparison produced a plausible
+answer.** Nothing about the magnitude signalled the error.
+
+---
+
+### A queue that checked idempotence before waiting for a slot
+
+`swap_queue.sh` skips a job whose results already exist, then waits for a free
+GPU slot. In that order, a job that finishes *during the wait* still gets
+launched — the check ran while it was still incomplete. Two processes then write
+the same result directory.
+
+Two lines, in the wrong order. The fix re-checks after acquiring the slot:
+
+```bash
+while [ "$(running)" -ge "$MAXJOBS" ]; do sleep 60; done
+if done_already "$M" "$RND"; then
+  say "跳过 $M round$RND（等待期间已完成）"; continue
+fi
+```
+
+The same script also counted its own `grep` as a running job:
+
+```bash
+running(){ ps -eo args --no-headers | grep -cE 'run_swap_(full|seq)\.sh' ; }
+```
+
+`grep`'s own argv contains the pattern, so the count was always one too high and
+four slots ran three jobs. Bracketing one character — `[r]un_swap` — stops the
+pattern from matching itself.
+

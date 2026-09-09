@@ -31,3 +31,9 @@
 | `T1_hypseek_official.csv` | T1 across five HypSeek weight variants |
 | `T3_hypseek_official.csv` | T3 four layers, same variants |
 
+## Target swap — added 2026-09-09
+
+| File | What |
+|---|---|
+| `T3_target_swap.csv` | 10 models × L1/L4 × 3 metrics, correct vs swapped target, paired p |
+
