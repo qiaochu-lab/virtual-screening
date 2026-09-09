@@ -124,12 +124,22 @@ already working in this area.
    homologue rather than an unrelated protein, is running now and will say
    whether what the models use is target identity or only family membership.
 
-5. **Ligand-side leakage is entirely confined to L1.** 32.1% of L1 actives are
-   exact InChIKey matches to a training ligand (decoy background: 3.7%), and their
-   median Tanimoto to the training set is 0.727 with 53.9% above 0.7. L2/L3/L4
-   actives are *more* novel than the decoys (median 0.37–0.42 vs 0.419). Models
+5. **Ligand-side leakage is confined to L1 — and only for the four models
+   trained on the affinity half.** Against that half's 428,767 ligands, 32.1% of
+   L1 actives are exact InChIKey matches to a training ligand (decoy background:
+   3.7%), median Tanimoto 0.727 with 53.9% above 0.7, while L2/L3/L4 actives are
+   *more* novel than the decoys (median 0.37–0.42 vs 0.419). Those four models
    also preferentially retrieve the familiar: HypSeek's top-1% actives at L1 have
-   a median similarity of **0.969** to training ligands.
+   median similarity **0.969**.
+
+   **Measured against the structure half's own 13,590 ligands the same L1 actives
+   look completely different — median 0.371, only 9.0% above 0.7, and 42.2%
+   outright novel.** So "L1 is close to a memorisation test" is a statement about
+   the affinity-trained models, and it is part of why the two groups differ
+   roughly twofold at L1: half of L1 is chemistry one group has seen and the
+   other has not. The preference itself survives the correction for the
+   structure-only models, but weakly — DrugCLIP's retrieved L1 actives sit at
+   16.1% above 0.7 against a 9.0% pool, a 1.8× lift that is gone by L4.
    → [Leakage audit](tasks/T3-leakage.md)
 
 6. **The L3/L4 split had a fall-through bug: 24% of L4 targets were never

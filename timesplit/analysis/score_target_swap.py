@@ -60,6 +60,9 @@ def main():
     ap.add_argument("--models", nargs="+", required=True)
     ap.add_argument("--rounds", type=int, default=3)
     ap.add_argument("--manifest", default=f"{B}/data/T3_swap_full/swap_manifest.json")
+    ap.add_argument("--prefix", default="swap",
+                    help="结果目录前缀。随机 swap 是 swap_{模型}_r{N}，"
+                         "同家族 swap 是 swapfam_{模型}_r{N}")
     ap.add_argument("--raw", default=f"{B}/results/t3_raw")
     ap.add_argument("--metrics-dir", default=f"{B}/eval")
     ap.add_argument("--out", default=f"{B}/results/export/T3_target_swap.csv")
@@ -89,7 +92,7 @@ def main():
                     o, s = pr["ligand_pool_from"], pr["identity_from"]
                     base = os.path.dirname(args.raw)   # .../results
                     dc = find_dir([f"{args.raw}/{m}", f"{base}/t3/{m}"], L, o)
-                    ds = find_dir([f"{args.raw}/swap_{m}_r{rnd}"], L, s)
+                    ds = find_dir([f"{args.raw}/{args.prefix}_{m}_r{rnd}"], L, s)
                     if dc is None or ds is None:
                         continue
                     pc, yc = load(dc)
