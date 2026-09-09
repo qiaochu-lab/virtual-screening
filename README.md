@@ -65,6 +65,15 @@ already working in this area.
    to 9, so **what the models lose on novel targets is access to a memorisable
    chemical series**, not chemistry ability. Normalised against that ceiling, the
    best model extracts **76% of the available signal at L1 and 19% at L4**.
+
+   The matching *lower* bound closes the argument. A classifier that sees only
+   ECFP4 and never learns which target it is scoring (GroupKFold by uniprot —
+   grouping by molecule would split a congeneric series across the fold boundary)
+   lands **below random at every layer**: mean AUROC 0.513 / 0.428 / 0.442 / 0.379
+   for L1–L4, and EF@1% of exactly 0 on 259 of 328 targets. So every bit of T3's
+   signal comes from ligand-to-known-ligand similarity for that target, and none
+   from drug-likeness of the molecule alone — which is what cross-target real
+   actives as decoys were chosen to guarantee.
    → [Leakage audit](tasks/T3-leakage.md)
 
 3. **On genuinely novel chemistry against a novel target, the best model
@@ -230,6 +239,22 @@ already working in this area.
     and hurts on experimentally confirmed ones, which is the same axis finding 3
     is about. → [`results/T1_hypseek_official.md`](results/T1_hypseek_official.md)
 
+17. **One model's headline DUD-E number is 74% target leakage, and the standard
+    benchmark cannot show it.** Contrastive training on DUD-E decoys is
+    ConPLex's method rather than an ablation — `contrastive: True` is the shipped
+    default — and it draws negatives from 40 of the 102 targets our T1 scores.
+    Dividing out each target's difficulty by the other nine models' median gives
+    a clean monotone gradient for ConPLex alone: r = 1.034 on the targets it
+    trained on, 0.615 on targets its split files name but hold out, 0.100 on the
+    45 they never mention (Kruskal–Wallis p = 1e-5). The other nine models are
+    flat. It is not BindingDB overlap: the effect survives on the 14 training
+    targets BindingDB never contained (5.09×, p = 0.001) and vanishes on the 27
+    BindingDB saw that no split names (0.72×, p = 0.71). Rescored on the 45
+    untouched targets, **ConPLex falls from EF1% 18.70 to 4.83 and AUROC 0.683 to
+    0.577** while every other model moves between −10% and +7%. T3 is unaffected
+    — its training set covers 19.4% of T3 targets, the same band as the rest.
+    → [`tasks/T1-enrichment.md`](tasks/T1-enrichment.md#conplex-trained-on-dud-e)
+
 ## Repository layout
 
 **Task numbers appear only in `tasks/`.** Code directories are named after what
@@ -306,7 +331,7 @@ quirks of each: **[`MODELS.md`](MODELS.md)**.
 | DrugCLIP, BindCLIP-randneg, BindCLIP-hardneg | 3D pocket | DrugCLIP set (4,098 UniProt) |
 | LigUnity-pocket / -protein, LiTENCLIP, HypSeek | 3D pocket / sequence / hyperbolic | PocketAffDB (2,196 UniProt) |
 | ConGLUDe | sequence + structure graph | own |
-| ConPLex | sequence only — **negative control** | BindingDB |
+| ConPLex | sequence only — **negative control on T3 only** ⚠️ | BindingDB + DUD-E contrastive |
 | SPRINT | SaProt structure-aware sequence | own |
 | Boltz-2 | co-folding + affinity head | own |
 

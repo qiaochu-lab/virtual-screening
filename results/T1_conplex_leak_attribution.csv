@@ -1,0 +1,16 @@
+group,n,r_in,r_out,fold,p
+BindingDB 同一性≥95%,53,0.4000,0.2500,1.600,0.138716
+DUD-E cross train,26,1.1523,0.2477,4.652,0.000198
+DUD-E within train,26,1.1126,0.2143,5.192,0.000298
+DUD-E train 并集,40,1.0335,0.1515,6.821,0.000087
+DUD-E train 但 BindingDB 没见过,14,1.4462,0.2840,5.093,0.001160
+BindingDB 见过但不在 DUD-E train,27,0.2477,0.3452,0.717,0.707310
+control_conglude,53,0.8867,0.6400,1.385,0.016227
+control_sprint,53,0.1132,0.0369,3.070,0.015124
+control_hypseek_rk,53,1.8431,1.9386,0.951,0.476952
+control_ligunity_pocket,53,1.1667,1.2821,0.910,0.834287
+control_ligunity_protein,53,1.0149,1.2273,0.827,0.942676
+control_litenclip,53,1.4231,1.1703,1.216,0.080774
+control_drugclip,53,0.9109,1.0000,0.911,0.483969
+control_bindclip_randneg,53,0.9689,1.0000,0.969,0.833448
+control_bindclip_hardneg,53,0.7188,0.8389,0.857,0.832062

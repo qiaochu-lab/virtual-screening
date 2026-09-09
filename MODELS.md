@@ -38,6 +38,36 @@ without adjustment.
 **This is the basis of a finding**, not just bookkeeping: the three models
 trained on PocketAffDB all land at L1 EF1% 32–39, and the three trained on the
 DrugCLIP set all land at 17–19, across substantial architectural differences.
+
+## What the other three models trained on
+
+The seven pocket-family models publish their training sets as target lists. The
+three sequence-family models do not, which is why they sat outside the audit for
+so long. What is actually obtainable, and how:
+
+| Model | Published as | What we can reconstruct |
+|---|---|---|
+| **ConPLex** | training **sequences** in the repo, no accessions | `dataset/BindingDB/train.csv` → **1,026 unique sequences**; DAVIS 372; BIOSNAP carries a `Gene` column with **2,177** UniProt accessions outright. Reverse-lookup by mmseqs gives its coverage of any evaluation set. |
+| **SPRINT** | `merged_data.zip` (371 MB) on the MERGED release | **336 train UniProt accessions** and 1.39M ligand ids, read from `merged_pos_uniq_train_rand.tsv`. MERGED = BindingDB 2022-04-14 + ChEMBL 30 + PubChem 2022-09-05. |
+| **ConGLUDe** | Zenodo `LB_train_val.zip` | Not retrieved — Zenodo returned 504 during the check. Approximable from MERGED train ∪ test (5,416 accessions); the authors state they drop proteins >90% identical to any test set. |
+
+**The checkpoint matters more than the paper here.** We run ConPLex's
+`BindingDB_ExperimentalValidModel.pt`, so BindingDB is its training set — but
+`contrastive: True` is the shipped default, which means it *also* trained on
+DUD-E decoys. That second half is the one that invalidated a number we had been
+reporting; see [`tasks/T1-enrichment.md`](tasks/T1-enrichment.md#conplex-trained-on-dud-e).
+
+SPRINT's 336 accessions are worth noting for their size — against PocketAffDB's
+2,196 and the DrugCLIP set's 4,098, it is trained on an order of magnitude fewer
+proteins than the pocket family. That is a plausible part of why it is last on
+two of three standard benchmarks, and it is not something its paper foregrounds.
+(42 further accessions are excluded as LIT-PCBA targets, leaving 294 for any
+comparison against that benchmark.)
+
+Lists are kept off this repository along with the rest of the data; the
+reconstruction scripts are
+[`timesplit/analysis/conplex_train_coverage.py`](timesplit/analysis/conplex_train_coverage.py)
+and [`timesplit/analysis/per_model_audit.py`](timesplit/analysis/per_model_audit.py).
 Training data separates the tiers better than architecture does.
 
 ## Checkpoint choices worth knowing
@@ -75,10 +105,18 @@ rather than to the target itself ([`standard/t1_sim3.py`](standard/t1_sim3.py)).
 negatives), not in architecture or data — a controlled pair, useful for reading
 the effect of the training signal alone.
 
-**ConPLex is the negative control.** Sequence-only, no structure, no pocket. Where
-an effect appears in structure models and not in ConPLex, structure is implicated;
-where it appears in both, it is not about structure. This is how the pocket-fit
-confound was isolated.
+**ConPLex is the negative control — on T3, not on T1.** Sequence-only, no
+structure, no pocket. Where an effect appears in structure models and not in
+ConPLex, structure is implicated; where it appears in both, it is not about
+structure. This is how the pocket-fit confound was isolated, and that analysis
+runs on T3, where ConPLex's training set covers 19.4% of targets — the same band
+as the other two sets.
+
+⚠️ **The same reasoning is invalid on DUD-E.** ConPLex's contrastive objective is
+trained on DUD-E decoys from 40 of our 102 evaluation targets, and 74% of its
+DUD-E enrichment disappears when those are excluded (EF1% 18.70 → 4.83). Any
+control argument made from its DUD-E column measures its training set.
+→ [`tasks/T1-enrichment.md`](tasks/T1-enrichment.md#conplex-trained-on-dud-e)
 
 **SPRINT is not a sequence-only model**, despite reading like one. It consumes
 SaProt structure-aware sequences, so it needs the same structures as the pocket

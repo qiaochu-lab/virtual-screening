@@ -33,7 +33,7 @@ import numpy as np
 from eval.metrics import enrichment_factor, bedroc
 
 z = np.load("T3_hypseek_rk.npz")
-ef = [enrichment_factor(z[f"{t}/labels"], z[f"{t}/preds"], 0.01)
+ef = [enrichment_factor(z[f"{t}/preds"], z[f"{t}/labels"], 0.01)
       for t in {k.rsplit("/", 1)[0] for k in z.files}]
 print(np.mean(ef))
 ```

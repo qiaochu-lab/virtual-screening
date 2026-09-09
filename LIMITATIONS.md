@@ -76,10 +76,20 @@ target in five is not actually new, so **their measured decay understates the
 true decay**. The cross-model comparison of *absolute* L4 values is affected;
 the within-model L1→L4 gradient is not.
 
-## 3. Three models' training sets are unavailable
+## 3. Two models' training sets are unavailable
 
-ConGLUDe, ConPLex and SPRINT do not publish target lists in a usable form, so
-their layer labels are inherited from LigUnity's split and are approximate.
+ConGLUDe and SPRINT do not publish target lists in a usable form, so their layer
+labels are inherited from LigUnity's split and are approximate.
+
+**ConPLex is no longer in this group.** It publishes training sequences without
+accessions, which is enough: reverse-looking them up with mmseqs (identity, both
+coverages ≥50%, E ≤1e-3) puts its set at **19.4% of T3 targets at ≥95%
+identity** — 50% of L1, 51% of L2, 26% of L3, 12% of L4, the same shape as the
+other two training sets
+([`timesplit/analysis/conplex_train_coverage.py`](timesplit/analysis/conplex_train_coverage.py),
+[`results/T3_per_model_audit.csv`](results/T3_per_model_audit.csv)). That check
+also turned up a leak this benchmark had been reporting as a result — see
+[§23](#23-one-model-was-trained-on-dud-e).
 
 For ConGLUDe the overlap was measurable another way and is large: **37–43% of
 L3/L4 targets appear in its training data**. It was checked whether that
@@ -109,6 +119,9 @@ Measured, not assumed ([`timesplit/analysis/stratify_pocketfit.py`](timesplit/an
 the effect is real (L2, p = 0.0008) and appears **only** in structure models —
 the sequence-only negative control (ConPLex) shows nothing. Correcting for it
 moves the decay from −72% to −67%. The conclusion stands; the magnitude shifts.
+
+This control is computed on T3, where ConPLex is not contaminated. The same
+argument must not be made from DUD-E — see [§23](#23-one-model-was-trained-on-dud-e).
 
 ## 6. L3 is small
 
@@ -202,10 +215,12 @@ applying to the *targets*, not to the weights.
 
 ## 13. Coverage gaps
 
-- **T1: 7 of 9 models run.** ConGLUDe, ConPLex and SPRINT need their inputs
-  (sequences, structures, 3Di tokens) prepared for these benchmarks and are not
-  queued. CASF-2016 exists for LigUnity ×2 only — the two forks' CASF code path
-  calls their own model with the wrong signature.
+- **T1: all 10 models run** on DUD-E, DEKOIS and LIT-PCBA. Target counts differ
+  slightly by model (ProtBert's 2,000-residue limit, foldseek failures) and are
+  recorded per row in [`results/T1_main.csv`](results/T1_main.csv). ⚠️ ConPLex's
+  DUD-E column is not comparable — see [§23](#23-one-model-was-trained-on-dud-e).
+  CASF-2016 exists for LigUnity ×2 only — the two forks' CASF code path calls
+  their own model with the wrong signature.
 - **T4: not started.**
 - **T5: apo structures and MD conformers not tested** — only experimental vs
   predicted holo, and pocket cutoff.
@@ -416,3 +431,30 @@ supported, but "the model resolves individual targets" is not.
 Only L1 and L4 were run. Each target drew 3 substitutes, and substitutes were not
 deduplicated across targets.
 
+## 23. One model was trained on DUD-E
+
+ConPLex's contrastive objective draws its negatives from DUD-E decoys — that is
+the method, not an ablation, and `contrastive: True` is the shipped default. The
+training targets are the `train` half of `dataset/DUDe/dude_*_train_test_split.csv`;
+the repository publishes two such splits whose union is **40 of the 102 targets
+our T1 scores**.
+
+We ran ConPLex on all 102 for eleven months and reported EF1% 18.70 as its
+screening performance. On the 45 targets neither split file ever names, it is
+**4.83**, with AUROC 0.577. The other nine models move between −10% and +7% on
+the same restriction.
+
+**Why it went unnoticed:** nothing about the run looks wrong. The model loads,
+scores every target, and lands in a plausible position — last among the
+dual-tower models, which is what a sequence-only model is expected to do. The
+number is only visibly wrong once the evaluation set is split by the model's own
+training list, and that list lives in a CSV in the repository rather than in the
+paper or the model card.
+
+**What it implies for the other two unavailable sets.** ConGLUDe and SPRINT
+publish no usable target list. ConGLUDe was checked another way and shows no
+detectable effect (p = 0.90), and SPRINT's DUD-E score is too low to hide one.
+But the general point stands: **a benchmark cannot certify a model whose
+training set it cannot see**, and three of ten models here were in that position
+until this check. Detail and reproduction in
+[`tasks/T1-enrichment.md`](tasks/T1-enrichment.md#conplex-trained-on-dud-e).

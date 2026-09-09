@@ -22,7 +22,7 @@ CAND = [
     ("hypseek_official_vs a=1",          f"{B}/results/hypseek_official_vs_a1"),
     ("hypseek_official_rk a=0",          f"{B}/results/hypseek_official_rk"),
     ("hypseek_official_rk a=1",          f"{B}/results/hypseek_official_rk_a1"),
-    ("hypseek_vs_collab (代哥训)",       f"{B}/results/hypseek_vs_collab"),
+    ("hypseek_vs_collab (合作者训)",     f"{B}/results/hypseek_vs_collab"),
     ("hypseek_vs_s1 (我们训)",           f"{B}/results/hypseek_vs_seed1"),
 ]
 
