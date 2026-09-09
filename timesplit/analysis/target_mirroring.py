@@ -46,8 +46,13 @@ def main():
     ap.add_argument("--targets", default=f"{B}/results/export/T3_targets.csv")
     ap.add_argument("--sequences", default=f"{B}/data/t3/sequences.json")
     ap.add_argument("--sequences-extra", default=f"{B}/data/t3/sequences_extra.json")
-    ap.add_argument("--train-label",
-                    default=f"{B}/code/LigUnity/test_datasets/train_label_blend_seq_full.json")
+    ap.add_argument("--train-label", nargs="+",
+                    default=[f"{B}/data/raw/figshare/train_label_blend_seq_full.json",
+                             f"{B}/data/raw/figshare/train_label/train_label_pdbbind_seq.json"],
+                    help="训练集标签文件，可给多个取并集。"
+                         "LigUnity 系训练时读**两个**（train_task.py:523-524）："
+                         "亲和力半 2,196 个 UniProt + 结构半 3,468 个，并集 4,847。"
+                         "早先只给了前者，同源命中率因此被系统性低估。")
     ap.add_argument("--threads", type=int, default=24)
     ap.add_argument("--sensitivity", type=float, default=7.5)
     ap.add_argument("--min-cov", type=float, default=0.50,
@@ -74,15 +79,24 @@ def main():
     nq = write_fasta(f"{args.workdir}/query.fa", q)
     print(f"T3 唯一靶点 {len(layers)}，有序列 {nq}")
 
-    # ---- 参照集：训练集靶点（按 uniprot 去重）
-    lab = json.load(open(args.train_label))
-    t = {}
-    for a in lab:
-        u, s = a.get("uniprot"), a.get("sequence")
-        if u and s and u not in t:
-            t[u] = s
+    # ---- 参照集：训练集靶点（多个标签文件取并集，按 uniprot 去重）
+    paths = ([args.train_label] if isinstance(args.train_label, str)
+             else list(args.train_label))
+    lab, t = [], {}
+    for p_ in paths:
+        if not os.path.exists(p_):
+            print(f"  跳过（不存在）{p_}")
+            continue
+        d = json.load(open(p_))
+        lab += d
+        n0 = len(t)
+        for a in d:
+            u, s = a.get("uniprot"), a.get("sequence")
+            if u and s and u not in t:
+                t[u] = s
+        print(f"  {os.path.basename(p_):40} {len(d):6,} 条，新增 {len(t)-n0:5,} 个靶点")
     nt = write_fasta(f"{args.workdir}/train.fa", t)
-    print(f"训练集条目 {len(lab)}，去重后靶点 {nt}")
+    print(f"训练集条目合计 {len(lab):,}，去重后靶点 {nt:,}")
 
     overlap = set(q) & set(t)
     print(f"两边都出现的 UniProt: {len(overlap)}（L1/L2 本来就该在训练集里）\n")
