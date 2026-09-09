@@ -57,8 +57,17 @@ def main():
                     help="每靶点最多采样多少诱饵进训练，控制内存；评测时用全量")
     ap.add_argument("--workers", type=int, default=16)
     ap.add_argument("--metrics-dir", default=f"{B}/eval")
-    ap.add_argument("--out", default=f"{B}/results/export/T3_ligand_only_learned.csv")
+    ap.add_argument("--clf", choices=["gbdt", "mlp"], default="gbdt",
+                    help="任务清单 4.2 要求两个实现：GBDT 和 2 层 MLP。"
+                         "两个都跑是为了确认结论不是某个模型族的特例——"
+                         "树模型和神经网络在稀疏二值指纹上的归纳偏置很不一样，"
+                         "如果两边都低于随机，那就不是模型选择的问题。")
+    ap.add_argument("--out", default=None,
+                    help="不给就按 --clf 自动命名")
     args = ap.parse_args()
+    if args.out is None:
+        suffix = "" if args.clf == "gbdt" else f"_{args.clf}"
+        args.out = f"{B}/results/export/T3_ligand_only_learned{suffix}.csv"
     sys.path.insert(0, args.metrics_dir)
     from metrics import enrichment_factor, bedroc, roc_auc
 
@@ -98,16 +107,30 @@ def main():
         for s in keep_d:
             X.append(F[s]); y.append(0); grp.append(up); meta.append((L, up, s))
     X = np.array(X, dtype=np.uint8); y = np.array(y); grp = np.array(grp)
-    print(f"训练矩阵 {X.shape}，活性 {y.sum():,}")
+    print(f"训练矩阵 {X.shape}，活性 {y.sum():,}，分类器 {args.clf}")
 
     # 按靶点分折：同一靶点的活性同系列，按分子分折会泄漏化学系列
     pred = np.zeros(len(y))
     gkf = GroupKFold(n_splits=args.folds)
+    def make_clf():
+        if args.clf == "mlp":
+            # 2 层 MLP，隐层 (512, 128)。early_stopping 用训练集内部再切 10%，
+            # 不碰测试折——否则等于用测试数据调停止点。
+            from sklearn.neural_network import MLPClassifier
+            return MLPClassifier(hidden_layer_sizes=(512, 128), activation="relu",
+                                 alpha=1e-4, batch_size=256, learning_rate_init=1e-3,
+                                 max_iter=60, early_stopping=True,
+                                 n_iter_no_change=5, validation_fraction=0.1,
+                                 random_state=1)
+        return HistGradientBoostingClassifier(max_iter=300, learning_rate=0.1,
+                                              max_depth=None, random_state=1)
+
     for k, (tr, te) in enumerate(gkf.split(X, y, grp), 1):
-        clf = HistGradientBoostingClassifier(max_iter=300, learning_rate=0.1,
-                                             max_depth=None, random_state=1)
-        clf.fit(X[tr], y[tr])
-        pred[te] = clf.predict_proba(X[te])[:, 1]
+        clf = make_clf()
+        Xtr = X[tr].astype(np.float32) if args.clf == "mlp" else X[tr]
+        Xte = X[te].astype(np.float32) if args.clf == "mlp" else X[te]
+        clf.fit(Xtr, y[tr])
+        pred[te] = clf.predict_proba(Xte)[:, 1]
         print(f"  fold {k}/{args.folds}: 训练 {len(tr):,} 测试 {len(te):,}", flush=True)
 
     by = collections.defaultdict(lambda: ([], []))

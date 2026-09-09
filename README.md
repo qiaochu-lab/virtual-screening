@@ -95,7 +95,11 @@ already working in this area.
    ECFP4 and never learns which target it is scoring (GroupKFold by uniprot —
    grouping by molecule would split a congeneric series across the fold boundary)
    lands **below random at every layer**: mean AUROC 0.513 / 0.428 / 0.442 / 0.379
-   for L1–L4, and EF@1% of exactly 0 on 259 of 328 targets. So every bit of T3's
+   for L1–L4, and EF@1% of exactly 0 on 259 of 328 targets. A two-layer MLP on the
+   same fingerprints, folds and features agrees to within 0.0065 AUROC
+   (0.511 / 0.422 / 0.414 / 0.374), so this is not an artefact of one model
+   family — a tree ensemble and a neural net have very different inductive biases
+   on sparse binary fingerprints and both land below chance. So every bit of T3's
    signal comes from ligand-to-known-ligand similarity for that target, and none
    from drug-likeness of the molecule alone — which is what cross-target real
    actives as decoys were chosen to guarantee.
