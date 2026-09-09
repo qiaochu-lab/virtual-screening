@@ -1,0 +1,8 @@
+benchmark,n_targets,n_actives,n_decoys,ratio,actives_per_target_median,actives_per_target_min,actives_per_target_max,n_active_scaffolds,scaffolds_per_target_median,scaffold_to_active_ratio_median,singleton_scaffold_frac_median
+DUD-E,102,22800,1410736,1:61.9,155,40,592,17730,154,0.9975,1.0000
+DEKOIS 2.0,81,3235,97107,1:30.0,40,37,40,2169,33,0.8250,0.8710
+LIT-PCBA,15,10029,2797583,1:278.9,102,13,7166,6776,77,0.7821,0.8337
+T3 L1,349,17066,853300,1:50.0,24,10,665,3159,12,0.4583,0.6935
+T3 L2,488,102005,5079529,1:49.8,66,10,3262,32952,32,0.4933,0.7000
+T3 L3,53,4358,217900,1:50.0,34,10,855,1672,16,0.4348,0.6667
+T3 L4,254,32774,1638700,1:50.0,44,10,1507,11133,19,0.4478,0.6906

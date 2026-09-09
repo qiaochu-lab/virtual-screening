@@ -62,6 +62,74 @@ Machine-readable: [`results/T1_main.csv`](../results/T1_main.csv).
 | ConPLex | sequence only | 18.70 | 10.46 | 2.15 |
 | SPRINT | SaProt 3Di sequence | 4.58 | 3.09 | 8.95 ⚠️ |
 
+## What these three benchmarks are made of
+
+Numbers counted from the evaluation sets themselves
+([`standard/benchmark_stats_t1.py`](../standard/benchmark_stats_t1.py) →
+[`results/T1_benchmark_stats.csv`](../results/T1_benchmark_stats.csv)), with our
+own T3 measured the same way so the two are comparable.
+
+| | targets | actives | decoys | ratio | actives/target (median) | **scaffolds/active** | **singleton scaffolds** |
+|---|---|---|---|---|---|---|---|
+| DUD-E | 102 | 22,800 | 1,410,736 | 1:62 | 155 | **0.997** | **100.0%** |
+| DEKOIS 2.0 | 81 | 3,235 | 97,107 | 1:30 | 40 | 0.825 | 87.1% |
+| LIT-PCBA | 15 | 10,029 | 2,797,583 | 1:279 | 102 | 0.782 | 83.4% |
+| T3 L1 | 349 | 17,066 | 853,300 | 1:50 | 24 | **0.458** | 69.4% |
+| T3 L2 | 488 | 102,005 | 5,079,529 | 1:50 | 66 | 0.493 | 70.0% |
+| T3 L3 | 53 | 4,358 | 217,900 | 1:50 | 34 | 0.435 | 66.7% |
+| T3 L4 | 254 | 32,774 | 1,638,700 | 1:50 | 44 | 0.448 | 69.1% |
+
+"Scaffolds/active" is the number of distinct Bemis–Murcko scaffolds divided by
+the number of actives, per target, median across targets. 1.0 means every active
+has its own scaffold; 0.45 means each scaffold carries about two actives.
+
+**DUD-E's actives are scaffold-deduplicated by construction** — CDK2's 200
+actives give 200 distinct scaffolds, zero repeats. **T3's are not**: its actives
+are roughly twice as congeneric as any conventional benchmark. That is
+deliberate — real literature actives come in series — but it has to be stated,
+because the chemical-series oracle in
+[T3's leakage audit](T3-leakage.md) reaches 98.7% of ceiling on T3 and a reader
+will reasonably ask how much of that is T3's own construction.
+
+### The oracle answers that question, and not the way we expected
+
+Running the same target-conditioned ligand-similarity oracle on the conventional
+benchmarks ([`standard/oracle_ceiling_t1.py`](../standard/oracle_ceiling_t1.py) →
+[`results/T1_oracle_ceiling.csv`](../results/T1_oracle_ceiling.csv)):
+
+| Benchmark | EF@1% | ceiling | **% of ceiling** | BEDROC | AUROC |
+|---|---|---|---|---|---|
+| **DUD-E** | 62.56 | 62.57 | **100.0%** | 0.987 | 0.993 |
+| DEKOIS 2.0 | 29.64 | 31.02 | **95.5%** | 0.918 | 0.965 |
+| *T3 (all four layers)* | *~50.4* | *51.0* | *98.7%* | | |
+| **LIT-PCBA** | 33.22 | 88.23 | **39.8%** | 0.372 | 0.746 |
+
+**DUD-E — the most scaffold-diverse of the four — is the one the oracle solves
+completely.** So T3's 98.7% is not an artefact of its congeneric actives; every
+benchmark here except LIT-PCBA falls to a protein-blind chemical-similarity
+lookup.
+
+The mechanism differs, and that is the interesting part. Median max-Tanimoto of
+actives to other actives, against decoys to actives:
+
+| | actives → actives | decoys → actives | gap |
+|---|---|---|---|
+| DUD-E | 0.65–0.76 | ~0.17 | 0.47–0.59 |
+| **T3 L4** | **0.78–0.89** | ~0.16 | **0.63–0.70** |
+| LIT-PCBA | 0.29–0.42 | 0.19–0.26 | **0.06–0.16** |
+
+**DUD-E separates because its decoys were chosen to be topologically unlike the
+actives** (property-matched, topology-mismatched, by protocol). **T3 separates
+because its actives are congeneric series.** Two different constructions, the
+same consequence — and **T3's gap is the largest of the three**, so this is a
+limitation of our dataset, not only of DUD-E.
+
+**LIT-PCBA is the only benchmark where actives and inactives overlap
+chemically**, and it is also the only one where every model here collapses to
+near-random AUROC (0.55–0.72). Those two facts are the same fact.
+
+---
+
 **AUROC** tells the same story more smoothly: HypSeek 0.967 / 0.964 / 0.613,
 DrugCLIP 0.807 / 0.791 / 0.572, ConPLex 0.683 / 0.666 / 0.554.
 
