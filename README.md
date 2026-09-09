@@ -104,15 +104,25 @@ already working in this area.
 
 4. **Swapping the target to an unrelated protein collapses every model to
    chance.** Holding the candidate pool fixed — same molecules, same labels, same
-   order — and replacing only the target identity drops EF@1% by **83–99%** and
-   lands AUROC at **0.471–0.522, median 0.500** across eight models at L4. Not
-   degraded: indistinguishable from a coin flip. This is what rules out the
-   reading that finding 2 invites — the models are *not* ignoring the protein.
-   The dependence also scales with capability: the strongest model loses 99.3%
-   of its enrichment, while SPRINT, whose AUROC barely clears chance to begin
-   with (0.589/0.558), is the only model that does not significantly degrade
-   (p = 0.077). **Weak models are not more robust; they were never using the
-   target.** → [Target swap](tasks/T5-target-swap.md)
+   order — and replacing only the target identity lands AUROC at **0.475–0.527
+   at L4** and **0.471–0.570 at L1**, across all ten models, three substitute
+   draws each. Not degraded: indistinguishable from a coin flip. Every one of
+   the seven pocket models drops by 19–42% with p < 2e-4. This is what rules out
+   the reading that finding 2 invites — the models are *not* ignoring the
+   protein. The dependence scales with capability: HypSeek falls 0.918 → 0.570
+   at L1, while SPRINT, whose correct-target AUROC barely clears chance to begin
+   with (0.584/0.516), does not significantly degrade at L1 at all (p = 0.22),
+   and ConPLex does not at L4 (p = 0.28). **Weak models are not more robust;
+   they were never using the target.**
+   → [Target swap](tasks/T5-target-swap.md),
+   [`results/T3_target_swap.csv`](results/T3_target_swap.csv)
+
+   ⚠️ The collapse is to chance, not *below* it, and two L1 cells sit visibly
+   above: HypSeek 0.570 and SPRINT 0.567. Something survives the swap at L1 that
+   is not target identity — most likely the ligand-side signal that finding 5
+   localises there. A **within-family** swap, replacing the target with a
+   homologue rather than an unrelated protein, is running now and will say
+   whether what the models use is target identity or only family membership.
 
 5. **Ligand-side leakage is entirely confined to L1.** 32.1% of L1 actives are
    exact InChIKey matches to a training ligand (decoy background: 3.7%), and their
