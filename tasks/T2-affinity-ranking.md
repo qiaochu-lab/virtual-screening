@@ -329,7 +329,7 @@ the clean ones in label quality as well as spread, and only spread was corrected
 
 Because the "clean" group is clean only by *exact PDB ID*, some of those 19
 targets are plausibly near-neighbours of training targets by pocket or
-interaction similarity ([`LIMITATIONS.md`](../LIMITATIONS.md) §24). The bias
+interaction similarity ([`LIMITATIONS.md`](../LIMITATIONS.md) §25). The bias
 direction is therefore known: **0.800 vs 0.399 is a lower bound on the gap.**
 
 #### The intervention that would have settled it does not exist
