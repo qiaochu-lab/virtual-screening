@@ -120,9 +120,25 @@ already working in this area.
    ⚠️ The collapse is to chance, not *below* it, and two L1 cells sit visibly
    above: HypSeek 0.570 and SPRINT 0.567. Something survives the swap at L1 that
    is not target identity — most likely the ligand-side signal that finding 5
-   localises there. A **within-family** swap, replacing the target with a
-   homologue rather than an unrelated protein, is running now and will say
-   whether what the models use is target identity or only family membership.
+   localises there.
+
+4b. **What they use is family membership, not target identity.** Repeating the
+   swap with a *homologous* substitute — same CD-HIT-40% cluster, same candidate
+   pool, verified zero self-pairs (HDAC3→HDAC1, carbonic anhydrase I→II,
+   JAK2→JAK3) — costs essentially nothing. Against the 19–42% AUROC collapse and
+   93.5–99.3% EF collapse an unrelated protein causes, a homologue moves AUROC by
+   **−4.1% to +9.8%** and EF@1% by **−18% to +12%**, and **not one of the ten
+   models degrades significantly**. HypSeek's L1 AUROC goes 0.918 → 0.570 on an
+   unrelated target and 0.918 → 0.907 on a relative.
+
+   So the protein signal is real — finding 4 stands — but **its resolution stops
+   at the family**. For screening that means a model transfers within a family
+   that already has known ligands, and there is no evidence here that it can tell
+   two members of one family apart. ⚠️ L4 has only **7** substitute pairs, which
+   is structural rather than a sampling shortfall (L4 targets are by definition
+   from families the training set never saw), so this rests on L1's 32–34 pairs.
+   → [Target swap](tasks/T5-target-swap.md),
+   [`results/T3_target_swap_family.csv`](results/T3_target_swap_family.csv)
 
 5. **Ligand-side leakage is confined to L1 — and only for the four models
    trained on the affinity half.** Against that half's 428,767 ligands, 32.1% of
