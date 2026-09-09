@@ -21,23 +21,36 @@ came from, and what to know about each before reading its numbers.
 The UniMol-family models additionally load the shared pretrained encoders
 `mol_pre_no_h_220816.pt` and `pocket_pre_220816.pt`.
 
-## Only two training sets across seven models
+## One training set across seven models, and half of them also get affinity labels
 
-| Set | Size | Used by |
+The seven pocket-family models are **not** trained on rival corpora. LigUnity's
+training task reads two label files (`unimol/tasks/train_task.py:523-524`):
+
+| Half | Size | Trained on by |
 |---|---|---|
-| `train_no_test_af` | 16,744 PDB pockets → **4,098 UniProt** | DrugCLIP, BindCLIP ×2 |
-| PocketAffDB | **2,196 UniProt** | LigUnity ×2, LiTENCLIP, HypSeek |
+| `train_label_pdbbind_seq.json` — structures only | **16,744 PDB entries** → 3,468 UniProt | all seven |
+| `train_label_blend_seq_full.json` — with pAff | **2,196 UniProt**, 26,748 assays | LigUnity ×2, LiTENCLIP, HypSeek |
 
-Overlap between them: **881 UniProt**. Union: 5,413.
+**The structure half is the same data as DrugCLIP's `train_no_test_af`**:
+16,744 PDB entries on each side, intersection 16,744, neither exclusive.
+So DrugCLIP and the BindCLIP pair see the structure half; the other four see
+that *plus* affinity labels for 2,196 targets. Union at UniProt level: 4,847.
 ([`standard/build_train_union.py`](standard/build_train_union.py))
+
+⚠️ This page previously described these as two separate sets of 4,098 and 2,196
+UniProt overlapping in 881. That counted only the affinity half for the second
+group. The correction, and what it does to the findings that rested on it, is in
+[`LIMITATIONS.md` §24](LIMITATIONS.md).
 
 LiTENCLIP's `test_datasets/` are symlinks into LigUnity's, so the two share the
 training files byte-for-byte — which is why T3's cutoff date is valid for both
 without adjustment.
 
-**This is the basis of a finding**, not just bookkeeping: the three models
-trained on PocketAffDB all land at L1 EF1% 32–39, and the three trained on the
-DrugCLIP set all land at 17–19, across substantial architectural differences.
+**This is the basis of a finding**, not just bookkeeping: the four models that
+get affinity labels land at L1 EF1% 32–39, and the three with structures only
+land at 17–19, across substantial architectural differences. Because the
+structures are identical between the groups, the comparison isolates **what the
+labels add**, not how much data each had.
 
 ## What the other three models trained on
 
@@ -57,9 +70,9 @@ so long. What is actually obtainable, and how:
 DUD-E decoys. That second half is the one that invalidated a number we had been
 reporting; see [`tasks/T1-enrichment.md`](tasks/T1-enrichment.md#conplex-trained-on-dud-e).
 
-SPRINT's 336 accessions are worth noting for their size — against PocketAffDB's
-2,196 and the DrugCLIP set's 4,098, it is trained on an order of magnitude fewer
-proteins than the pocket family. That is a plausible part of why it is last on
+SPRINT's 336 accessions are worth noting for their size — against the pocket
+family's 4,847-UniProt union, it is trained on an order of magnitude fewer
+proteins. That is a plausible part of why it is last on
 two of three standard benchmarks, and it is not something its paper foregrounds.
 (42 further accessions are excluded as LIT-PCBA targets, leaving 294 for any
 comparison against that benchmark.)

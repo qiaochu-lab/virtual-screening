@@ -35,11 +35,21 @@ LAYERS = ["L1", "L2", "L3", "L4"]
 
 
 def load_sets():
+    """四套训练集。B 组是**两个**标签文件的并集，见 per_model_layers.load_B 的注释。
+
+    train_task.py:523-524 同时读 pdbbind 半（3,468 UniProt / 16,744 PDB）和
+    blend 半（2,196 UniProt）。pdbbind 半覆盖的 16,744 个 PDB 与 DrugCLIP 的
+    train_no_test_af 完全相同，所以 **A ⊂ B**。
+    """
     import pickle
 
     import lmdb
-    lab = json.load(open(f"{B}/data/raw/figshare/train_label_blend_seq_full.json"))
-    Bs = {a["uniprot"] for a in lab if a.get("uniprot")}
+    Bs = set()
+    for f in ("train_label_blend_seq_full.json",
+              "train_label/train_label_pdbbind_seq.json"):
+        p = f"{B}/data/raw/figshare/{f}"
+        if os.path.exists(p):
+            Bs |= {a["uniprot"] for a in json.load(open(p)) if a.get("uniprot")}
     pdb2up = json.load(open(f"{B}/data/t3/drugclip_pdb2uniprot.json"))
     e = lmdb.open(f"{B}/data/train_no_test_af/train.lmdb",
                   subdir=False, readonly=True, lock=False)

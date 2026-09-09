@@ -466,7 +466,46 @@ training set it cannot see**, and three of ten models here were in that position
 until this check. Detail and reproduction in
 [`tasks/T1-enrichment.md`](tasks/T1-enrichment.md#conplex-trained-on-dud-e).
 
-## 24. What the per-model layering does and does not settle
+## 24. A published finding was retracted: the two training sets are nested
+
+For one afternoon, finding 18 read: *"PocketAffDB membership is worth ~2.4 rank
+places; `train_no_test_af` membership is worth nothing measurable."* It was
+pushed, and it was wrong.
+
+The error: LigUnity-family training reads **two** label files
+(`unimol/tasks/train_task.py:523-524`) — an affinity half
+(`train_label_blend_seq_full.json`, 2,196 UniProt) and a structure half
+(`train_label_pdbbind_seq.json`, 3,468 UniProt / 16,744 PDB entries). Only the
+first had ever been counted. The second is not separate data: its 16,744 PDB
+entries are **exactly** DrugCLIP's `train_no_test_af` — 16,744 on each side,
+intersection 16,744, neither exclusive. **One training set contains the other.**
+
+The crossover that produced "2.4 rank places" compared cells defined as "in A
+only" and "in B only", which presumes the sets are disjoint. Recomputed against
+the two label halves, the effect survives but weakens: **1.54 places, p = 0.0095**,
+with one exception in each direction (HypSeek +0.30, ConGLUDe −0.16) where the
+first version had a perfect ten-model separation. The structure-only cell holds
+**7 targets**.
+
+**The measurements were never wrong; the attribution was.** What is actually
+shown is narrower: on targets reachable only through the affinity-labelled half,
+the four models trained on it rank ~1.5 places better. On the structure half —
+which all seven pocket models trained on — no group stands out, which is what
+should happen when everyone has seen the data.
+
+**Two things this changes elsewhere.** The layer labels are contaminated: 4 of
+19 L3 targets and 8 of 75 L4 targets in the 350-quota subset were seen by the
+four models through the structure half, which **understates** their decay.
+And `target_mirroring.py` compares against 2,196 targets where it should compare
+against the 4,847-target union, so its homology hit rate is an underestimate.
+
+**What went wrong procedurally:** the training set was read from the file the
+project had always used, not from the training code. One `grep` for
+`train_label` in `unimol/tasks/` would have shown two files on adjacent lines.
+The check is now: *before defining a model's training set, read the loader, not
+the data directory.*
+
+## 25. What the per-model layering does and does not settle
 
 [`tasks/T3-leakage.md` §6](tasks/T3-leakage.md) re-cuts the layers using each
 model's own training set. Two limits on how far that result reaches.
@@ -502,7 +541,7 @@ ratio version is kept in
 [`results/T3_per_model_layers_ctrl.csv`](results/T3_per_model_layers_ctrl.csv)
 only so the discrepancy is inspectable.
 
-## 25. Half of CASF-2016 is in the PocketAffDB training set
+## 26. Half of CASF-2016 is in the PocketAffDB training set
 
 **148 of CASF-2016's 285 complexes (51.9%) appear in PocketAffDB by exact PDB
 ID.** Not "a similar structure" — the same deposition. PocketAffDB stores each

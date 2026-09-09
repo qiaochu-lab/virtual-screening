@@ -37,6 +37,29 @@ CONPLEX_IDENT = 0.95
 
 
 def load_B():
+    """B 组（LigUnity ×2 / LiTENCLIP / HypSeek）的训练靶点 = 两个标签文件的并集。
+
+    train_task.py:523-524 同时读 train_label_pdbbind_seq.json（结构半，3,468 个
+    UniProt / 16,744 个 PDB）和 train_label_blend_seq_full.json（亲和力半，
+    2,196 个）。此前只算了后者。
+
+    而结构半覆盖的 16,744 个 PDB 与 DrugCLIP 的 train_no_test_af **完全相同**
+    （交集 16,744，各自独有 0），所以 A 组训练结构是 B 组的真子集。
+    """
+    ups = set()
+    for f in ("train_label_blend_seq_full.json",
+              f"train_label/train_label_pdbbind_seq.json"):
+        p = f"{B}/data/raw/figshare/{f}"
+        if not os.path.exists(p):
+            continue
+        for a in json.load(open(p)):
+            if a.get("uniprot"):
+                ups.add(a["uniprot"])
+    return ups
+
+
+def load_B_blend_only():
+    """只有亲和力半 —— 用来把「亲和力标签」和「结构」两件事分开。"""
     lab = json.load(open(f"{B}/data/raw/figshare/train_label_blend_seq_full.json"))
     return {a["uniprot"] for a in lab if a.get("uniprot")}
 
