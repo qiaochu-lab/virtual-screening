@@ -199,7 +199,7 @@ def main():
     print(f"涉及 mmCIF: {len(ids):,}，下载/校验 ...", flush=True)
     with ThreadPoolExecutor(args.workers) as ex:
         paths = list(ex.map(lambda i: fetch(i, args.cache_dir), ids))
-    cache = {i: p for i, p in zip(ids, paths) if p}
+    cache = {i: p for i, p in zip(ids, paths, strict=True) if p}
     print(f"  拿到 {len(cache):,}/{len(ids):,}", flush=True)
 
     envs = {}

@@ -89,7 +89,7 @@ def main():
     for t in full:
         ms = sorted(EF[t])
         rk = rankdata([-EF[t][m] for m in ms], method="average")   # 1 = 最好
-        RANK[t] = dict(zip(ms, rk))
+        RANK[t] = dict(zip(ms, rk, strict=True))
 
     rows = [["model", "train_set", "n_seen", "n_unseen", "P_seen_gt_unseen",
              "p_mwu", "rank_seen", "rank_unseen", "rank_gain"]]

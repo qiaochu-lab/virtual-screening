@@ -70,7 +70,9 @@ def main(models):
         pr = stats.pearsonr(score[ok], y[ok]).statistic
 
         per = defaultdict(list)
-        for s, a, g in zip(score, y, grp):
+        # score 是加载来的数组，y/grp 是循环里建的——长度不等必须炸，
+        # 静默截断会让每个靶点配上别人的分数。
+        for s, a, g in zip(score, y, grp, strict=True):
             if not np.isnan(a):
                 per[g].append((s, a))
         rhos = [stats.spearmanr([x[0] for x in v], [x[1] for x in v]).statistic

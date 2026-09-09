@@ -40,7 +40,9 @@ def write_pocket_pdb(rec, path):
     coords = np.asarray(rec["pocket_coordinates"], dtype=float)
     atoms = rec["pocket_atoms"]
     with open(path, "w") as f:
-        for i, (a, c) in enumerate(zip(atoms, coords), 1):
+        # 原子名和坐标长度不等必须炸——静默截断会写出一个残缺的口袋 PDB，
+        # 而对接照样能跑完，只是盒子和受体都错了。
+        for i, (a, c) in enumerate(zip(atoms, coords, strict=True), 1):
             el = "".join(ch for ch in a if ch.isalpha())[:1] or "C"
             f.write(f"ATOM  {i:5d} {a[:4]:<4s} POC A   1    "
                     f"{c[0]:8.3f}{c[1]:8.3f}{c[2]:8.3f}  1.00  0.00          {el:>2s}\n")

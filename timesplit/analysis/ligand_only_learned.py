@@ -74,7 +74,8 @@ def main():
     print(f"唯一分子 {len(smis):,}，建指纹…", flush=True)
     with ProcessPoolExecutor(args.workers) as ex:
         fps = list(ex.map(fp, smis, chunksize=500))
-    F = {s: f for s, f in zip(smis, fps) if f is not None}
+    # strict=True：长度不等立刻抛，不静默截断。见 PATCHES「并行列表」那条。
+    F = {s: f for s, f in zip(smis, fps, strict=True) if f is not None}
     print(f"  可用 {len(F):,}")
 
     rng = np.random.default_rng(1)
@@ -106,7 +107,7 @@ def main():
         print(f"  fold {k}/{args.folds}: 训练 {len(tr):,} 测试 {len(te):,}", flush=True)
 
     by = collections.defaultdict(lambda: ([], []))
-    for (L, up, _), p_, y_ in zip(meta, pred, y):
+    for (L, up, _), p_, y_ in zip(meta, pred, y, strict=True):
         by[(L, up)][0].append(p_); by[(L, up)][1].append(y_)
 
     rows = [["layer", "uniprot", "n_actives", "n_decoys", "ef1", "bedroc", "auroc"]]

@@ -52,7 +52,7 @@ def _identity(pair):
         # aln.aligned 给的是两条序列上互相对应的区间，比解析带 gap 的字符串稳，
         # 不依赖 Biopython 版本对 aln[0] 的返回类型（1.80 前后改过）。
         same = 0
-        for (i0, i1), (j0, j1) in zip(*aln.aligned):
+        for (i0, i1), (j0, j1) in zip(*aln.aligned, strict=True):
             same += sum(1 for k in range(i1 - i0) if sa[i0 + k] == sb[j0 + k])
     except Exception:
         return a, b, float("nan")

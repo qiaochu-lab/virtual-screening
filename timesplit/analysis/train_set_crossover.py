@@ -105,7 +105,8 @@ def main():
     RANK = {}
     for t in full:
         ms = sorted(EF[t])
-        RANK[t] = dict(zip(ms, rankdata([-EF[t][m] for m in ms], method="average")))
+        RANK[t] = dict(zip(ms, rankdata([-EF[t][m] for m in ms], method="average"),
+                          strict=True))
 
     P, L = load_halves()
     print(f"结构半 P（pdbbind，A+B 都训过）: {len(P):,} UniProt")
