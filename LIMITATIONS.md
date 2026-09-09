@@ -407,8 +407,9 @@ constraint), discarding 129 of 141 available kinases to do it.
 
 32.1% of L1 actives are exact InChIKey matches to training ligands (decoy
 background 3.7%), their median Tanimoto to the training set is 0.727, and 53.9%
-sit above 0.7. A ligand-only baseline with no protein input reaches 98.7% of the
-theoretical EF ceiling there.
+sit above 0.7. A target-conditioned ligand-similarity oracle — no protein input,
+but it reads the target's other known actives — reaches 98.7% of the theoretical
+EF ceiling there.
 
 L1 remains valid as the **control layer** — it demonstrates the pipeline is
 wired correctly — but an L1 enrichment number should not be read as evidence of

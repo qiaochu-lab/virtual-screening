@@ -56,5 +56,5 @@ Every script carries a docstring saying what the check is for and **how to read
 its output**, including what a null result would mean — written before the
 output existed.
 - [T3 dataset v2](T3-dataset-v2.md) — the ≥50-actives, VSDS-vd-matched subset
-- [T3 leakage audit](T3-leakage.md) — ligand-only baseline, target mirroring, novelty tiers
+- [T3 leakage audit](T3-leakage.md) — chemical-series oracle ceiling, true ligand-only baseline, target mirroring, novelty tiers
 - [Target swap](T5-target-swap.md) — hold the ligand pool, swap the target: does the model use the protein?

@@ -63,12 +63,17 @@ already working in this area.
    same tables already used this convention.
    → [T3](tasks/T3-time-split.md)
 
-2. **A ligand-only baseline reaches 98.7% of the theoretical ceiling — at every
+2. **A chemical-series oracle reaches 98.7% of the theoretical ceiling — at every
    layer.** Scoring each candidate purely by its 2D fingerprint similarity to the
    target's other actives (no protein at all) gives EF@1% ≈ 50.4 against a ceiling
    of 51.0, at L1 *and* L4. Actives of one target are largely one congeneric
-   series; cross-target decoys are not. The baseline sees the target's actives and
-   the models do not, so it is an **upper bound**, not an indictment — but it
+   series; cross-target decoys are not.
+
+   ⚠️ **This is not a "ligand-only baseline", and calling it one would overstate
+   it.** It is conditioned on the target — it reads that target's known actives,
+   which no model here is given. The accurate name is a **target-conditioned
+   ligand-similarity oracle**, and what it measures is a **ceiling**: how far
+   pure chemical similarity could go if you already knew what binds. It
    reframes the decay: the ceiling is flat across layers while models fall from 38
    to 9, so **what the models lose on novel targets is access to a memorisable
    chemical series**, not chemistry ability. Normalised against that ceiling, the
