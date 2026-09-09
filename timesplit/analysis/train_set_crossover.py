@@ -82,8 +82,15 @@ def load_halves():
 
 
 def main():
-    keep = {r["uniprot"] for r in csv.DictReader(
-        open(f"{B}/results/export/T3_vsds_matched.csv"))}
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--subset", default=f"{B}/results/export/T3_vsds_matched.csv",
+                    help="限定靶点子集；传 all 则用全部十模型共有的靶点。"
+                         "全量版是稳健性检查：「仅 P」格从 7 个涨到 28 个，"
+                         "小样本假象会在那里现形")
+    args = ap.parse_args()
+    keep = None if args.subset == "all" else {
+        r["uniprot"] for r in csv.DictReader(open(args.subset))}
     A, Bs = load_sets()
     S = json.load(open(f"{B}/results/t3/summary.json"))
 
@@ -91,7 +98,7 @@ def main():
     for m in S:
         for L in LAYERS:
             for r in S[m][L]["per_target"]:
-                if r["uniprot"] in keep:
+                if keep is None or r["uniprot"] in keep:
                     EF.setdefault(r["uniprot"], {})[m] = r["ef1"]
     full = sorted(t for t in EF if len(EF[t]) == len(S))
 
@@ -139,7 +146,8 @@ def main():
     print("所以 B 组为负、A 组为正，说明起作用的是**亲和力标签这一半**；")
     print("若所有模型同号，那就是这两格靶点本身难度不同，与训练无关。")
 
-    out = f"{B}/results/export/T3_train_set_crossover.csv"
+    out = (f"{B}/results/export/T3_train_set_crossover.csv" if keep is not None
+           else f"{B}/results/export/T3_train_set_crossover_full.csv")
     with open(out, "w", newline="") as f:
         csv.writer(f).writerows(rows)
     print(f"\n写入 {out}")

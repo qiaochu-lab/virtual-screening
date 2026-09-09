@@ -478,14 +478,38 @@ The error: LigUnity-family training reads **two** label files
 (`train_label_pdbbind_seq.json`, 3,468 UniProt / 16,744 PDB entries). Only the
 first had ever been counted. The second is not separate data: its 16,744 PDB
 entries are **exactly** DrugCLIP's `train_no_test_af` — 16,744 on each side,
-intersection 16,744, neither exclusive. **One training set contains the other.**
+intersection 16,744, neither exclusive.
+
+**What is nested is the models, not the files.** The two label files overlap in
+only 817 UniProt; 1,379 targets are affinity-only and 2,651 structure-only, so
+neither file contains the other. What nests is what each *group of models* saw:
+DrugCLIP and the BindCLIP pair saw the structure half; LigUnity ×2, LiTENCLIP
+and HypSeek saw that **plus** the affinity half. This distinction matters for
+reading the crossover below — the "affinity-only" cell is not empty, it holds
+36 targets in the 350-quota subset and 135 across all common targets.
 
 The crossover that produced "2.4 rank places" compared cells defined as "in A
 only" and "in B only", which presumes the sets are disjoint. Recomputed against
-the two label halves, the effect survives but weakens: **1.54 places, p = 0.0095**,
-with one exception in each direction (HypSeek +0.30, ConGLUDe −0.16) where the
-first version had a perfect ten-model separation. The structure-only cell holds
-**7 targets**.
+the two label halves, the effect survives but weakens: **1.54 places, p = 0.0095**
+(exact permutation, 2 of C(10,4) = 210 splits), against a perfect ten-model
+separation in the first version. The structure-only cell holds **7 targets** in
+the 350-quota subset, and two models sit on the wrong side of zero — HypSeek
++0.30 among the four, ConGLUDe −0.16 among the six.
+
+**Repeating it on all 635 common targets removes that exception.** The
+structure-only cell grows from 7 targets to 28, and HypSeek moves from +0.30 to
+−0.17, putting all four affinity-trained models on the same side. The group
+difference is 1.61 places at **the identical p = 0.0095**, so the effect is
+stable across a threefold change in sample size while the one anomaly is not —
+which is what a small-sample artefact looks like.
+([`results/T3_train_set_crossover_full.csv`](results/T3_train_set_crossover_full.csv),
+`train_set_crossover.py --subset all`)
+
+Both the subset and the full recomputation were **independently reproduced by a
+second agent** from the raw score arrays, along a separate code path: same four
+cell counts, same ten per-model values to two decimals, same permutation p. That
+check is now required before any published number is retracted or rewritten —
+a rule this retraction is the reason for.
 
 **The measurements were never wrong; the attribution was.** What is actually
 shown is narrower: on targets reachable only through the affinity-labelled half,

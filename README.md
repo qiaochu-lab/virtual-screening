@@ -247,9 +247,16 @@ already working in this area.
 
    **Finding 18 sharpens what "training data" means here.** The two sets are not
    rivals — the four leading models trained on *exactly* the same 16,744 PDB
-   structures as the other three, plus affinity labels for 2,196 targets. So the
-   claim is narrower and stronger than "more data wins": **the same structures,
-   once affinity labels are attached, take L1 EF@1% from 17–19 to 32–39.**
+   structures as the other three, plus an affinity-labelled half covering 2,196
+   targets. So the claim is narrower than "more data wins": **the same
+   structures, plus the affinity half, take L1 EF@1% from 17–19 to 32–39.**
+
+   ⚠️ **What the affinity half adds is not only labels.** Its 428,767 unique
+   ligands against the structure half's **13,590** — a **31.6×** larger chemical
+   space — arrive together with the pAff values. How much of the gap is the
+   labels and how much is the ligand diversity cannot be separated from these
+   two training sets alone; it would take retraining on one with the other held
+   fixed. The claim as stated is about the *half*, not about labels per se.
 
 14. **A checkpoint selected for affinity ranking is also the better screener.**
    HypSeek ships two weights from one run: `_vs` selected on screening, `_rk` on
@@ -332,16 +339,21 @@ already working in this area.
     that null is weak evidence, since all seven trained on those same targets
     and none can stand out. Splitting by which half a target came from, the four
     rank **1.54 places better** on targets only the affinity half contains
-    (group p = 0.0095, 3 of 4 individually, HypSeek the exception).
+    (exact permutation p = 0.0095). Repeated on all 635 common targets rather
+    than the 350-quota subset — which grows the thin structure-only cell from 7
+    targets to 28 — the gap is 1.61 places at the **identical p = 0.0095**, and
+    all four models fall on the same side, so the one exception in the subset
+    (HypSeek, +0.30) does not survive the larger sample.
     → [`tasks/T3-leakage.md`](tasks/T3-leakage.md)
 
     ⚠️ **This finding replaces an earlier version that was wrong.** It read
     "PocketAffDB membership is worth ~2.4 rank places; `train_no_test_af`
     membership is worth nothing measurable", from a crossover that assumed the
-    two training sets were disjoint. They are not — one contains the other. The
-    measurements were real; the attribution was not. The structure-only cell
-    holds **7 targets**, so the corrected contrast is underpowered and is
-    reported as weak evidence.
+    two training sets were disjoint. What is nested is not the two label files
+    (they share only 817 UniProt) but what each *group of models* saw. The
+    measurements were real; the attribution was not. Both the corrected numbers
+    and their full-sample replication were independently reproduced by a second
+    agent along a separate code path before this was rewritten.
 
 ## Repository layout
 
