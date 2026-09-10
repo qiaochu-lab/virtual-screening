@@ -130,10 +130,33 @@ ligand may be one of the test actives — the pocket is pre-shaped to fit what t
 model is being asked to find. This favours structure-based models specifically
 in the layers where they score highest.
 
-Measured, not assumed ([`timesplit/analysis/stratify_pocketfit.py`](timesplit/analysis/stratify_pocketfit.py)):
-the effect is real (L2, p = 0.0008) and appears **only** in structure models —
-the sequence-only negative control (ConPLex) shows nothing. Correcting for it
-moves the decay from −72% to −67%. The conclusion stands; the magnitude shifts.
+Measured, not assumed ([`timesplit/analysis/stratify_pocketfit.py`](timesplit/analysis/stratify_pocketfit.py)
+→ [`results/T5_pocketfit_all10.txt`](results/T5_pocketfit_all10.txt)). The effect
+is real, but **an earlier version of this section overstated how specific it is
+to structure models, because it had only been run on two models** — ConGLUDe as
+the "structure" arm and ConPLex as the control. Run on all ten:
+
+| | L1 (where the split is defined) | L2 |
+|---|---|---|
+| seven pocket models | **6 of 7 significant** (p = 0.0025–0.038) | **7 of 7 significant** |
+| LigUnity-protein (sequence) | 0.809 — clean | **0.0002 — significant** |
+| ConPLex (sequence) | 0.753 — clean | 0.420 — clean |
+| SPRINT (SaProt sequence) | 0.988 — clean | 0.260 — clean |
+
+**At L1 the negative control holds cleanly**: all three non-pocket models show
+nothing while six of seven pocket models do. **At L2 it breaks** — LigUnity-protein
+reads only sequence and still shows the effect at p = 0.0002, and p = 0.0008 was
+exactly the number this section used to quote. So the L2 effect is **not**
+structure-specific. The likely reading is that the stratifier (co-crystal ligand
+vs test ligand similarity) is partly a *ligand-familiarity* variable, which a
+sequence model can exploit through the target's known chemistry.
+
+Correcting the decay by using only the low-similarity half of L1 moves it by
+**0–8 points**, and not systematically more for pocket models — SPRINT, which
+reads no pocket, shows the largest shift (−46% → −38%) while LigUnity-protein
+shows none (−77% → −77%). HypSeek moves −80% → −76%, DrugCLIP −64% → −57%.
+**The conclusion stands and the magnitude shifts by less than the earlier
+"−72% → −67%" implied; what does not survive is "only structure models".**
 
 This control is computed on T3, where ConPLex is not contaminated. The same
 argument must not be made from DUD-E — see [§23](#23-one-model-was-trained-on-dud-e).

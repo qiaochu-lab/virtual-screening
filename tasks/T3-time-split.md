@@ -356,7 +356,7 @@ is recorded in [`LIMITATIONS.md`](../LIMITATIONS.md).
 
 | Check | Result |
 |---|---|
-| **Pocket-fit confound** — L1/L2 pockets are induced-fit to the test ligands (median Tanimoto 0.748 vs 0.12–0.28 for new targets) | Real (significant on L2, p=0.0008) but **only for structure models**; the sequence-model negative control shows nothing (p=0.73/0.45). Correcting moves decay −72% → −67%. Conclusion stands. |
+| **Pocket-fit confound** — L1/L2 pockets are induced-fit to the test ligands (median Tanimoto 0.748 vs 0.12–0.28 for new targets) | Real. Run on all ten models: at L1 six of seven pocket models are significant and all three sequence models are clean (p = 0.75–0.99); **at L2 LigUnity-protein, which reads only sequence, is also significant (p = 0.0002)** — so the L2 effect is *not* structure-specific. Correcting the decay moves it 0–8 points, largest for SPRINT (no pocket). Conclusion stands; "only structure models" does not. → [`LIMITATIONS.md` §5](../LIMITATIONS.md) |
 | **Structure quality** — restrict to targets with experimental structures or high-confidence predictions (82.6% of the set) | Decay changes by ≤7 points for all models; ranking unchanged |
 | **ConGLUDe contamination** — it was published 2026-01, so its training data may postdate our cutoff | 37–43% of our "new" L3/L4 targets **are** in its training set. But its performance on seen vs unseen targets is indistinguishable (L4: 3.72 vs 3.95, p=0.90), so no measurable inflation. Documented, not excluded. |
 
