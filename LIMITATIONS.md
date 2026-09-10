@@ -59,9 +59,17 @@ in the three undisclosed training sets, are not covered.
 
 ## 2. Layer labels are defined by one model's training set
 
-"Target seen / unseen" is judged against **LigUnity's** training set (2,196
-UniProt). DrugCLIP and BindCLIP were trained on a different set (16,744 PDB
-pockets → 4,098 UniProt; overlap with LigUnity's only 881)
+"Target seen / unseen" is judged against the **affinity half** of LigUnity's
+training data (`train_label_blend_seq_full.json`, 2,196 UniProt). DrugCLIP and
+BindCLIP trained on 16,744 PDB entries → 4,098 UniProt.
+
+⚠️ **Those are not two rival corpora**, which an earlier version of this section
+implied by quoting an overlap of 881. LigUnity's training also reads a *structure
+half* (`train_label_pdbbind_seq.json`) whose 16,744 PDB entries are **exactly**
+DrugCLIP's set. So the four affinity-trained models saw everything the other
+three saw, plus the affinity half — see [§24](#24-a-published-finding-was-retracted-the-two-training-sets-are-nested).
+The 881 figure compared only the affinity half against DrugCLIP's set and should
+not be quoted.
 ([`standard/quantify_train_union.py`](standard/quantify_train_union.py)):
 
 | Layer | Eval targets | Also in DrugCLIP's training set |
@@ -491,18 +499,19 @@ reading the crossover below — the "affinity-only" cell is not empty, it holds
 
 The crossover that produced "2.4 rank places" compared cells defined as "in A
 only" and "in B only", which presumes the sets are disjoint. Recomputed against
-the two label halves, the effect survives but weakens: **1.54 places, p = 0.0095**
+the two label halves, the effect survives but weakens: **1.73 places, p = 0.0095**
 (exact permutation, 2 of C(10,4) = 210 splits), against a perfect ten-model
-separation in the first version. The structure-only cell holds **7 targets** in
+separation in the first version. The structure-only cell holds **7 records** in
 the 350-quota subset, and two models sit on the wrong side of zero — HypSeek
-+0.30 among the four, ConGLUDe −0.16 among the six.
++0.12 among the four, ConGLUDe −0.19 among the six.
 
-**Repeating it on all 635 common targets removes that exception.** The
-structure-only cell grows from 7 targets to 28, and HypSeek moves from +0.30 to
-−0.17, putting all four affinity-trained models on the same side. The group
-difference is 1.61 places at **the identical p = 0.0095**, so the effect is
-stable across a threefold change in sample size while the one anomaly is not —
-which is what a small-sample artefact looks like.
+**Repeating it on all 840 common records removes that exception.** The
+structure-only cell grows from 7 to 28, and HypSeek moves from +0.12 to −0.37,
+putting all four affinity-trained models on the same side. The group difference
+goes from 1.73 to **1.85 places, and p from 2/210 to 1/210 — a perfect ten-model
+separation**. So the effect strengthens slightly across a threefold change in
+sample size while the one anomaly does not survive it, which is what a
+small-sample artefact looks like.
 ([`results/T3_train_set_crossover_full.csv`](results/T3_train_set_crossover_full.csv),
 `train_set_crossover.py --subset all`)
 

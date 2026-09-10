@@ -378,7 +378,9 @@ and should not be quoted.
 25 targets drawn at random (fixed seed) from the 350-quota subset's L4, filtered
 to high-quality structures; the hard molecule-order check rejected 4, leaving 21,
 of which **9 hit the 6-hour per-target cap** and finished partially. Usable: **11
-targets, 7 of them complete**
+targets**, of which **6 scored all 200 ligands** and one more reached 99%
+(`score_dock.py` counts "complete" as coverage ≥ 0.99, giving 7; the remaining
+four sit at 0.21, 0.43, 0.54 and 0.92)
 ([`results/T6_dock_subset.csv`](../results/T6_dock_subset.csv)).
 
 | Ranking | P@10 | P@20 | mean active rank | AUROC |
@@ -388,8 +390,8 @@ targets, 7 of them complete**
 | rank fusion | 0.536 | 0.527 | 72.3 | 0.615 |
 
 Paired Wilcoxon against the baseline: **nothing significant** — P@10 p = 0.141,
-P@20 p = 0.094, mean rank p = 0.320, AUROC p = 0.278. Restricting to the 7
-complete targets does not change it (all p ≥ 0.19).
+P@20 p = 0.094, mean rank p = 0.320, AUROC p = 0.278. Restricting to the 7 targets at
+coverage ≥ 0.99 does not change it (all p ≥ 0.19).
 
 **What changed against the superseded run.** On the full L4 (n = 9) docking was
 significantly *worse* than retrieval (P@10 0.411 → 0.167, p = 0.031). On the

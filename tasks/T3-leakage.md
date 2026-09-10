@@ -570,10 +570,16 @@ L1–L4 的定义是「PocketAffDB 见没见过这个靶点」，而 PocketAffDB
 | L3 | 19 | 4 (21%) | 0 (**0%**) | 5 (26%) | 12 (63%) |
 | L4 | 75 | 17 (23%) | 0 (**0%**) | 9 (12%) | 52 (69%) |
 
-- **A** `train_no_test_af`（4,098 UniProt）—— DrugCLIP、BindCLIP ×2
-- **B** PocketAffDB（2,196 UniProt）—— LigUnity ×2、LiTENCLIP、HypSeek
+- **A** `train_no_test_af`（16,744 个 PDB → 4,098 UniProt）—— DrugCLIP、BindCLIP ×2
+- **B** LigUnity 系的训练集 —— LigUnity ×2、LiTENCLIP、HypSeek
 - **C** ConPLex 的 BindingDB 训练序列（mmseqs 反查，同一性 ≥95%、双向覆盖 ≥50%）
-- ConGLUDe、SPRINT 的清单仍未获得
+- **D** SPRINT 的 MERGED（336 个 UniProt）
+- ConGLUDe 的清单仍未获得
+
+⚠️ **上表的 B 列是按亲和力半（2,196 UniProt）算的，那是分层定义本身。**
+B 组模型实际训练的是**并集 4,847**（亲和力半 + 结构半，而结构半就是 A）。
+按并集重算，L3 的 B 覆盖率是 21%、L4 是 11%，不是 0——见 §6。
+这张表保留成这个样子，是因为它要展示的正是「分层定义按谁画的」这件事。
 
 B 那一列 100/100/0/0 就是分层定义本身，不是测量结果。真正要看的是另外两列跟它
 差多少：**A 在 L1 只有 77%，在 L3/L4 却有 21–23%。** 也就是说，对 DrugCLIP 系
