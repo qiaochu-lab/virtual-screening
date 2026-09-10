@@ -118,12 +118,19 @@ rather than to the target itself ([`standard/t1_sim3.py`](standard/t1_sim3.py)).
 negatives), not in architecture or data — a controlled pair, useful for reading
 the effect of the training signal alone.
 
-**ConPLex is the negative control — on T3, not on T1.** Sequence-only, no
-structure, no pocket. Where an effect appears in structure models and not in
-ConPLex, structure is implicated; where it appears in both, it is not about
-structure. This is how the pocket-fit confound was isolated, and that analysis
-runs on T3, where ConPLex's training set covers 19.4% of targets — the same band
-as the other two sets.
+**ConPLex is a negative control — on T3, not on T1, and it is not the only one.**
+Sequence-only, no structure, no pocket. Where an effect appears in structure
+models and not in ConPLex, structure is implicated; where it appears in both, it
+is not about structure. That analysis runs on T3, where ConPLex's training set
+covers 19.4% of targets — the same band as the other two sets.
+
+⚠️ **One control is not enough, and the pocket-fit analysis is the case that
+showed why.** It was run for a year on ConPLex alone against a single "structure"
+arm, and read as "the effect appears only in structure models". Run against all
+three non-pocket models, ConPLex and SPRINT stay clean at both layers but
+**LigUnity-protein — also sequence-only — shows the effect at L2 (p = 0.0002)**.
+One clean control does not establish specificity; it takes every control you
+have. → [`LIMITATIONS.md` §5](LIMITATIONS.md)
 
 ⚠️ **The same reasoning is invalid on DUD-E.** ConPLex's contrastive objective is
 trained on DUD-E decoys from 40 of our 102 evaluation targets, and 74% of its
