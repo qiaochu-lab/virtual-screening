@@ -266,10 +266,15 @@ already working in this area.
    the top of the list. Rank fusion never beat the better arm. Whether retrieval
    scores are usable inside their own shortlist turns out to depend on target
    familiarity — which is why testing one layer misled us.
-   **A second, unrelated physics method reproduces this, and there it reaches
-   significance**: smina docking of a top-200 shortlist at L4 drops P@10 from
-   0.411 to 0.167 (p = 0.031, n = 9) — worse than the retrieval order it was
-   handed. Two methods sharing no code, no scoring idea and no shortlist depth,
+   **A second, unrelated physics method reproduces the direction.** smina docking
+   of a top-200 L4 shortlist loses to the retrieval order it was handed on every
+   metric — P@10 0.564 → 0.418, AUROC 0.630 → 0.540 — but on the final 350-quota
+   subset (n = 11) **none of it reaches significance** (p = 0.094–0.625). An
+   earlier run on the full L4 (n = 9) did reach it (P@10 0.411 → 0.167,
+   p = 0.031); only 5 of those 20 targets are in the published subset, so that
+   run is superseded and the weaker statement is the one that stands: *physics
+   rescoring does not improve on retrieval here, and we cannot show it actively
+   hurts.* Two methods sharing no code, no scoring idea and no shortlist depth,
    same direction. **Nor is it a pose-quality artifact**: raising Boltz-2's
    structure sampling from 1 to 5 (best-of-5 by confidence, strictly paired over
    749 complexes) moves AUROC by 0.002, every p-value above 0.9. Structure

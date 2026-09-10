@@ -289,6 +289,12 @@ same time:
 **Complete: 20 of 20 targets docked.** Nine had enough actives inside the
 top-200 to score.
 
+⚠️ **下面这张表已被取代。** 它跑在**全量 L4** 上，20 个靶点里只有 5 个
+落在最终的 350 子集里。在正确的靶点集上重跑的结果见本页
+「T6-RE: re-docked on the final subset」一节——方向一样，**但显著性没了**。
+保留这张表只为记录，不要引用它的 p 值。
+
+
 | Ranking | P@10 | P@20 | mean active rank | AUROC |
 |---|---|---|---|---|
 | retrieval (baseline) | 0.411 | 0.439 | 59.9 | 0.755 |
