@@ -53,8 +53,10 @@ already working in this area.
    → [`results/T3_recall_at_k.csv`](results/T3_recall_at_k.csv)
 
 1. **All ten models lose 68–84% of their above-random enrichment on post-cutoff
-   targets.** Absolute performance differs fifteenfold between the best and worst
-   model; the *decay* is nearly identical. This is a property of the method
+   targets** (full set; **51–77%** on the 350-quota subset, where L4 targets carry
+   ≥50 actives each). Absolute performance differs fifteenfold between the best
+   and worst model while the *decay* spans 16 points — far tighter than the
+   absolute spread, which is the point, though "identical" overstates it. This is a property of the method
    class, not of any one model.
    ⚠️ Decay is measured on the excess over a random ranking — EF@1% has a floor
    at 1.0, so a raw ratio understates the loss for weak models. Under the raw
@@ -248,11 +250,25 @@ already working in this area.
 9. **Mildly sensitive to structure source, extremely sensitive to pocket
    definition.** Moving the pocket cutoff off the 6 Å the models were trained on
    costs 31–75%, with 6 Å winning 12 of 12 cells. Swapping experimental
-   structures for Boltz-2 predictions costs less but not nothing: **8 of 10
-   models drop at L4** (sign test p = 0.109), four individually significant and
-   ConGLUDe surviving BH-FDR across all 20 comparisons, with LigUnity-pocket
-   losing 46% (11.70 → 6.29). The two sequence-only models — which never see a
-   structure — show no gap, so target difficulty does not explain it.
+   structures for Boltz-2 predictions costs less but not nothing — **and the two
+   target sets disagree about how much**, so both are given:
+
+   | | full L3+L4 | **350 subset, L4** |
+   |---|---|---|
+   | models worse on predicted | 8 of 10, sign test p = 0.109 | **10 of 10, p = 0.0020** |
+   | individually significant | 4 of 20 comparisons; 1 survives BH-FDR (ConGLUDe) | 2 of 10; **none survives BH** |
+   | largest drop | LigUnity-pocket −46% | LigUnity-pocket **−69%** (15.10 → 4.72) |
+
+   The direction is unanimous on the published subset and the effect is larger
+   there, so this is not a case of a result weakening under the stricter set.
+
+   ⚠️ **The negative control is suggestive, not clean.** A model that never reads
+   a structure should show *no* gap at all. On the full set that holds
+   (LigUnity-protein −6 to −8%, p ≈ 0.9). **On the subset it does not**:
+   LigUnity-protein loses 35% (13.83 → 8.93, p = 0.182) — not significant at
+   n ≈ 34, but a point estimate that size means "target difficulty does not
+   explain the effect" cannot be asserted as flatly as the full-set p-values
+   invite. ConPLex is the cleaner control of the two (−15%, p = 0.637).
    ⚠️ An earlier version of this finding said predicted structures substitute
    with *no* significant difference. That rested on two models, selected by
    accident rather than design ([`PATCHES.md`](PATCHES.md)).
