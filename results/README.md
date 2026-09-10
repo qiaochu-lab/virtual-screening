@@ -4,7 +4,7 @@
 
 | File | What |
 |---|---|
-| `T3_vsds_matched.csv` | the selected subset: 242 target×layer entries, 222 unique targets |
+| `T3_vsds_matched.csv` | the selected subset: **328** target×layer entries, **293** unique targets (quota 350) |
 | `T3_main_vsds_subset.csv` | T3 main table on the subset, both original and corrected layering |
 | `T2_on_T3_subset.csv` | affinity ranking on the subset |
 | `T5_structure_source_subset.csv` | structure-source control on the subset |
