@@ -362,18 +362,49 @@ The smina experiment docked 20 targets chosen from the full L4 (≈33 CPU-hours)
 ≥2 actives inside the top-200 to score at all. Docking scores cannot be
 re-aggregated onto targets that were never docked.
 
-Three options, **undecided**:
+**Resolved by option 2 — re-docked on the subset's L4.** The result is below.
+The old full-L4 numbers are preserved in
+[`results/T6_dock_fullL4_superseded.csv`](../results/T6_dock_fullL4_superseded.csv)
+and should not be quoted.
 
-1. State plainly that the docking control was run on the full L4, not on the
-   published subset
-2. Re-pick 20 targets from the subset's L4 and re-dock (~33 CPU-hours, no GPU;
-   the subset's ≥50-actives targets should yield *more* scorable targets than
-   the original 9)
-3. Demote the docking rerank to an appendix and lead with the FEP comparison
-   plus the recall ceiling
+### T6-RE: re-docked on the final subset
 
-The Boltz-2 rerank and the FEP head-to-head are unaffected by the target
-change in the same way and carry the same caveat.
+25 targets drawn at random (fixed seed) from the 350-quota subset's L4, filtered
+to high-quality structures; the hard molecule-order check rejected 4, leaving 21,
+of which **9 hit the 6-hour per-target cap** and finished partially. Usable: **11
+targets, 7 of them complete**
+([`results/T6_dock_subset.csv`](../results/T6_dock_subset.csv)).
+
+| Ranking | P@10 | P@20 | mean active rank | AUROC |
+|---|---|---|---|---|
+| **retrieval (baseline)** | **0.564** | **0.555** | **74.2** | **0.630** |
+| docking rerank | 0.418 | 0.400 | 75.6 | 0.540 |
+| rank fusion | 0.536 | 0.527 | 72.3 | 0.615 |
+
+Paired Wilcoxon against the baseline: **nothing significant** — P@10 p = 0.141,
+P@20 p = 0.094, mean rank p = 0.320, AUROC p = 0.278. Restricting to the 7
+complete targets does not change it (all p ≥ 0.19).
+
+**What changed against the superseded run.** On the full L4 (n = 9) docking was
+significantly *worse* than retrieval (P@10 0.411 → 0.167, p = 0.031). On the
+correct target set the direction survives — docking still loses on every metric —
+but **the significance does not**. So the honest statement is weaker than the one
+we had: *docking rerank does not improve on retrieval, and we cannot show it
+actively hurts.*
+
+### Two limits on how far this reaches
+
+**The shortlist still holds only 22.6% of the actives.** This run used a plain
+top-200, no injection. So it answers "can docking reorder this shortlist better
+than retrieval?" — no — but it cannot answer "can rescoring rescue the pipeline?",
+because more than three quarters of the actives never enter the list. The
+Boltz-2 run alongside it uses `--inject-actives` precisely to separate those two
+questions.
+
+**9 of 21 targets timed out at 6 hours.** Their partial results cover the top-N
+by retrieval rank (smina reads the SDF in rank order), so they are a shallower
+shortlist rather than a biased sample of it — but coverage ranges from 20% to 92%
+and per-target numbers should be read with the `coverage` column.
 
 ## Falsifiability, agreed in advance
 
