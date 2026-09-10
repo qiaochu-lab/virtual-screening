@@ -207,12 +207,21 @@ and SPRINT (p = 0.023) stay individually significant, and nothing survives BH-FD
 across the 10 comparisons. What *strengthens* is the direction: **all 10 models
 favour experimental structures (sign test p = 0.0020)**, up from 8/10 (p = 0.109).
 
-The negative control still holds: the two sequence-only models, which never
-read a structure, show no gap (p = 0.50 and 0.80) — so target difficulty does
-not explain the effect.
+**The negative control is weaker than an earlier version of this page claimed.**
+It read: *"the two sequence-only models, which never read a structure, show no
+gap (p = 0.50 and 0.80)"*. On the 350-quota subset the two sequence-only models
+are LigUnity-protein (p = 0.182) and ConPLex (p = 0.637) — neither significant,
+but **LigUnity-protein's point estimate still drops 35% (EF@1% 13.83 → 8.93)**.
+So the control is *suggestive*, not clean: a model that never reads a structure
+should show no gap at all, and this one shows a sizeable one that the sample is
+too small to resolve. Target difficulty cannot be ruled out as cleanly as
+"p = 0.50 and 0.80" implied.
 
-**Correct phrasing for the subset:** *the direction is highly consistent
-(9/10, p = 0.021), but individual effect sizes are not estimable at n ≈ 25.*
+**Correct phrasing for the subset:** *the direction is unanimous
+(10/10, sign test p = 0.0020), but individual effect sizes are not estimable at
+25–35 targets per arm — only LigUnity-pocket (p = 0.019) and SPRINT (p = 0.023)
+reach nominal significance and neither survives BH-FDR across the ten
+comparisons.*
 
 ### apo control on the subset
 
