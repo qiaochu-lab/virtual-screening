@@ -294,7 +294,25 @@ already working in this area.
    same direction. **Nor is it a pose-quality artifact**: raising Boltz-2's
    structure sampling from 1 to 5 (best-of-5 by confidence, strictly paired over
    749 complexes) moves AUROC by 0.002, every p-value above 0.9. Structure
-   quality is not the limiting factor. → [T6](tasks/T6-physics.md)
+   quality is not the limiting factor.
+
+   **And it is not a shortlist-depth artefact either — that escape is now
+   closed.** Every negative rerank result above is open to the objection that the
+   shortlist held too few actives to reorder (top-200 at L4 covers 22.6%). So
+   Boltz-2 was re-run on 12 L4 targets with **every missing active injected back,
+   i.e. recall fixed at 100%** — 3,747 complexes, 30 GPU-hours. Against the
+   correct null (random ordering of a set whose active fraction is known per
+   target, median 41%), **Boltz-2 is indistinguishable from chance**: AUROC 0.565
+   vs 0.500 (p = 0.27), with P@5 0.367 and P@10 0.342 both *below* the 0.437 a
+   random draw returns. **On novel targets, physics rescoring fails to recover
+   actives not because it never sees them, but because it cannot separate them
+   from decoys.**
+
+   ⚠️ The retrieval arm of that run is unusable by construction — injecting the
+   actives retrieval missed pins its AUROC at exactly 0 for 5 of the 12 targets —
+   so the "Boltz beats retrieval, p = 0.005" line in the raw output is an artefact
+   of the design, not a result. n = 12 and 68% of complexes scored (two shards
+   crashed on a missing intermediate file). → [T6](tasks/T6-physics.md)
 
 11. **A co-folding model ranks affinity where retrieval cannot.** On the 16 FEP
    systems, same ligands and same metric, Boltz-2 reaches Spearman +0.615
