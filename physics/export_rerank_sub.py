@@ -223,7 +223,20 @@ def wilcoxon_vs(vals, null):
     return float(stats.wilcoxon(v - null).pvalue), k, len(v)
 
 
-def coverage_gate(man, aff):
+def quarantined():
+    """结构阶段失败、已被移出输入目录的记录（名单以磁盘为准，不写死在代码里）。
+
+    Boltz 的亲和力阶段碰到没有 `pre_affinity_*.npz` 的记录不是跳过，是**整个退出**，
+    一条坏记录能带走一个 shard——上一轮三个 shard 就是这么崩的。所以这些记录在
+    续跑前被移进隔离目录。
+    """
+    d = f"{B}/boltz_rerank_sub_quarantine"
+    if not os.path.isdir(d):
+        return set()
+    return {f[:-5] for f in os.listdir(d) if f.endswith(".yaml")}
+
+
+def coverage_gate(man, aff, excl):
     """逐靶点完成率。**这是这个脚本存在过的最大教训。**
 
     上一版把「出分 2,562/3,747」当成一句覆盖率脚注就发了数字。错在：这轮按
@@ -233,20 +246,43 @@ def coverage_gate(man, aff):
     加宽误差棒，是另一个量；缺三分之一成员的 P@5 根本没法解释。
 
     所以：**任何靶点不满就拒绝出主结论**，不提供「按现有数据凑合」的路径。
+
+    ⚠️ **唯一的例外是 excl 里那批具名记录，而且它是名单不是阈值。**
+    绝不能把门限从 100% 放宽到「98% 也算」——那等于把刚拆掉的「凑合」路径
+    又装回去。做法是：把结构阶段失败的记录**逐条列出来**、报清楚它们是什么，
+    然后要求**剩下的每一条都必须有分**。名单从磁盘上的隔离目录读，不写死。
     """
     by = {}
     for e in man["entries"]:
-        by.setdefault(e["uniprot"], [0, 0])
-        by[e["uniprot"]][0] += 1
-        by[e["uniprot"]][1] += int(e["name"] in aff)
-    print("逐靶点完成率")
+        d = by.setdefault(e["uniprot"], {"tot": 0, "got": 0, "ex": 0, "ex_act": 0})
+        if e["name"] in excl:
+            d["ex"] += 1
+            d["ex_act"] += int(e["label"] == 1)
+            continue
+        d["tot"] += 1
+        d["got"] += int(e["name"] in aff)
+    print("逐靶点完成率（分母已剔除结构阶段失败的具名记录）")
     bad = []
-    for up, (tot, got) in sorted(by.items()):
-        f = got / tot if tot else 0.0
+    for up, d in sorted(by.items()):
+        f = d["got"] / d["tot"] if d["tot"] else 0.0
+        ex = f"  (另有 {d['ex']} 条结构失败已剔除)" if d["ex"] else ""
         flag = "" if f >= 0.999 else "  ← 不完整"
         if f < 0.999:
-            bad.append((up, got, tot))
-        print(f"  {up:10} {got:5d} / {tot:5d}  {f:6.1%}{flag}")
+            bad.append((up, d["got"], d["tot"]))
+        print(f"  {up:10} {d['got']:5d} / {d['tot']:5d}  {f:6.1%}{ex}{flag}")
+    n_ex = sum(d["ex"] for d in by.values())
+    n_ex_act = sum(d["ex_act"] for d in by.values())
+    if n_ex:
+        print(f"\n⚠️ 结构阶段失败、已剔除：{n_ex} 条（占 manifest 的 "
+              f"{n_ex / len(man['entries']):.2%}），其中活性 {n_ex_act} 条。")
+        if n_ex_act == 0:
+            print("   **全部是诱饵，活性一条没丢**——所以 missed/found 两组的分子是完整的，")
+            print("   受影响的只有 AUROC 负类的分母（任一靶点最多丢 3 个诱饵，<1.5%）。")
+            print("   这和「每个靶点被咬掉三分之一」是两回事：那个换掉了要测的量，")
+            print("   这个在任一靶点上最多移动 AUROC 约 1/200。**但它仍是限制，要写进文档。**")
+        else:
+            print(f"   ⚠️ 其中有 {n_ex_act} 条活性——这会直接影响 missed/found 的分子，")
+            print("   必须逐条检查它们属于哪一组，不能当成可忽略的损失。")
     return bad
 
 
@@ -270,7 +306,8 @@ def main():
     tn = man["topn"]
     print(f"Boltz-2 出分 {len(aff):,} / {len(man['entries']):,}\n")
 
-    bad = coverage_gate(man, aff)
+    excl = quarantined()
+    bad = coverage_gate(man, aff, excl)
     if bad and args.smoke:
         print(f"\n[烟雾测试] 跳过 {len(bad)} 个靶点的完成度闸门")
         bad = []
@@ -283,6 +320,8 @@ def main():
 
     by = {}
     for e in man["entries"]:
+        if e["name"] in excl:
+            continue
         by.setdefault(e["uniprot"], []).append(e)
     n_found = {up: sum(1 for e in v if e["label"] == 1 and e["rank"] < tn)
                for up, v in by.items()}
@@ -296,6 +335,7 @@ def main():
     per = {}
     a_missed, a_found, a_all = [], [], []
     for up, items in sorted(by.items()):
+        items = [e for e in items if e["name"] not in excl]
         lab = np.array([e["label"] for e in items], dtype=int)
         rnk = np.array([e["rank"] for e in items], dtype=int)
         if lab.sum() < 3 or lab.sum() == len(lab):
