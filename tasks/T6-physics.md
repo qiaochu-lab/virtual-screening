@@ -400,6 +400,57 @@ but **the significance does not**. So the honest statement is weaker than the on
 we had: *docking rerank does not improve on retrieval, and we cannot show it
 actively hurts.*
 
+### Boltz-2 with recall fixed at 100%: indistinguishable from random
+
+The docking run above cannot separate "physics does not help" from "the shortlist
+had nothing to find" — its top-200 holds only 22.6% of the actives. This run
+removes that confound: **every active not in the top-200 was injected back into
+the candidate set**, so recall is 100% by construction
+([`physics/prep_rerank.py --inject-actives`](../physics/prep_rerank.py)).
+
+12 L4 targets from the 350-quota subset, 3,747 complexes, Boltz-2 at
+`--diffusion_samples 1` (the 1-vs-5 test above showed no difference), 30 hours on
+4 GPUs. **2,562 of 3,747 scored** — shards 0 and 2 crashed partway with
+`FileNotFoundError: pre_affinity_*.npz`, which Boltz raises in the affinity phase
+when a structure prediction for that record failed earlier.
+
+⚠️ **The retrieval baseline is unusable in this design, and that is my error.**
+Injecting the actives retrieval missed guarantees they sit below every decoy in
+its ranking — for **5 of the 12 targets retrieval's AUROC is exactly 0.0000**,
+meaning its top-200 contained no actives at all. Any method that does not share
+retrieval's blind spot beats it trivially. The raw table shows
+"Boltz 0.565 vs retrieval 0.228, wins 11/12, p = 0.005"; **that number is an
+artefact of the injection and must not be quoted.**
+
+**The valid comparison is against random ordering**, since the candidate set's
+active fraction is known per target (median 41%, range 24–75%):
+
+| | Boltz-2 | random | Δ | wins | p |
+|---|---|---|---|---|---|
+| AUROC | 0.565 | 0.500 | +0.065 | 8/12 | 0.266 |
+| P@5 | **0.367** | 0.437 | **−0.070** | 4/12 | 0.424 |
+| P@10 | **0.342** | 0.437 | **−0.095** | 3/12 | 0.274 |
+
+(Paired Wilcoxon per target; the null for P@k is that target's own active
+fraction, which is what random selection returns.)
+
+> **Given a candidate set that contains every active, Boltz-2 orders it no better
+> than chance.** AUROC sits 0.065 above random and P@5/P@10 sit *below* it; none
+> of the three is significant at n = 12.
+
+**This is the result the docking run could not reach.** The earlier negative
+results were all open to "the shortlist was too shallow". With recall at 100%
+that escape is closed, and the answer does not change: on novel targets, physics
+rescoring does not recover actives that retrieval ranked poorly — not because it
+never sees them, but because it cannot tell them from decoys either.
+
+⚠️ **Three limits.** (1) n = 12 targets; a real effect smaller than ~0.15 AUROC
+would not be detectable. (2) 68% of the complexes scored; the missing third is
+whatever the two crashed shards had not reached, which is not a random subset.
+(3) The active fraction here (median 41%) is nothing like a screening deck — this
+is a *ranking* test on a constructed set, not an enrichment measurement, and the
+absolute numbers do not transfer.
+
 ### Two limits on how far this reaches
 
 **The shortlist still holds only 22.6% of the actives.** This run used a plain
