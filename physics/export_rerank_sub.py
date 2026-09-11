@@ -1,25 +1,49 @@
 """Boltz-2 重排在 350 子集 L4 靶点上的结果（T6-RE 的 Boltz 那半）。
 
-和前四轮的两个关键区别，读结果时必须带着：
+读这个结果之前必须先知道这轮的设计，以及它**不能**回答什么。
 
-1. **靶点全部来自最终的 350 子集**。前四轮跑在全量 L4 上，12 个靶点里只有 5 个
-   落在子集里，所以那几轮的数不能直接当主结论。
+## 候选池怎么构成的
 
-2. **召回按构造 = 100%**（`prep_rerank.py --inject-actives`）。不在 top-200 里的
-   活性被补回了候选池。**这是为了让实验有意义**：子集上 L4 的 recall@200 只有
-   22.6%（top-50 更只有 9.4%），重排一个近八成活性都不在里面的列表，
-   无论物理方法多准都做不出什么——结果是预定的，而且分不清「物理重排没用」
-   和「候选里没东西可捞」。
+每个靶点 = 检索模型的 top-200（`rank < 200`）+ **不在 top-200 里的全部活性**
+被补回（`rank >= 200`，`prep_rerank.py --inject-actives`）。所以：
 
-⚠️ **因此绝对指标不可与前四轮或全库 EF 比较。**
-补回活性把候选池的活性占比抬到了约 48%，P@5 / P@10 的随机基线也跟着抬到 0.48。
-唯一可比的是**同一批分子上「检索原序」和「Boltz 重排」的配对差**——
-这正是要测的量。
+    rank < 200   2,388 条：1,934 个诱饵 + 454 个「检索找到的活性」
+    rank >= 200  1,359 条：全部是「检索漏掉的活性」
 
-三个排序一起报：
-  · retrieval    检索模型的原始排序（对照组）
-  · boltz        纯 Boltz-2 亲和力打分
-  · rank_fusion  两者名次相加（前几轮里唯一偶尔赢过检索的组合）
+**所有诱饵都来自 top-200，一个诱饵都没补。** 补回活性是为了解掉召回天花板：
+子集上 L4 的 recall@200 只有 22.6%，重排一个近八成活性都不在里面的列表，
+无论物理方法多准都做不出什么。
+
+## ⚠️ 这个设计让检索臂在数学上不可用
+
+补回的活性按构造排在**所有诱饵之后**（它们本来就不在 top-200 里）。
+极端情形：某靶点 top-200 里一个活性都没有 → 每个活性排在每个诱饵之后 →
+**AUROC 精确等于 0**，不是「很低」，是数学上的 0。实测 12 个靶点里 5 个如此。
+
+**所以任何「Boltz 赢检索」的数字都是这个设计造成的假象，在任何覆盖率下都不能引用。**
+csv 里仍然保留 retrieval / rank_fusion 的行，只为留档；脚本不再打印它们的配对检验。
+
+## 那么能回答什么
+
+**主分析（能进正文的那个）：检索漏掉的活性，物理方法捞不捞得回来。**
+只在「补回的活性 + 诱饵」上算 Boltz 的 AUROC。补回的活性正是检索失败的那批，
+如果 Boltz 能把它们排到诱饵上面，那就是物理补上了检索的盲区——这是级联的全部
+价值。零假设干净（随机 = 0.5），不需要和检索的排序比，绕开了上面那个构造缺陷。
+
+**配套对照：检索找到的活性，物理方法排得动吗。**
+同样对诱饵算 AUROC，但用 `rank < 200` 的活性。两者一比就知道 Boltz 的盲区
+是不是和检索的重合：
+
+  · missed ≈ found   → 物理对「检索觉得像」和「检索觉得不像」一视同仁
+  · missed ≪ found   → 两者盲区重合，级联加物理这一级补不上什么
+  · missed > found   → 物理确实互补，级联有价值
+
+**次分析：整池对随机。** 只回答「Boltz 有没有任何信号」，门槛很低，作参考。
+
+## ⚠️ 绝对指标不可与前四轮或全库 EF 比
+
+补回活性把整池的活性占比抬到约 48%，P@5/P@10 的随机基线也是 0.48。
+这是构造集上的**排序**测试，不是富集测量。
 """
 import glob
 import json
@@ -44,50 +68,131 @@ def load(out_root):
     return aff
 
 
+def auroc(pos, neg):
+    """分数越大越靠前。pos/neg 都非空才有定义。"""
+    if len(pos) == 0 or len(neg) == 0:
+        return float("nan")
+    u = stats.mannwhitneyu(pos, neg, alternative="greater").statistic
+    return float(u / (len(pos) * len(neg)))
+
+
 def metrics(lab, sc):
     """P@5 / P@10 / 活性平均名次 / AUROC。分数越大越靠前。"""
     o = np.argsort(-sc)
     lo = lab[o]
     ranks = np.where(lo == 1)[0] + 1
-    na, nd = int((lab == 1).sum()), int((lab == 0).sum())
-    auc = (stats.mannwhitneyu(sc[lab == 1], sc[lab == 0],
-                              alternative="greater").statistic / (na * nd)
-           if na and nd else float("nan"))
-    return float(lo[:5].mean()), float(lo[:10].mean()), float(ranks.mean()), float(auc)
+    return (float(lo[:5].mean()), float(lo[:10].mean()), float(ranks.mean()),
+            auroc(sc[lab == 1], sc[lab == 0]))
+
+
+def wilcoxon_vs(vals, null):
+    """逐靶点对一个常数零假设做 Wilcoxon。"""
+    v = np.asarray([x for x in vals if np.isfinite(x)], dtype=float)
+    if len(v) < 5 or np.allclose(v, null):
+        return float("nan"), int((v > null).sum()), len(v)
+    return float(stats.wilcoxon(v - null).pvalue), int((v > null).sum()), len(v)
+
+
+def coverage_gate(man, aff):
+    """逐靶点完成率。**这是这个脚本存在过的最大教训。**
+
+    上一版把「出分 2,562/3,747」当成一句覆盖率脚注就发了数字。错在：这轮按
+    **复合物**切 shard，四个 shard 每个都覆盖全部 12 个靶点，所以崩掉的 shard
+    不是拿走几个完整靶点，而是**每个靶点都被咬掉三分之一**（实测逐靶点完成率
+    中位 68.7%，0/12 完整）。在一个靶点三分之二的候选上算的 AUROC 不是全集值
+    加宽误差棒，是另一个量；缺三分之一成员的 P@5 根本没法解释。
+
+    所以：**任何靶点不满就拒绝出主结论**，不提供「按现有数据凑合」的路径。
+    """
+    by = {}
+    for e in man["entries"]:
+        by.setdefault(e["uniprot"], [0, 0])
+        by[e["uniprot"]][0] += 1
+        by[e["uniprot"]][1] += int(e["name"] in aff)
+    print("逐靶点完成率")
+    bad = []
+    for up, (tot, got) in sorted(by.items()):
+        f = got / tot if tot else 0.0
+        flag = "" if f >= 0.999 else "  ← 不完整"
+        if f < 0.999:
+            bad.append((up, got, tot))
+        print(f"  {up:10} {got:5d} / {tot:5d}  {f:6.1%}{flag}")
+    return bad
 
 
 def main():
     man = json.load(open(MAN))
     aff = load(f"{B}/boltz_rerank_sub_out")
-    print(f"Boltz-2 出分 {len(aff):,} / {len(man['entries']):,}")
+    tn = man["topn"]
+    print(f"Boltz-2 出分 {len(aff):,} / {len(man['entries']):,}\n")
+
+    bad = coverage_gate(man, aff)
+    if bad:
+        print(f"\n⛔ {len(bad)} 个靶点不完整，拒绝出主结论。")
+        print("   原因见 coverage_gate() 的注释：按复合物切片时，缺失是每个靶点都缺，")
+        print("   不是缺掉整个靶点；部分候选上的 AUROC / P@k 是另一个量，不可报。")
+        return
+    print("\n✅ 12 个靶点全部完整，可以出结论。\n")
 
     by = {}
     for e in man["entries"]:
         by.setdefault(e["uniprot"], []).append(e)
 
-    rows = ["target,n_shortlist,n_actives,frac_active,method,"
-            "p_at_5,p_at_10,mean_active_rank,auroc"]
+    rows = ["target,n_shortlist,n_decoy,n_active_found,n_active_missed,"
+            "method,p_at_5,p_at_10,mean_active_rank,auroc,"
+            "auroc_missed_vs_decoy,auroc_found_vs_decoy"]
     per = {}
+    a_missed, a_found, a_all = [], [], []
     for up, items in sorted(by.items()):
-        items = [e for e in items if e["name"] in aff]
-        if len(items) < 20:
-            continue
         lab = np.array([e["label"] for e in items], dtype=int)
+        rnk = np.array([e["rank"] for e in items], dtype=int)
         if lab.sum() < 3 or lab.sum() == len(lab):
             continue
         # 检索分数越大越好；Boltz 的 affinity_pred_value 越小越好（预测的 log Kd）
-        # "pred" 就是检索模型给这个分子的分数
         ret = np.array([e["pred"] for e in items], dtype=float)
         bol = -np.array([aff[e["name"]] for e in items], dtype=float)
         fus = -(stats.rankdata(-ret) + stats.rankdata(-bol))
+
+        is_dec = lab == 0
+        is_found = (lab == 1) & (rnk < tn)
+        is_missed = (lab == 1) & (rnk >= tn)
+        am = auroc(bol[is_missed], bol[is_dec])
+        af = auroc(bol[is_found], bol[is_dec])
+        aa = auroc(bol[lab == 1], bol[is_dec])
+        a_missed.append(am)
+        a_found.append(af)
+        a_all.append(aa)
+
         for name, sc in (("retrieval", ret), ("boltz", bol), ("rank_fusion", fus)):
             m = metrics(lab, sc)
             per.setdefault(name, []).append(m)
-            rows.append("%s,%d,%d,%.3f,%s,%.3f,%.3f,%.2f,%.4f"
-                        % (up, len(items), int(lab.sum()), lab.mean(), name, *m))
+            extra = (am, af) if name == "boltz" else (float("nan"), float("nan"))
+            rows.append("%s,%d,%d,%d,%d,%s,%.3f,%.3f,%.2f,%.4f,%.4f,%.4f"
+                        % (up, len(items), int(is_dec.sum()), int(is_found.sum()),
+                           int(is_missed.sum()), name, *m, *extra))
 
-    n_t = len(per.get("retrieval", []))
-    print(f"\n可评的靶点 {n_t}")
+    n_t = len(a_missed)
+    print("=" * 72)
+    print("主分析：检索漏掉的活性，Boltz 捞不捞得回来（对诱饵算 AUROC，零假设 0.5）")
+    print("=" * 72)
+    for lab_, vals in (("补回的活性（检索漏掉）vs 诱饵", a_missed),
+                       ("top-200 内的活性（检索找到）vs 诱饵", a_found),
+                       ("全部活性 vs 诱饵", a_all)):
+        p, w, n = wilcoxon_vs(vals, 0.5)
+        v = np.array([x for x in vals if np.isfinite(x)])
+        print(f"  {lab_:34} AUROC {v.mean():.4f}   高于 0.5 的 {w}/{n}   p={p:.4f}")
+
+    m_, f_ = np.array(a_missed), np.array(a_found)
+    ok = np.isfinite(m_) & np.isfinite(f_)
+    if ok.sum() >= 5:
+        p = stats.wilcoxon(m_[ok], f_[ok]).pvalue
+        print(f"\n  配对差 missed − found = {(m_[ok] - f_[ok]).mean():+.4f}   "
+              f"missed 更高的 {(m_[ok] > f_[ok]).sum()}/{ok.sum()}   p={p:.4f}")
+        print("  （missed ≪ found ⇒ 物理和检索的盲区重合，级联加这一级补不上什么）")
+
+    print("\n" + "=" * 72)
+    print("次分析：整池排序对随机（门槛很低，只答「有没有信号」）")
+    print("=" * 72)
     print("%-14s %8s %8s %14s %8s" % ("排序", "P@5", "P@10", "活性平均名次", "AUROC"))
     print("-" * 58)
     for name in ("retrieval", "boltz", "rank_fusion"):
@@ -96,29 +201,21 @@ def main():
             print("%-14s %8.3f %8.3f %14.1f %8.4f"
                   % (name, v[:, 0].mean(), v[:, 1].mean(), v[:, 2].mean(), v[:, 3].mean()))
     print("-" * 58)
+    V = np.array(per["boltz"])
+    fa = np.array([np.mean([e["label"] for e in by[up]]) for up in sorted(by)])
+    for i, lab_, null in ((3, "AUROC", np.full(n_t, 0.5)), (0, "P@5", fa), (1, "P@10", fa)):
+        d = V[:, i] - null
+        p = stats.wilcoxon(d).pvalue if not np.allclose(d, 0) else float("nan")
+        print(f"  boltz {lab_:6} {V[:, i].mean():.3f} 对随机 {null.mean():.3f}   "
+              f"赢 {(d > 0).sum()}/{n_t}   p={p:.4f}")
 
-    if n_t >= 5:
-        print("\n逐靶点配对（Wilcoxon signed-rank，对 retrieval）")
-        R = np.array(per["retrieval"])
-        for name in ("boltz", "rank_fusion"):
-            X = np.array(per[name])
-            print(f"  {name}")
-            for i, lab in enumerate(("P@5", "P@10", "活性平均名次", "AUROC")):
-                a, b = R[:, i], X[:, i]
-                if np.allclose(a, b):
-                    print(f"    {lab:12} 完全相同"); continue
-                p = stats.wilcoxon(a, b).pvalue
-                # 名次是越小越好，其余越大越好
-                better = (b < a).sum() if i == 2 else (b > a).sum()
-                print(f"    {lab:12} {a.mean():+.3f} → {b.mean():+.3f}   "
-                      f"赢 {better}/{len(a)}   p={p:.4f}")
+    print("\n⚠️ 不打印「对 retrieval」的配对检验：补回的活性按构造排在所有诱饵之后，")
+    print("   12 个靶点里 5 个的检索 AUROC 是精确的 0。那个比较在任何覆盖率下都是假象。")
 
     out = f"{B}/results/export/T6_rerank_subset.csv"
     os.makedirs(os.path.dirname(out), exist_ok=True)
     open(out, "w").write("\n".join(rows) + "\n")
     print(f"\n写入 {out}")
-    print("\n⚠️ 绝对指标不可与前四轮或全库 EF 比：补回活性后候选池的活性占比约 48%，")
-    print("   P@5/P@10 的随机基线也是 0.48。可比的只有同一批分子上的配对差。")
 
 
 if __name__ == "__main__":
