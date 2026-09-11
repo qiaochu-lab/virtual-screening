@@ -1,12 +1,14 @@
-"""第二轮 Boltz-2 输入：结构域截取后的长靶点 + 换配体重试的失败靶点。
+"""Second round of Boltz-2 inputs: long targets after domain truncation, plus first-round failures retried with a different ligand.
 
-两批
-----
-A. 123 个 >1170aa 靶点，按 truncate_domains2.py 的结果用截断序列
-B. 9 个第一轮失败的靶点，换一个配体重试：
-   6 个是肽类配体超过 128 原子（Boltz-2 亲和力模块硬限制），
-   1 个 RDKit 生不出 3D 构象，2 个 MSA/文件错误（换配体不影响，顺带重试）
-   —— 口袋只需要一个有代表性的配体，不必是亲和力最高的那个。
+Two batches
+-----------
+A. 123 targets >1170aa, using the truncated sequence from truncate_domains2.py's output.
+B. 9 targets that failed in round 1, retried with a different ligand:
+   6 had a peptide ligand over 128 atoms (Boltz-2's affinity module hard limit),
+   1 had a ligand RDKit couldn't generate a 3D conformer for, 2 had MSA/file
+   errors (unaffected by the ligand swap, retried along with the rest)
+   -- the pocket only needs one representative ligand, not necessarily the
+   highest-affinity one.
 """
 import json
 import os
@@ -18,7 +20,7 @@ RDLogger.DisableLog("rdApp.*")
 B = "/data/work/vs-benchmark"
 OUT = f"{B}/boltz_r2"
 SHARDS = 4
-MAX_LIG_ATOMS = 128          # Boltz-2 亲和力模块上限
+MAX_LIG_ATOMS = 128          # Boltz-2 affinity module's ceiling
 
 os.makedirs(OUT, exist_ok=True)
 for i in range(SHARDS):
@@ -29,7 +31,7 @@ seqs = json.load(open(f"{B}/data/t3/sequences.json"))
 br = json.load(open(f"{B}/data/t3/missing_breakdown.json"))
 retry = set(br["跑了但失败"])
 
-# 每个靶点按亲和力从高到低收集配体，供挑选
+# Collect ligands per target sorted by affinity, high to low, for later selection
 ligs = {}
 need = set(trunc) | retry
 for L in ["L3", "L4"]:
@@ -47,12 +49,12 @@ for u in ligs:
 
 
 def pick_ligand(u):
-    """取亲和力最高、且原子数与构象都过关的配体。"""
+    """Pick the highest-affinity ligand that also passes the atom-count and conformer checks."""
     for paff, smi in ligs.get(u, []):
         m = Chem.MolFromSmiles(smi)
         if m is None:
             continue
-        if m.GetNumAtoms() > MAX_LIG_ATOMS:          # 含氢前的重原子数已足够筛掉肽类
+        if m.GetNumAtoms() > MAX_LIG_ATOMS:          # heavy-atom count (before adding H) is already enough to filter out peptides
             continue
         mh = Chem.AddHs(m)
         if mh.GetNumAtoms() > MAX_LIG_ATOMS * 2:
@@ -73,7 +75,7 @@ for u in sorted(retry):
     else:
         no_lig.append(u)
 
-rows.sort(key=lambda r: -len(r[1]))          # 长的先排，四片负载均衡
+rows.sort(key=lambda r: -len(r[1]))          # longest first, to balance load across the four shards
 for n, (u, seq, smi, kind) in enumerate(rows):
     y = ("version: 1\nsequences:\n  - protein:\n      id: A\n      sequence: %s\n"
          "  - ligand:\n      id: B\n      smiles: '%s'\n"

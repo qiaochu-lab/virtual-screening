@@ -1,17 +1,23 @@
-"""给 LigUnity 加 --test-task T3。
+"""Add --test-task T3 support to LigUnity.
 
-与 DrugCLIP/BindCLIP 的补丁同样思路：从它已验证的 test_dekois_target
-做路径替换生成，模型前向逻辑逐行不动。
+Same approach as the DrugCLIP/BindCLIP patch: generated from its
+already-validated test_dekois_target by swapping paths, leaving the
+model's forward logic untouched line for line.
 
-LigUnity 与 DrugCLIP 的两点差别：
-  1. 口袋塔要传蛋白序列：pocket_forward(protein_sequences=seq, ...)。
-     T3 的靶点 ID 本身就是 UniProt 号，序列直接查我们的 sequences.json。
-  2. 官方只存 embedding 不存打分，这里补存 saved_preds.npy，
-     以便接入统一评测层。
+Two differences between LigUnity and DrugCLIP:
+  1. The pocket tower needs the protein sequence passed in:
+     pocket_forward(protein_sequences=seq, ...). T3's target ID is
+     itself a UniProt accession, so the sequence is looked up directly
+     from our sequences.json.
+  2. The official code only stores the embedding, not the score; this
+     patch also saves saved_preds.npy so it can plug into the unified
+     evaluation layer.
 
-bsz 改成读命令行参数：T3 分子最大 336 个原子（DEKOIS 才 50），
-UniMol 注意力 O(n^2)，沿用写死的 64 会 CUDA OOM（DrugCLIP 上已实测）。
-另外逐靶点 empty_cache——1,044 个靶点，碎片会累积。
+bsz is changed to read from the command line: T3 molecules have up to
+336 atoms (DEKOIS tops out at 50), and UniMol's attention is O(n^2), so
+keeping the hardcoded 64 causes a CUDA OOM (confirmed on DrugCLIP).
+Also runs empty_cache per target -- with 1,044 targets, fragmentation
+accumulates.
 """
 import re
 

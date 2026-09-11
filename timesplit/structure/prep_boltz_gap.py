@@ -1,12 +1,17 @@
-"""为「有 PDB 条目但截不出可用口袋」的靶点补 Boltz-2 输入。
+"""Generate Boltz-2 inputs for targets that "have a PDB entry but no usable pocket could be cut".
 
-这批靶点的来历：它们在 PDB 里确实有结构，但所有候选共晶配体都不接触
-该靶点自己的链——多半是核糖体、蛋白酶体、呼吸链这类大复合物里的亚基，
-配体结合在别的亚基上。这种情况下 PDB 结构给不出该靶点的口袋，只能预测。
+Where this batch of targets comes from: they do have a structure in the
+PDB, but none of the candidate co-crystallized ligands contact the
+target's own chain -- mostly because they are subunits of large complexes
+(ribosome, proteasome, respiratory chain) where the ligand is bound to a
+different subunit. In this situation the PDB structure cannot supply a
+pocket for this target, so a prediction is the only option.
 
-沿用 prep_boltz.py 的约定：每个靶点取亲和力最高的配体做代表，
-序列 >1170aa 的单列（Boltz-2 在本机实测的上限，且多为多聚蛋白，
-按 hivpr 的教训应先按结构域截取）。
+Follows the same convention as prep_boltz.py: take the highest-affinity
+ligand as the representative for each target, and list sequences
+>1170aa separately (the empirically-tested ceiling for Boltz-2 on our
+machine, and mostly multimeric proteins that, per the hivpr lesson,
+should first be truncated by domain).
 """
 import json
 import os
@@ -14,7 +19,7 @@ import os
 B = "/data/work/vs-benchmark"
 OUT = f"{B}/boltz_gap"
 LIMIT = 1170
-SHARDS = 4                      # 最多用 4 张卡
+SHARDS = 4                      # use at most 4 GPUs
 
 os.makedirs(OUT, exist_ok=True)
 
@@ -50,7 +55,7 @@ for u in sorted(need):
         continue
     ok.append((u, s, best[u][1]))
 
-# 按序列长度轮转分片，让各卡负载均衡（Boltz-2 耗时随长度陡增）
+# Round-robin shard by sequence length to balance load across GPUs (Boltz-2 runtime grows steeply with length)
 ok.sort(key=lambda x: -len(x[1]))
 for i in range(SHARDS):
     os.makedirs(f"{OUT}/shard_{i}", exist_ok=True)

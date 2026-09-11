@@ -1,16 +1,21 @@
-"""为 T3 全部分子生成 3D 构象，供 UniMol 系模型（DrugCLIP/BindCLIP/LigUnity）使用。
+"""Generate 3D conformers for every T3 molecule, for the UniMol-family models (DrugCLIP/BindCLIP/LigUnity) to use.
 
-这三个模型的分子塔是 UniMol，吃的是 3D 坐标而不是 SMILES，
-所以 T3 的 146,776 个唯一分子都要先算构象。这一步与层、与模型都无关，
-算一次全局复用。
+These three models' molecule tower is UniMol, which consumes 3D
+coordinates rather than SMILES, so all 146,776 unique molecules in T3
+need a conformer computed first. This step is independent of layer and
+of model, so it's computed once and reused globally.
 
-构象生成沿用 UniMol 预处理的常规做法：
-    ETKDGv3 嵌入 → MMFF94 优化（失败则退回 UFF，再失败则用未优化的嵌入构象）
-只保留 1 个构象：DrugCLIP 官方 DUD-E/DEKOIS 数据里每个分子也只有 1 个
-（`coordinates` 列表长度为 1），保持一致。
+Conformer generation follows UniMol's usual preprocessing recipe:
+    ETKDGv3 embedding -> MMFF94 optimization (falling back to UFF on
+    failure, and to the unoptimized embedded conformer if that also
+    fails)
+Only 1 conformer is kept per molecule: DrugCLIP's official DUD-E/DEKOIS
+data also has just 1 per molecule (the `coordinates` list has length 1),
+so this stays consistent with that.
 
-产出 `data/t3/mols/conformers.lmdb`，key = InChIKey，value = {atoms, coordinates, smi}。
-后续按靶点组装 `{target}_lig.lmdb` 时直接取用并补上 label。
+Produces `data/t3/mols/conformers.lmdb`, key = InChIKey,
+value = {atoms, coordinates, smi}. Downstream, assembling each target's
+`{target}_lig.lmdb` reads straight from this and adds the label.
 """
 import argparse
 import hashlib
@@ -36,10 +41,10 @@ def embed(args):
             return ik, None, "SMILES 解析失败"
         m = Chem.AddHs(m)
         ps = AllChem.ETKDGv3()
-        ps.randomSeed = 42                 # 固定种子，保证可复现
+        ps.randomSeed = 42                 # fixed seed, for reproducibility
         ps.useSmallRingTorsions = True
         if AllChem.EmbedMolecule(m, ps) != 0:
-            ps.useRandomCoords = True      # 大环/柔性分子的常规退路
+            ps.useRandomCoords = True      # the usual fallback for macrocycles/flexible molecules
             if AllChem.EmbedMolecule(m, ps) != 0:
                 return ik, None, "嵌入失败"
         try:
@@ -48,7 +53,7 @@ def embed(args):
             else:
                 AllChem.UFFOptimizeMolecule(m, maxIters=500)
         except Exception:
-            pass                           # 优化失败就用未优化的嵌入构象
+            pass                           # if optimization fails, use the unoptimized embedded conformer
         m = Chem.RemoveHs(m)
         conf = m.GetConformer()
         coords = np.array([list(conf.GetAtomPosition(i))
@@ -57,7 +62,7 @@ def embed(args):
         if len(atoms) == 0 or not np.isfinite(coords).all():
             return ik, None, "坐标异常"
         return ik, {"atoms": atoms, "coordinates": [coords], "smi": smi}, None
-    except Exception as e:                 # noqa: BLE001 逐条容错，不中断整批
+    except Exception as e:                 # noqa: BLE001 tolerate failures per-item, don't abort the whole batch
         return ik, None, f"{type(e).__name__}"
 
 
@@ -68,7 +73,7 @@ def main():
     ap.add_argument("--chunk", type=int, default=200)
     args = ap.parse_args()
 
-    # 汇总全局唯一分子
+    # Aggregate the global set of unique molecules
     seen = {}
     for L in ["L1", "L2", "L3", "L4"]:
         p = f"{B}/data/t3/layers/{L}.jsonl"
@@ -77,9 +82,11 @@ def main():
         for line in open(p):
             d = json.loads(line)
             ik = d.get("inchikey")
-            # 少数记录 InChIKey 为空：SMILES 里带 `->` 配位键或 `C:C` 这类
-            # RDKit 解析不了的写法，建库时就没生成出来。空 key 会让 LMDB 直接
-            # 报 MDB_BAD_VALSIZE，这里按 SMILES 兜底成一个稳定的 key。
+            # A small number of records have an empty InChIKey: SMILES with a
+            # `->` dative bond or a `C:C` notation that RDKit can't parse
+            # never generated one at build time. An empty key makes LMDB
+            # raise MDB_BAD_VALSIZE outright, so a stable key is derived from
+            # the SMILES as a fallback here.
             if not ik:
                 ik = "NOKEY_" + hashlib.md5(d["smiles"].encode()).hexdigest()
             seen.setdefault(ik, d["smiles"])
@@ -94,7 +101,7 @@ def main():
     from collections import Counter
     fails = Counter()
     n_ok = 0
-    # 分批提交：单个大事务一旦中途出错，之前算的全部丢失（第一次就栽在这）
+    # Commit in batches: if one giant transaction errors midway, everything computed so far is lost (this is exactly what bit us the first time)
     txn = env.begin(write=True)
     with Pool(args.procs) as pool:
         for i, (ik, rec, err) in enumerate(

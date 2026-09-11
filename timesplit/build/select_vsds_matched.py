@@ -1,34 +1,50 @@
-"""从 T3 里选一个「活性 ≥50 且类别构成对齐 VSDS-vd」的子集。
+"""Select from T3 a subset with "actives >=50 per target and class composition matched to VSDS-vd".
 
-背景
-----
-导师 2026-09-04 定的两条：① 每个靶点活性分子 ≥50；② 靶点类别参考
-VSDS-vd（Gu et al., Nat Mach Intell 7:509-520, 2025，DOI 10.1038/s42256-025-00993-0）。
+Background
+----------
+Two decisions the advisor made on 2026-09-04: (1) each target must have
+>=50 active molecules; (2) target class composition should reference
+VSDS-vd (Gu et al., Nat Mach Intell 7:509-520, 2025,
+DOI 10.1038/s42256-025-00993-0).
 
-VSDS-vd 的类别构成不是论文里现成的表，是把 Zenodo 上的数据集
-(https://zenodo.org/records/13684010) 下下来、按 DTEBV-D 子集的 147 个
-UniProt 目录、用**与本仓库 annotate_target_class3.py 完全相同**的 ChEMBL
-分类树口径重新标注得到的。两边同口径是这个比对唯一有意义的前提。
+VSDS-vd's class composition isn't a ready-made table from the paper --
+it was produced by downloading the dataset from Zenodo
+(https://zenodo.org/records/13684010), taking the 147 UniProt accessions
+of the DTEBV-D subset, and re-annotating them with **the exact same**
+ChEMBL classification-tree convention as this repo's
+annotate_target_class3.py. Using the same convention on both sides is the
+only thing that makes this comparison meaningful.
 
-两个改不掉的缺口
-----------------
-核受体和 P450 在 ≥50 的池子里只有 6 个和 2 个，按 VSDS-vd 比例分别需要
-17 和 9 个。**全部拿光也不够**——不是筛选口径的问题：这两个家族研究得早、
-成员少，时间切分之后基本不出新靶点（L3+L4 两层里它们都是 0 个）。
-如实报成 limitation，不要为了配平这两类把整体规模砍到 49（P450 的天花板）。
+Two gaps that can't be fixed
+-------------------------------
+Nuclear receptors and P450 only have 6 and 2 members respectively in the
+>=50 pool, while VSDS-vd's proportions would call for 17 and 9. **Taking
+every single one still isn't enough** -- and this isn't a filtering
+artifact: these two families were studied early, have few members, and
+essentially produce no new targets after the time split (both are 0 in
+L3+L4). This is reported honestly as a limitation rather than shrinking
+the whole subset down to 49 (P450's ceiling) just to balance these two
+classes.
 
-为什么要在「类别」和「分层」两个方向同时配平
---------------------------------------------
-第一版只按类别配额、类内优先塞 L3/L4，结果「其他酶」46 个名额被 L4 一层吃光，
-L1/L2 里这个最大的类变成 0 个——层间构成完全失衡，分层比较就没意义了。
-现在用带容量上限的迭代比例配平（IPF）：行边际=VSDS-vd 的类别比例，
-列边际=候选池本身的分层比例，每格不超过实际存货，最后按最大余数取整。
+Why both "class" and "layer" need to be balanced at once
+------------------------------------------------------------
+The first version quota'd by class alone, packing L3/L4 first within each
+class, and as a result the "other enzymes" class's 46 slots were entirely
+consumed by the L4 layer, leaving that largest class at 0 in L1/L2 --
+composition across layers became completely unbalanced, making a
+layer-wise comparison meaningless. Now it uses capacity-bounded iterative
+proportional fitting (IPF): row margins = VSDS-vd's class proportions,
+column margins = the candidate pool's own layer proportions, each cell
+capped by actual inventory, with final rounding by the largest-remainder
+method.
 
-类内为什么用随机抽样而不是「取活性数最多的」
---------------------------------------------
-两种都能填满配额，但按活性数取会系统性偏向被研究透的热门靶点，
-并且把每靶点活性数的跨度进一步拉大（池子里最大 3262 个）。
-固定种子随机抽样保持活性数分布不失真。
+Why random sampling within a class rather than "take the ones with the most actives"
+------------------------------------------------------------------------------------
+Both approaches can fill the quota, but selecting by active count would
+systematically favor well-studied, popular targets, and would further
+widen the spread of per-target active counts (up to 3262 in the pool).
+Fixed-seed random sampling keeps the active-count distribution
+undistorted.
 """
 import argparse
 import collections
@@ -36,7 +52,7 @@ import csv
 import json
 import random
 
-# VSDS-vd DTEBV-D 147 个靶点的类别构成（同口径重标；见模块 docstring）
+# Class composition of VSDS-vd's DTEBV-D 147 targets (re-annotated under the same convention; see the module docstring)
 VSDS = {"激酶": 35, "其他酶": 27, "GPCR": 23, "蛋白酶": 23, "核受体": 11,
         "表观": 10, "其他/未分类": 7, "P450": 6, "离子通道": 3, "转运体": 2}
 ORDER = ["激酶", "其他酶", "GPCR", "蛋白酶", "核受体", "表观",
@@ -64,8 +80,10 @@ def main():
         pool[r["protein_class"]][r["layer"]].append(r)
 
     cap = {(c, L): len(pool[c].get(L, [])) for c in ORDER for L in LAYERS}
-    # L3 是最薄的一层（新靶点 / 家族见过），池子里本来就只有二十来个，
-    # 按比例分只会剩个位数、那一层直接作废，所以整层全留，不参与比例分配。
+    # L3 is the thinnest layer (new target / family already seen), with only
+    # about twenty in the pool to begin with; proportional allocation would
+    # leave it with single digits and effectively void that layer, so the
+    # whole layer is kept as-is and excluded from proportional allocation.
     n_layer = collections.Counter(r["layer"] for r in rows)
     rest = [L for L in LAYERS if L != "L3"]
     n_rest = sum(n_layer[L] for L in rest)
@@ -74,21 +92,21 @@ def main():
         q_layer[L] = (args.quota - n_layer["L3"]) * n_layer[L] / n_rest
     q_class = {c: args.quota * p.get(c, 0) for c in ORDER}
 
-    # 带上限的迭代比例配平：行=类别，列=分层，每格不超过存货
+    # Capacity-bounded iterative proportional fitting: rows = class, columns = layer, each cell capped by inventory
     x = {k: min(cap[k], 1.0) for k in cap}
     for _ in range(200):
-        for c in ORDER:                                   # 行归一
+        for c in ORDER:                                   # normalize rows
             s_ = sum(x[(c, L)] for L in LAYERS)
             if s_ > 0:
                 for L in LAYERS:
                     x[(c, L)] = min(cap[(c, L)], x[(c, L)] * q_class[c] / s_)
-        for L in LAYERS:                                  # 列归一
+        for L in LAYERS:                                  # normalize columns
             s_ = sum(x[(c, L)] for c in ORDER)
             if s_ > 0:
                 for c in ORDER:
                     x[(c, L)] = min(cap[(c, L)], x[(c, L)] * q_layer[L] / s_)
 
-    # 最大余数法取整，仍受存货上限约束
+    # Round by the largest-remainder method, still bounded by inventory
     alloc = {k: min(cap[k], int(v)) for k, v in x.items()}
     frac = sorted(((x[k] - int(x[k]), k) for k in x if alloc[k] < cap[k]), reverse=True)
     need = round(sum(min(cap[k], x[k]) for k in x)) - sum(alloc.values())

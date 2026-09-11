@@ -1,22 +1,31 @@
-"""从 RCSB 实验结构中提取 T3 新靶点的口袋。
+"""Extract pockets for T3's new targets from RCSB experimental structures.
 
-与 extract_pocket.py（Boltz-2 预测结构版）用**完全相同**的残基级选择逻辑，
-即 DrugCLIP 官方 py_scripts/write_dude_multi.py 的 get_different_raid()：
-蛋白原子只要有一个落在配体任意原子 threshold 内，其**整个残基**进入口袋。
+Uses **exactly the same** residue-level selection logic as extract_pocket.py
+(the Boltz-2-predicted-structure version), i.e. DrugCLIP's official
+py_scripts/write_dude_multi.py get_different_raid(): a protein atom's
+**entire residue** enters the pocket as soon as one of its atoms falls
+within threshold of any ligand atom.
 
-相对预测结构版多出来的三件事
-----------------------------
-1. **链归属**。47.1% 的 PDB 条目含多个 UniProt（核糖体、蛋白酶体、呼吸链）。
-   若用文件里所有链的蛋白原子，配体明明结合在 A 亚基上，会被当成 B 亚基的
-   口袋。所以蛋白原子限制到该靶点自己的链；拿不到链归属时退回全部蛋白链。
+Three extra concerns relative to the predicted-structure version
+------------------------------------------------------------------
+1. **Chain attribution.** 47.1% of PDB entries contain multiple UniProt
+   entries (ribosome, proteasome, respiratory-chain complexes). Using
+   protein atoms from every chain in the file would misattribute a
+   pocket to subunit B when the ligand is actually bound to subunit A.
+   So protein atoms are restricted to the target's own chain(s); when
+   chain attribution is unavailable, it falls back to all protein chains.
 
-2. **候选回退**。即使限制到自己的链，配体也可能压根不接触它——
-   此时这个 (pdb, ligand) 对该靶点无效。按 rank_crystal_ligands.py 排好的
-   候选顺序逐个试，取第一个能截出合格口袋的。
+2. **Candidate fallback.** Even restricted to its own chain, the ligand
+   may simply not contact it at all — in which case that (pdb, ligand)
+   pair is invalid for this target. Candidates are tried in the order
+   ranked by rank_crystal_ligands.py, taking the first one that yields
+   a valid pocket.
 
-3. **实验结构的杂事**：多链、同一配体的多个拷贝、altloc、多 model。
-   约定为：只取 model 1；altloc 只保留 '.'/'?'/'A'；同一 comp_id 的多个拷贝
-   取与该靶点链接触原子最多的那个；丢弃氢原子（与 DUD-E 口袋一致）。
+3. **Housekeeping specific to experimental structures**: multiple chains,
+   multiple copies of the same ligand, altloc, multiple models. Convention:
+   take only model 1; keep only altloc '.'/'?'/'A'; among multiple copies
+   of the same comp_id, take the one with the most contact atoms against
+   the target's chain; drop hydrogen atoms (consistent with DUD-E pockets).
 """
 import argparse
 import gzip
@@ -39,10 +48,10 @@ AA = {
     "MSE", "SEC", "PYL",
 }
 URL = "https://files.rcsb.org/download/{}.cif.gz"
-MIN_POCKET_ATOMS = 40      # 低于此视为配体几乎不接触该链，判定候选无效
+MIN_POCKET_ATOMS = 40      # below this, the ligand is considered to barely contact the chain and the candidate is rejected
 
 
-# ---------------------------------------------------------------- 下载
+# ---------------------------------------------------------------- Download
 
 def fetch(pdb_id, cache_dir):
     dst = os.path.join(cache_dir, f"{pdb_id}.cif.gz")
@@ -64,17 +73,19 @@ def fetch(pdb_id, cache_dir):
     return None
 
 
-# ---------------------------------------------------------------- 解析
+# ---------------------------------------------------------------- Parse
 
 def parse_cif(path, lig_comps):
-    """扫一遍 _atom_site 表，返回 (蛋白原子按链分组, 配体拷贝坐标)。
+    """Scan the _atom_site table once, returning (protein atoms grouped by
+    chain, ligand copy coordinates).
 
-    lig_comps 是这个条目里所有待考察的配体 comp_id 集合，一次解析全取到，
-    免得同一个 cif 为每个候选重复解析。
+    lig_comps is the set of all candidate ligand comp_ids to consider for
+    this entry, collected in a single pass so the same cif is not re-parsed
+    for every candidate.
     """
     prot = {"coord": [], "atom_type": [], "residue_id": [],
             "residue_type": [], "chain": []}
-    lig = {}                                   # comp_id -> {拷贝键: [坐标]}
+    lig = {}                                   # comp_id -> {copy key: [coords]}
 
     cols, in_loop, header = {}, False, False
     with gzip.open(path, "rt", errors="replace") as f:
@@ -130,7 +141,7 @@ def parse_cif(path, lig_comps):
 
 
 def subset_chains(prot, chains):
-    """把蛋白原子限制到指定链；chains 为空则原样返回。"""
+    """Restrict protein atoms to the given chains; if chains is empty, return unchanged."""
     if not chains:
         return prot
     keep = np.isin(prot["chain"], list(chains))
@@ -145,7 +156,7 @@ def subset_chains(prot, chains):
 
 
 def pick_copy(prot, copies, threshold=6.0):
-    """同一 comp_id 的多个拷贝里，取与该靶点链接触原子最多的那个。"""
+    """Among multiple copies of the same comp_id, pick the one with the most contact atoms against the target's chain."""
     if prot is None or len(prot["coord"]) == 0 or not copies:
         return None, None, 0
     tree = cKDTree(prot["coord"])
@@ -161,7 +172,7 @@ def pick_copy(prot, copies, threshold=6.0):
 
 
 def extract_pocket(prot, lig_coord, threshold):
-    """与 extract_pocket.py 逐字相同的残基级选择。"""
+    """Residue-level selection, identical to extract_pocket.py."""
     if prot is None or len(prot["coord"]) == 0 or len(lig_coord) == 0:
         return None
     tree = cKDTree(lig_coord)
@@ -176,7 +187,7 @@ def extract_pocket(prot, lig_coord, threshold):
             [prot["residue_type"][i] for i in idx])
 
 
-# ---------------------------------------------------------------- 主流程
+# ---------------------------------------------------------------- Main pipeline
 
 def main():
     ap = argparse.ArgumentParser()
@@ -209,11 +220,11 @@ def main():
             os.remove(p)
         envs[t] = lmdb.open(p, subdir=False, map_size=1 << 35)
 
-    main_t = max(args.thresholds)          # 用最大阈值判定候选是否合格
+    main_t = max(args.thresholds)          # use the largest threshold to decide whether a candidate qualifies
     stats = {t: [] for t in args.thresholds}
     manifest, failed = {}, []
     rank_hist, reject = Counter(), Counter()
-    parsed_cache = {}                      # 同一 cif 在一个靶点内复用
+    parsed_cache = {}                      # reused across candidates within the same target's cif
 
     for i, (up, cands) in enumerate(items):
         parsed_cache.clear()
@@ -227,7 +238,7 @@ def main():
                 comps = {x["comp_id"] for x in cands if x["pdb_id"] == c["pdb_id"]}
                 try:
                     parsed_cache[c["pdb_id"]] = parse_cif(path, comps)
-                except Exception as e:                       # noqa: BLE001 逐条容错
+                except Exception as e:                       # noqa: BLE001 tolerate failures per-candidate
                     reject["解析失败"] += 1
                     parsed_cache[c["pdb_id"]] = None
                     print(f"  [解析失败] {c['pdb_id']}: {e}", file=sys.stderr)
@@ -238,7 +249,7 @@ def main():
 
             sub = subset_chains(prot_all, c["target_chains"])
             used_chains = c["target_chains"]
-            if sub is None:                 # 链归属与坐标对不上，退回全部蛋白链
+            if sub is None:                 # chain attribution doesn't match the coordinates; fall back to all protein chains
                 sub, used_chains = prot_all, []
             copies = ligs.get(c["comp_id"]) or {}
             if not copies:

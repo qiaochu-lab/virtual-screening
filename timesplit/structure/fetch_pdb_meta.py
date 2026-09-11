@@ -1,7 +1,7 @@
-"""第 1 步：为 972 个有 PDB 结构的 T3 新靶点收集元数据。
+"""Step 1: collect metadata for the 972 T3 new targets that have a PDB structure.
 
-产出 uniprot -> [ {pdb_id, ligands:[{comp_id, smiles, mw, chains}]} ]，
-供第 2 步按「与 T3 配体的相似度」挑选共晶配体。
+Produces uniprot -> [ {pdb_id, ligands:[{comp_id, smiles, mw, chains}]} ],
+which step 2 uses to pick a co-crystallized ligand by similarity to T3's ligands.
 """
 import json, os, time, urllib.parse, urllib.request
 
@@ -39,7 +39,7 @@ for i in range(0, len(targets), BATCH):
 all_pdb = sorted({p for v in up2pdb.values() for p in v})
 print(f"\n涉及 PDB 条目: {len(all_pdb):,}", flush=True)
 
-# ---------- 2. PDB -> 配体 ----------
+# ---------- 2. PDB -> ligands ----------
 GQL = """
 query($ids: [String!]!) {
   entries(entry_ids: $ids) {

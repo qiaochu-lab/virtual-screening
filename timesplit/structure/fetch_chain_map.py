@@ -1,10 +1,13 @@
-"""补取每个 PDB 条目的「链 → UniProt」映射。
+"""Fetch each PDB entry's "chain -> UniProt" mapping.
 
-为什么需要：T3 的靶点里有不少属于大型复合物（核糖体、蛋白酶体、呼吸链），
-同一个 PDB 条目会被十几个不同 UniProt 同时命中。若提取口袋时用文件里
-**所有**链的蛋白原子，配体明明结合在 A 亚基上，却会被当成 B 亚基的口袋。
-有了这张映射，就能把口袋限制在该靶点自己的链上，并在配体压根不接触
-该靶点时判定这个 PDB 不可用、换下一个候选。
+Why this is needed: many of T3's targets belong to large complexes
+(ribosome, proteasome, respiratory chain), so a single PDB entry can be
+hit by a dozen different UniProt accessions at once. If pocket extraction
+used protein atoms from **all** chains in the file, a ligand bound to
+subunit A would end up misattributed as a pocket on subunit B. With this
+mapping, the pocket can be restricted to the target's own chain(s), and
+a PDB entry can be judged unusable (moving on to the next candidate) when
+the ligand doesn't contact that target's chain at all.
 """
 import json
 import os
@@ -39,12 +42,12 @@ def gql(ids):
 
 def main():
     meta = json.load(open(META))
-    # 只需要含配体的条目——apo 结构不会被选中
+    # Only entries with a ligand are needed -- apo structures will never be selected
     ids = sorted(p for p, ligs in meta["pdb_lig"].items() if ligs)
     print(f"待查 PDB 条目: {len(ids):,}", flush=True)
 
     chain_map = {}          # pdb_id -> {uniprot: [chains]}
-    prot_chains = {}        # pdb_id -> [所有蛋白链]
+    prot_chains = {}        # pdb_id -> [all protein chains]
     GB = 50
     for i in range(0, len(ids), GB):
         chunk = ids[i:i + GB]

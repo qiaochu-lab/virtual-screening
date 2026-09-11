@@ -1,26 +1,35 @@
-"""第 2 步（改版）：为每个 T3 新靶点排出一串候选共晶配体，而不是只选一个。
+"""Step 2 (revised): rank a list of candidate co-crystallized ligands for each T3 new target, instead of picking just one.
 
-为什么要改成候选列表
---------------------
-上一版只输出「最优的一个 (pdb_id, comp_id)」，提取口袋时才发现两类问题：
+Why switch to a candidate list
+-------------------------------
+The previous version output only the "single best (pdb_id, comp_id)", and
+pocket extraction later revealed two problems:
 
-  1. 47.1% 的 PDB 条目含多个 UniProt（核糖体、蛋白酶体、呼吸链这类复合物）。
-     配体结合在 A 亚基上，却会被当成同一条目里 B 亚基的口袋。
-  2. 即便限制到该靶点自己的链，配体也可能压根不接触这条链——
-     此时这个 (pdb, ligand) 对该靶点无效，必须换下一个候选。
+  1. 47.1% of PDB entries contain multiple UniProt accessions (complexes
+     like the ribosome, proteasome, respiratory chain). A ligand bound to
+     subunit A would get misattributed as a pocket on subunit B in the
+     same entry.
+  2. Even restricted to the target's own chain, the ligand may simply not
+     contact that chain at all -- in which case this (pdb, ligand) pair is
+     invalid for the target and the next candidate must be tried.
 
-这两件事都只有拿到坐标才能判定，元数据阶段做不到。所以这里改为输出排序候选，
-由 extract_pocket_pdb.py 逐个试，取第一个能截出合格口袋的。
+Both of these can only be determined once coordinates are available, not
+at the metadata stage. So this step now outputs a ranked candidate list,
+which extract_pocket_pdb.py tries one by one, taking the first that yields
+a valid pocket.
 
-排序键（与上一版相同的三层）
-----------------------------
-  1. Tanimoto 按 0.1 分桶 —— 保证真正相似的配体优先，同时让 0.02 与 0.00
-     这种无意义的差异无法压过体积差
-  2. 是否落在类药分子量窗口 [250, 700]
-  3. 窗口内取大者；超窗口的分子量封顶，不因更大而占优
+Ranking key (same three tiers as the previous version)
+--------------------------------------------------------
+  1. Tanimoto binned to 0.1 -- ensures genuinely similar ligands rank
+     first, while preventing a meaningless difference like 0.02 vs 0.00
+     from being overridden by a size difference
+  2. Whether it falls in the drug-like molecular-weight window [250, 700]
+  3. Within the window, prefer the larger one; above the window, molecular
+     weight is capped so being larger confers no further advantage
 
-黑名单排除：离子、缓冲液/冷冻保护剂、脂类与去污剂、聚糖，
-以及重原子数过少的片段（单原子的镧系相位离子等）。
+Blacklist exclusions: ions, buffers/cryoprotectants, lipids and
+detergents, glycans, and fragments with too few heavy atoms (e.g.
+single-atom lanthanide phasing ions).
 """
 import json
 import os
@@ -37,9 +46,9 @@ META = f"{B}/data/t3/pdb_meta.json"
 CHAINMAP = f"{B}/data/t3/pdb_chain_map.json"
 OUT = f"{B}/data/t3/crystal_ligand_candidates.json"
 
-TOP_N = 8          # 每个靶点最多保留的候选数
+TOP_N = 8          # max candidates kept per target
 
-# 离子 / 缓冲液 / 冷冻保护剂 / 结晶添加剂
+# Ions / buffers / cryoprotectants / crystallization additives
 BLOCK = {
     "HOH", "DOD", "SO4", "PO4", "CL", "NA", "MG", "ZN", "CA", "K", "MN", "FE", "FE2",
     "CU", "CU1", "NI", "CD", "HG", "IOD", "BR", "F", "ACT", "EDO", "GOL", "PEG", "PG4",
@@ -47,13 +56,13 @@ BLOCK = {
     "TAR", "ACY", "NO3", "AZI", "SCN", "CO3", "NH4", "OXY", "PER", "UNX", "UNL", "MLI",
     "SIN", "BCT", "CAC", "PIN", "HEZ", "12P", "15P", "2PE", "MLA", "MRD", "BU3", "PDO",
     "SRT", "MAE", "FLC", "ARS", "VO4", "WO4", "MOO", "PI", "PPV", "POP",
-    # 相位用重原子/镧系
+    # Heavy-atom/lanthanide phasing agents
     "PR", "EU", "GD", "SM", "YB", "LU", "TB", "HO", "ER", "DY", "LA", "CE", "ND", "TM",
     "PT", "AU", "PB", "OS", "IR", "TA", "TL", "BA", "SR", "CS", "RB", "AG", "MO", "W",
-    # 结晶/结构常见但通常不是药物位点
+    # Common in crystallography/structures but usually not a drug site
     "IHP",
 }
-# 脂类 / 去污剂 / 甾醇 —— 标记的是跨膜面或疏水沟槽，不是药物口袋
+# Lipids / detergents / sterols -- mark a transmembrane face or hydrophobic groove, not a drug pocket
 LIPID = {
     "CDL", "POV", "PGV", "PGT", "LHG", "PEE", "PEF", "PC1", "PCF", "PSC", "3PE",
     "6PL", "PX4", "PLM", "MYR", "STE", "OLA", "OLC", "PEV", "PIO", "PLC", "DGA",
@@ -61,7 +70,7 @@ LIPID = {
     "D12", "TWT", "C10", "HTG", "HP6", "F09", "JEF", "TRD", "P15", "PE4", "XPE",
     "7PE", "DPO", "ETE", "CLR", "CHD", "Y01", "HC3", "SOG", "LI1", "3PH", "SQD",
 }
-# 聚糖 —— 翻译后修饰，不是配体位点
+# Glycans -- post-translational modifications, not a ligand site
 GLYCAN = {
     "NAG", "NDG", "BMA", "MAN", "BGC", "GLC", "GAL", "GLA", "FUC", "FUL",
     "XYS", "XYP", "SIA", "NGA", "A2G", "RAM", "GCU", "IDS", "SGN", "MBG",
@@ -79,7 +88,7 @@ def _key(c):
 
 
 def fp_and_heavy(smi):
-    """返回 (指纹, 重原子数)；无法解析时返回 (None, 0)。"""
+    """Return (fingerprint, heavy-atom count); return (None, 0) when it can't be parsed."""
     if not smi:
         return None, 0
     m = Chem.MolFromSmiles(smi)
@@ -94,9 +103,9 @@ def main():
     cm = json.load(open(CHAINMAP))
     chain_map = cm["chain_map"]
 
-    # T3 里每个靶点的参照配体（取亲和力最高的若干）
+    # Reference ligands for each target in T3 (the top several by affinity)
     ref_lig = defaultdict(list)
-    for L in ["L1", "L2", "L3", "L4"]:   # 已知靶点(L1/L2)也要参照配体
+    for L in ["L1", "L2", "L3", "L4"]:   # known targets (L1/L2) also need reference ligands
         p = f"{B}/data/t3/layers/{L}.jsonl"
         if not os.path.exists(p):
             continue
@@ -122,7 +131,7 @@ def main():
 
         cands = []
         for pid in pdbs:
-            # 该靶点在这个条目里占哪些链；拿不到映射就不排除（宁可后面按坐标判定）
+            # Which chains this target occupies in this entry; if the mapping is unavailable, don't exclude it (better to decide by coordinates later)
             own = sorted(set(chain_map.get(pid, {}).get(up, [])))
             for lg in pdb_lig.get(pid, []):
                 cid = lg.get("comp_id")
@@ -145,7 +154,7 @@ def main():
             need_boltz.append(up)
         else:
             cands.sort(key=_key, reverse=True)
-            # 同一个 (pdb, comp) 只留一次
+            # Keep only one entry per (pdb, comp)
             seen, uniq = set(), []
             for c in cands:
                 k = (c["pdb_id"], c["comp_id"])

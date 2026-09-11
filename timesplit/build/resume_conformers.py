@@ -1,16 +1,21 @@
-"""续跑构象生成：补齐 conformers.lmdb 里缺的分子，带**每分子超时**。
+"""Resume conformer generation: fill in the molecules missing from conformers.lmdb, with a **per-molecule timeout**.
 
-为什么需要
-----------
-第一版没有超时保护。RDKit 的 ETKDG 在个别病态分子（大环、大肽、
-高度对称的笼状结构）上会无限自旋——实测有 3 个 worker 以 99% CPU
-空转近 3 小时卡在同一批分子上，把整个任务拖住。
+Why this is needed
+--------------------
+The first version had no timeout guard. RDKit's ETKDG spins forever on
+certain pathological molecules (macrocycles, large peptides, highly
+symmetric cage structures) -- in practice 3 workers were observed
+spinning at 99% CPU for nearly 3 hours stuck on the same batch of
+molecules, stalling the whole job.
 
-这里改成：每个分子起一个子进程算，超过 TIMEOUT 秒直接放弃并记下来。
-放弃的分子会被排除出评测集（在 build_t3_unimol.py 里按缺构象处理），
-数量很少且都是真正算不动的，不影响结论。
+Fixed by spawning a subprocess per molecule; if it exceeds TIMEOUT
+seconds, it's simply abandoned and logged. Abandoned molecules are
+excluded from the evaluation set (handled as missing conformers in
+build_t3_unimol.py); there are very few of them and they are all
+genuinely intractable, so this doesn't affect the conclusions.
 
-已落盘的 139,882 个不重算（第一版改成分批提交后保住了）。
+The 139,882 already written to disk are not recomputed (saved by
+switching the first version to batched commits).
 """
 import argparse
 import hashlib
@@ -61,7 +66,7 @@ def _embed(smi, q):
 
 
 def embed_with_timeout(smi, timeout):
-    """每个分子起独立子进程，超时就杀 —— 这是唯一能中断 RDKit C++ 循环的办法。"""
+    """Spawn an independent subprocess per molecule and kill it on timeout -- the only way to interrupt RDKit's C++ loop."""
     q = mp.Queue()
     p = mp.Process(target=_embed, args=(smi, q))
     p.start()
@@ -117,9 +122,11 @@ def main():
     fails = Counter()
     n_ok = 0
     txn = env.begin(write=True)
-    # 必须用 ProcessPoolExecutor 而不是 mp.Pool：Pool 的 worker 是守护进程，
-    # 不允许再起子进程，而「每分子一个可杀的子进程」正是超时控制的唯一可靠办法
-    # （RDKit 在 C++ 里自旋时，signal.alarm 之类的手段打断不了）。
+    # Must use ProcessPoolExecutor rather than mp.Pool: Pool's workers are
+    # daemonic processes and aren't allowed to spawn subprocesses of their
+    # own, and "one killable subprocess per molecule" is the only reliable
+    # way to enforce the timeout (something like signal.alarm can't
+    # interrupt RDKit while it's spinning in C++).
     with ProcessPoolExecutor(args.procs) as pool:
         for i, (ik, rec, err) in enumerate(pool.map(worker, todo, chunksize=1)):
             if rec is None:
@@ -145,5 +152,5 @@ def main():
 
 
 if __name__ == "__main__":
-    mp.set_start_method("spawn", force=True)   # fork 会继承 RDKit 状态，spawn 更干净
+    mp.set_start_method("spawn", force=True)   # fork would inherit RDKit's state; spawn is cleaner
     main()

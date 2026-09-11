@@ -1,20 +1,25 @@
-"""为 T3 靶点生成 SaProt 结构感知序列（SPRINT 的蛋白塔要）。
+"""Generate SaProt structure-aware sequences for T3's targets (needed by SPRINT's protein tower).
 
-SaProt 序列把每个残基编码成「氨基酸 + foldseek 3Di 结构 token」两个字符，
-例如 MdEvKp...。SPRINT 发布的 checkpoint 就是这么训的；
-不给结构 token 它会用 mask 顶替，但那样等于废掉一半输入，
-所以我们用已有的结构真算一遍。
+A SaProt sequence encodes each residue as two characters, "amino acid +
+foldseek 3Di structure token", e.g. MdEvKp.... This is exactly how
+SPRINT's released checkpoint was trained; without the structure token it
+falls back to a mask, which effectively throws away half the input, so we
+compute it properly from the available structures.
 
-结构来源与 run_t3_conglude.py 完全一致（PDB 实验结构优先、Boltz-2 预测补位），
-这样 SPRINT 与 ConGLUDe 的结构条件相同，两者的差异只来自模型本身。
+Structure sourcing matches run_t3_conglude.py exactly (PDB experimental
+structures first, Boltz-2 predictions filling the gaps), so SPRINT and
+ConGLUDe see the same structural conditioning and any difference between
+them comes only from the models themselves.
 
-pLDDT 掩码
-----------
-SaProt 的惯例是对低置信区域（pLDDT < 70）把结构 token 掩掉。
-但 pLDDT 只有预测结构才有：
-  - Boltz-2 预测结构 → B-factor 列是 pLDDT，开掩码
-  - PDB 实验结构     → B-factor 列是真实 B 因子，**必须关掉掩码**，
-                        否则会把 B 因子当 pLDDT 误掩一大片
+pLDDT masking
+-------------
+SaProt's convention is to mask out the structure token in low-confidence
+regions (pLDDT < 70). But pLDDT only exists for predicted structures:
+  - Boltz-2 predicted structure -> the B-factor column holds pLDDT, masking on
+  - PDB experimental structure  -> the B-factor column holds the real B-factor,
+                                    masking **must be turned off**, otherwise
+                                    B-factors get mistaken for pLDDT and a large
+                                    chunk gets masked by accident
 """
 import argparse
 import json
@@ -25,7 +30,7 @@ from multiprocessing import Pool
 B = "/data/work/vs-benchmark"
 FOLDSEEK = f"{B}/tools/foldseek/bin/foldseek"
 sys.path.insert(0, f"{B}/code/panspecies-dti")
-# get_struc_seq 在 utils/structure_to_saprot.py 里，不是包内模块，得单独加路径
+# get_struc_seq lives in utils/structure_to_saprot.py, not a package module, so its path must be added separately
 sys.path.insert(0, f"{B}/code/panspecies-dti/utils")
 
 
@@ -50,14 +55,14 @@ def one(task):
                           process_id=pid, plddt_mask=is_pred)
         if not d:
             return up, None, "foldseek 无输出"
-        # get_struc_seq 返回 {chain: (aa_seq, struc_seq, combined)}；取最长的链
+        # get_struc_seq returns {chain: (aa_seq, struc_seq, combined)}; take the longest chain
         best = max(d.values(), key=lambda v: len(v[0]))
         combined = best[2]
         if not combined:
             return up, None, "结构序列为空"
         return up, {"saprot": combined, "len": len(best[0]),
                     "source": "boltz2_pred" if is_pred else "pdb_holo"}, None
-    except Exception as e:                      # noqa: BLE001 逐条容错
+    except Exception as e:                      # noqa: BLE001 tolerate failures per-item
         return up, None, f"{type(e).__name__}: {e}"[:120]
 
 
@@ -68,7 +73,7 @@ def main():
     ap.add_argument("--out", default=f"{B}/data/t3/saprot_seqs.json")
     args = ap.parse_args()
 
-    # 复用 ConGLUDe 那一轮已经落地的 PDB 文件（实验结构 + 预测结构都在里面）
+    # Reuse the PDB files already materialized for the ConGLUDe run (both experimental and predicted structures are in there)
     cands = {}
     for L in ["L1", "L2", "L3", "L4"]:
         d = f"{B}/code/conglude/data/datasets/predict_datasets/t3_{L}/raw/pdb_files"
@@ -82,7 +87,7 @@ def main():
     for up, p in boltz.items():
         cands.setdefault(up, p)
 
-    # 判定来源：文件在 boltz 输出目录下即为预测结构
+    # Determine the source: a file under a boltz output directory is a predicted structure
     tasks = []
     for i, (up, p) in enumerate(sorted(cands.items())):
         is_pred = "/boltz_" in p or (up in boltz and boltz[up] == p)

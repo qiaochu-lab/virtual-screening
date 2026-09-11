@@ -1,40 +1,51 @@
-"""构造 target-swap 评测树：候选分子池不变，只把靶点身份换成另一个。
+"""Build the target-swap evaluation tree: the candidate molecule pool stays fixed, only the target identity is swapped for another one.
 
-要回答的问题
-------------
-纯配体基线（不看蛋白就把 EF 打到理论上限的 98.7%）很容易被读成
-「模型根本不看蛋白」。我们支持不了这个强结论。Target swap 直接测：
-把靶点换掉、候选池一个分子不动，成绩掉多少。
+The question this answers
+--------------------------
+A ligand-only baseline that reaches 98.7% of the theoretical EF ceiling
+without looking at the protein at all is easy to (mis)read as "the model
+doesn't look at the protein at all." We can't support that strong a
+claim. Target swap tests this directly: swap the target while leaving
+every molecule in the candidate pool untouched, and see how much the
+score drops.
 
-能支撑的结论是「模型确实使用了靶点信息，但该信号不足以支撑真正的化学外推」——
-比「模型只看配体」精确，也更难反驳。
+The conclusion this can support is "the model does use target
+information, but that signal isn't enough to support genuine chemical
+extrapolation" -- more precise than "the model only looks at the ligand",
+and harder to argue against.
 
-为什么要连目录名一起换
-----------------------
-评测代码这样取序列：
+Why the directory name has to be swapped too
+-----------------------------------------------
+The evaluation code fetches the sequence like this:
 
-    s = (_seqs.get(target) or {}).get("seq")     # target 就是目录名
+    s = (_seqs.get(target) or {}).get("seq")     # target is the directory name
     ...
     pocket_forward(protein_sequences=s, **pocket_from_lmdb)
 
-序列**按目录名查**，不在 lmdb 里。所以只替换 `_pocket.lmdb` 会造出
-「A 的序列 + B 的口袋」的嵌合体——掉分了也分不清是靶点错了还是输入自相矛盾。
+The sequence is **looked up by directory name**, not stored in the lmdb.
+So swapping only `_pocket.lmdb` would create a chimera of "A's sequence +
+B's pocket" -- if the score drops, there's no way to tell whether that's
+because the target changed or because the input is self-contradictory.
 
-正确做法是把目录命名成替身靶点 T'：
+The correct approach is to name the directory after the swapped-in
+target T':
 
-    swap_root/{层}/{T'}/{T'}_pocket.lmdb  ->  T' 自己的口袋
-    swap_root/{层}/{T'}/{T'}_lig.lmdb     ->  **T 的**配体池（软链，改名）
+    swap_root/{layer}/{T'}/{T'}_pocket.lmdb  ->  T''s own pocket
+    swap_root/{layer}/{T'}/{T'}_lig.lmdb     ->  **T's** ligand pool (symlinked, renamed)
 
-模型于是看到完整的 T' 身份（序列 + 口袋）配 T 的候选池。标签跟着配体走，
-所以标签仍然是 T 的正确标签。
+The model then sees a complete T' identity (sequence + pocket) paired
+with T's candidate pool. The label follows the ligand, so the label is
+still the correct label for T.
 
-三个受控的混杂
---------------
-1. 口袋大小：替身的 pocket_atoms 与原靶点相差不超过 --size-tol，
-   否则测到的可能只是尺寸效应。
-2. 配对方式：用错排（derangement），保证没有靶点被换成自己，
-   且目录名互不冲突。
-3. 抽样方差：--rounds 指定重复几轮，每轮一个独立错排。
+Three controlled confounds
+---------------------------
+1. Pocket size: the swapped-in target's pocket_atoms must differ from the
+   original target's by no more than --size-tol, otherwise what's being
+   measured could just be a size effect.
+2. Pairing scheme: uses a derangement, guaranteeing no target is swapped
+   with itself, and directory names never collide.
+3. Sampling variance: --rounds sets how many repeats to run, each an
+   independent derangement.
 """
 import argparse
 import json
@@ -43,7 +54,7 @@ import random
 
 
 def load_manifest(root):
-    """{层: {靶点: 口袋原子数}}"""
+    """{layer: {target: pocket atom count}}"""
     man = json.load(open(f"{root}/manifest.json"))
     out = {}
     for L, d in man.items():
@@ -53,9 +64,10 @@ def load_manifest(root):
 
 
 def derange(targets, atoms, tol, rng, tries=4000):
-    """求一个错排：每个靶点换到另一个靶点，且口袋大小接近。
+    """Find a derangement: swap each target with another target whose pocket is close in size.
 
-    贪心 + 重试。先给候选少的靶点分配（最受限优先），否则最后几个会无解。
+    Greedy + retry. Assign the most-constrained targets (fewest candidates) first,
+    otherwise the last few can end up with no solution.
     """
     ok = {t: [u for u in targets
               if u != t and atoms.get(t) and atoms.get(u)
@@ -124,15 +136,15 @@ def main():
             out = f"{args.out_root}/round{rnd}/{L}"
             n = 0
             for orig, sub in m.items():
-                # 目录名 = 替身 sub，模型据此取到 sub 的序列
+                # directory name = swapped-in target sub; the model looks up sub's sequence from it
                 d = f"{out}/{sub}"
                 os.makedirs(d, exist_ok=True)
-                # 口袋：替身自己的
+                # pocket: the swapped-in target's own
                 for suf in ("_pocket.lmdb", "_pocket.lmdb-lock"):
                     s_, t_ = f"{src}/{sub}/{sub}{suf}", f"{d}/{sub}{suf}"
                     if os.path.exists(s_) and not os.path.exists(t_):
                         os.symlink(s_, t_)
-                # 配体：原靶点的，但改名成替身的名字
+                # ligands: the original target's, renamed to the swapped-in target's name
                 for suf in ("_lig.lmdb", "_lig.lmdb-lock"):
                     s_, t_ = f"{src}/{orig}/{orig}{suf}", f"{d}/{sub}{suf}"
                     if os.path.exists(s_) and not os.path.exists(t_):

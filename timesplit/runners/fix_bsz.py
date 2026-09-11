@@ -1,8 +1,9 @@
-"""修 test_t3_target 里写死的 bsz=64。
+"""Fix the hardcoded bsz=64 in test_t3_target.
 
-从 DEKOIS 复制代码时把 `bsz = 64` 一起抄了过来，导致命令行 --batch-size
-完全不生效（改成 8 之后 OOM 的分配大小一字未变，就是这个原因暴露的）。
-改成读 args.batch_size。
+Copying code over from DEKOIS also copied `bsz = 64` along with it, so
+the command line's --batch-size had no effect at all (this is what
+surfaced the bug: setting it to 8 didn't change the OOM allocation size
+one bit). Changed to read args.batch_size instead.
 """
 B = "/data/work/vs-benchmark"
 for repo in ["DrugCLIP", "BindCLIP"]:

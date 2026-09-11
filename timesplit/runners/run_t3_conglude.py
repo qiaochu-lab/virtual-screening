@@ -1,28 +1,36 @@
-"""在 T3 评测集上跑 ConGLUDe，输出统一评测层要的原始分数。
+"""Run ConGLUDe on the T3 evaluation set, producing the raw scores the unified evaluation layer needs.
 
-ConGLUDe 的接口
----------------
-predict.py 吃 `info/protein_ids.txt` + `info/smiles.txt`，
-吐 `vs_predictions.npy` 相似度矩阵。
+ConGLUDe's interface
+---------------------
+predict.py consumes `info/protein_ids.txt` + `info/smiles.txt` and emits
+a `vs_predictions.npy` similarity matrix.
 
-⚠️ 矩阵方向：官方 README 写「rows 对应蛋白名」，**与代码不符**。
-predict.py 里是 `vs_preds = encoded_ligands_b @ protein_embeddings.t()`，
-所以实际是 **配体（行） × 蛋白（列）**：
-    行序对应 `processed/ligand_embeddings/index2smiles.json`
-    列序对应 `embeddings/protein_names.txt`
-按 README 写会直接 IndexError（我们就撞了一次），下面加了形状断言防止再错。
+Warning: matrix orientation. The official README says "rows correspond
+to protein names", which **doesn't match the code**. predict.py actually
+computes `vs_preds = encoded_ligands_b @ protein_embeddings.t()`, so it's
+really **ligand (rows) x protein (columns)**:
+    row order matches `processed/ligand_embeddings/index2smiles.json`
+    column order matches `embeddings/protein_names.txt`
+Following the README leads straight to an IndexError (we hit this once),
+so a shape assertion is added below to prevent it from happening again.
 
-结构从哪来
-----------
-ConGLUDe 只认 `{protein_id}.pdb`，不认 mmCIF。所以：
-  - 有 PDB 实验结构且能拿到传统 PDB 格式的靶点 → 用 RCSB 的 .pdb
-  - 其余（超大结构没有传统格式的、本来就无 PDB 的）→ 用 Boltz-2 预测的 .pdb
-两种来源都以 **UniProt 号**作为 protein_id 落盘，保证与其它模型的靶点口径一致，
-同时在 manifest 里记下每个靶点用的是哪一种结构（holo 实验 vs 预测），
-这本身是 T5 结构鲁棒性要用的分层变量。
+Where the structures come from
+---------------------------------
+ConGLUDe only recognizes `{protein_id}.pdb`, not mmCIF. So:
+  - targets with a PDB experimental structure available in the legacy
+    PDB format -> use RCSB's .pdb
+  - everything else (oversized structures with no legacy format, or
+    targets with no PDB entry at all) -> use the Boltz-2 predicted .pdb
+Both sources are written to disk keyed by **UniProt accession** as the
+protein_id, keeping the target convention consistent with the other
+models; the manifest also records which structure type each target used
+(experimental holo vs. predicted), which is itself a stratification
+variable needed for the T5 structure-robustness analysis.
 
-一次跑一层：ConGLUDe 会把该层所有靶点 × 所有分子算成一个大矩阵，
-而各靶点的分子集合不同，所以按靶点切分后只取自己那些列。
+One layer at a time: ConGLUDe computes a single big matrix of every
+target x every molecule for that layer, but each target's molecule set
+differs, so after splitting by target only that target's own columns
+are taken.
 """
 import argparse
 import json
@@ -43,7 +51,7 @@ PDB_URL = "https://files.rcsb.org/download/{}.pdb"
 
 
 def fetch_pdb(pdb_id, dst):
-    """下载传统 PDB 格式；超大结构没有该格式，返回 False 由调用方回退。"""
+    """Download the legacy PDB format; oversized structures have no such format, returns False for the caller to fall back on."""
     if os.path.exists(dst) and os.path.getsize(dst) > 0:
         return True
     try:
@@ -59,7 +67,7 @@ def fetch_pdb(pdb_id, dst):
 
 
 def build_boltz_index():
-    """一次性扫出所有 Boltz-2 结构，避免每个靶点走一遍 os.walk。"""
+    """Scan out all Boltz-2 structures in one pass, avoiding an os.walk per target."""
     idx = {}
     for d in ["boltz_batch_out", "boltz_retry_out", "boltz_gap_out", "boltz_r2_out"]:
         p = f"{B}/{d}"
@@ -77,7 +85,7 @@ def prepare(layer, recs, ds_dir, boltz_idx, pdb_choice, workers):
     os.makedirs(info, exist_ok=True)
     os.makedirs(pdbdir, exist_ok=True)
 
-    # 先并发下载实验结构，拿不到的再回退预测结构
+    # First download experimental structures concurrently; fall back to the predicted structure for anything unavailable
     want_rcsb = [(r["uniprot"], pdb_choice[r["uniprot"]]) for r in recs
                  if r["uniprot"] in pdb_choice]
     with ThreadPoolExecutor(workers) as ex:
@@ -102,7 +110,7 @@ def prepare(layer, recs, ds_dir, boltz_idx, pdb_choice, workers):
     ups = [r["uniprot"] for r in recs if r["uniprot"] in used]
     open(f"{info}/protein_ids.txt", "w").write("\n".join(ups) + "\n")
 
-    # 全层唯一分子；每个靶点的标签在打分后按 SMILES 回填
+    # Unique molecules across the whole layer; each target's labels are backfilled by SMILES after scoring
     smi_set, per_target = {}, {}
     for r in recs:
         if r["uniprot"] not in used:
@@ -129,8 +137,9 @@ def run_and_collect(layer, ds_dir, ds_rel, out_dir, per_target, gpu):
     env = dict(os.environ,
                LD_LIBRARY_PATH="/data/work/envs/conglude/lib",
                CUDA_VISIBLE_DEVICES=str(gpu))
-    # 必须传 ./data/... 形式的相对路径：predict.py 对不以 data/ 开头的路径
-    # 会自作主张改用 <dataset_dir>/ConGLUDe/data 作为数据根目录
+    # Must pass a relative path of the form ./data/...: for any path not
+    # starting with data/, predict.py silently substitutes
+    # <dataset_dir>/ConGLUDe/data as the data root instead
     p = subprocess.run([PY, "predict.py", "--dataset_dir", ds_rel,
                         "--results_dir", res_root, "--num_workers", "8", "--overwrite"],
                        cwd=CG, env=env, stdout=subprocess.PIPE,
@@ -142,10 +151,12 @@ def run_and_collect(layer, ds_dir, ds_rel, out_dir, per_target, gpu):
     vs = np.load(f"{res_root}/predictions/vs_predictions.npy")
     names = [x.strip() for x in open(f"{res_root}/embeddings/protein_names.txt") if x.strip()]
     i2s = json.load(open(f"{ds_dir}/processed/ligand_embeddings/index2smiles.json"))
-    lig_row = {i2s[k]: int(k) for k in i2s}      # smiles -> 行号
+    lig_row = {i2s[k]: int(k) for k in i2s}      # smiles -> row index
     print(f"[{layer}] VS 矩阵 {vs.shape}，蛋白 {len(names)}，分子 {len(lig_row):,}", flush=True)
-    # 注意：矩阵是 **配体 × 蛋白**（predict.py 里 vs_preds = ligands @ proteins.T）。
-    # ConGLUDe 的 README 写的是「rows 对应蛋白名」，与代码不符——以代码为准。
+    # Note: the matrix is **ligand x protein** (predict.py computes
+    # vs_preds = ligands @ proteins.T). ConGLUDe's README says "rows
+    # correspond to protein names", which doesn't match the code -- the
+    # code is authoritative here.
     if vs.shape != (len(lig_row), len(names)):
         raise SystemExit(f"[{layer}] VS 矩阵形状 {vs.shape} 与 "
                          f"(分子 {len(lig_row)}, 蛋白 {len(names)}) 不符，拒绝继续")

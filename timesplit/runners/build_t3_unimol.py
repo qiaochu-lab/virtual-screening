@@ -1,24 +1,26 @@
-"""把 T3 评测集组装成 UniMol 系模型（DrugCLIP/BindCLIP/LigUnity）吃的 lmdb。
+"""Assemble T3's evaluation set into the lmdb format the UniMol-family models (DrugCLIP/BindCLIP/LigUnity) consume.
 
-产出目录结构照搬 DEKOIS 的约定，这样可以直接复用这三个模型现成的
-`test_dekois_target()` 路径，只改数据路径，不动模型代码：
+The output directory layout mirrors DEKOIS's convention exactly, so these
+three models' existing `test_dekois_target()` code path can be reused
+directly, changing only the data path and not the model code:
 
     data/T3/<layer>/<uniprot>/<uniprot>_lig.lmdb
                              /<uniprot>_pocket.lmdb
 
-lig.lmdb 每条（与 DEKOIS 官方逐字段一致）：
-    atoms        list[str]    元素符号
-    coordinates  list[ndarray] 只放 1 个构象，与官方一致
+Each lig.lmdb record (field-for-field identical to DEKOIS's official format):
+    atoms        list[str]    element symbols
+    coordinates  list[ndarray] only 1 conformer, matching the official format
     smi          str
     mol          rdkit Mol
     label        int          1=active, 0=decoy
 
-pocket.lmdb 每条：
+Each pocket.lmdb record:
     pocket, pocket_index, pocket_atoms, pocket_coordinates
 
-口袋来源优先级：PDB 实验结构 > Boltz-2 预测结构。
-两者都按同一套残基级 6 Å 逻辑截出（见 extract_pocket*.py），
-来源记进 manifest，供 T5 结构鲁棒性分层用。
+Pocket source priority: PDB experimental structure > Boltz-2 predicted
+structure. Both are cut with the same residue-level 6 Å logic (see
+extract_pocket*.py), and the source is recorded in the manifest for use
+in the T5 structure-robustness stratification.
 """
 import argparse
 import hashlib
@@ -35,7 +37,7 @@ B = "/data/work/vs-benchmark"
 
 
 def load_pockets(threshold):
-    """PDB 源优先，Boltz 源补位。返回 uniprot -> (记录, 来源)。"""
+    """PDB source takes priority, Boltz source fills the gaps. Returns uniprot -> (record, source)."""
     out = {}
     for path, src in [(f"{B}/data/t3/pockets/pocket_{threshold:.1f}A.lmdb", "boltz2_pred"),
                       (f"{B}/data/t3/pockets/pdb_pocket_{threshold:.1f}A.lmdb", "pdb_holo")]:
@@ -45,7 +47,7 @@ def load_pockets(threshold):
         with e.begin() as t:
             for _, v in t.cursor():
                 d = pickle.loads(v)
-                out[d["pocket"]] = (d, src)          # PDB 源后加载，自然覆盖 Boltz 源
+                out[d["pocket"]] = (d, src)          # PDB source is loaded second, so it naturally overrides the Boltz source
         e.close()
     return out
 
@@ -64,7 +66,7 @@ def main():
     args = ap.parse_args()
     out_root = args.out_root or f"{B}/data/T3_{args.threshold:.0f}A"
 
-    # 幂等：数据已建好就跳过（我们会提前手动跑一次，队列里还会再调）
+    # Idempotent: skip if the data is already built (we run this once manually ahead of time, and the queue calls it again)
     if os.path.exists(f"{out_root}/manifest.json") and not args.force:
         import json as _j
         m = _j.load(open(f"{out_root}/manifest.json"))
@@ -117,8 +119,8 @@ def main():
                                      "smi": c["smi"], "mol": rd, "label": lab})
                         labels.append(lab)
                 miss_conf_total += miss
-                # 构象缺失会同时削减 active 和 decoy，比例会漂；
-                # active 少于 10 个就不再入选，与评测集的门槛保持一致
+                # Missing conformers shrink both actives and decoys, so the ratio can drift;
+                # fewer than 10 actives excludes the target, keeping this consistent with the evaluation set's threshold
                 if sum(labels) < 10 or len(labels) - sum(labels) < 10:
                     skip_few += 1
                     continue

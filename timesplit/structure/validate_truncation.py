@@ -1,10 +1,13 @@
-"""独立校验结构域截取：截出的片段是否包含该蛋白已注释的结合/活性位点。
+"""Independently validate domain truncation: does the truncated fragment contain the protein's annotated binding/active sites?
 
-这个校验对两种依据都有效，且用的是截取时**没有参与决策**的信息：
-  - pdb_construct 依据完全没看注释
-  - uniprot_domain 依据虽用了位点数排序，但只在候选结构域之间比较，
-    并不保证选中的那个真的含位点（无注释时是按长度选的）
-所以「截出片段是否含位点」是一个独立的对错信号。
+This check is valid for both selection sources, and uses information that
+played **no part** in the truncation decision:
+  - the pdb_construct source never looked at site annotations at all
+  - the uniprot_domain source did rank by site count, but only compared
+    among candidate domains -- it doesn't guarantee the chosen one
+    actually contains a site (with no annotation, it was picked by length)
+So "does the truncated fragment contain a site" is an independent
+correctness signal.
 """
 import json
 import re

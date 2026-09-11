@@ -1,28 +1,37 @@
-"""为 >1170aa 的 T3 靶点按结构域截取（v2：以结合位点为准）。
+"""Truncate T3 targets >1170aa by domain (v2: anchored on the binding site).
 
-v1 为什么不行
--------------
-v1 的规则是「取所有 PDB 条目里覆盖最广的那段对齐区间」。对多结构域大蛋白，
-不同 PDB 条目覆盖的是**不同结构域**，取最广的与「配体结合在哪」毫无关系。
-校验打脸得很干净：只有 41.8% 的截取片段完整包含 UniProt 注释的结合/活性位点，
-26 个（33%）一个位点都没落进去。典型如 P23468，v1 截了 577-946，
-位点却在 1181-1844。
+Why v1 doesn't work
+--------------------
+v1's rule was "take the alignment interval with the broadest coverage
+across all PDB entries." For large multi-domain proteins, different PDB
+entries cover **different domains**, so taking the broadest one has
+nothing to do with where the ligand actually binds. Validation exposed
+this cleanly: only 41.8% of the truncated fragments fully contained the
+UniProt-annotated binding/active sites, and 26 (33%) contained none at
+all. A typical case is P23468: v1 truncated to 577-946, while the sites
+are at 1181-1844.
 
-v2 的规则
+v2's rule
 ---------
-**结合/活性位点注释是配体结合位置的直接证据**，所以拿它当第一判据，
-而不是当事后校验：
+**Binding/active-site annotations are direct evidence of where the
+ligand binds**, so they are used as the primary criterion up front,
+rather than as a post-hoc check:
 
-  1. 收集全部候选区间 —— 每个 PDB 条目的构建体范围 + 每条 UniProt 结构域注释
-  2. 打分排序：覆盖的位点数（主）→ 是否为实验构建体（次）→ 长度（再次）
-  3. 没有任何位点注释的蛋白：退回「最长的 PDB 构建体 → 最长的结构域」，
-     并标记为低置信，单独统计
+  1. Collect all candidate intervals -- each PDB entry's construct range,
+     plus every UniProt domain annotation
+  2. Score and rank by: number of sites covered (primary) -> whether it's
+     an experimental construct (secondary) -> length (tertiary)
+  3. Proteins with no site annotation at all: fall back to "longest PDB
+     construct -> longest domain", flagged as low-confidence and tallied
+     separately
 
-位点密集区若没有任何候选区间覆盖，就直接以位点簇为中心开窗，
-保证截出的片段一定含结合位点。
+If a site-dense region isn't covered by any candidate interval, a window
+is opened directly around the cluster of sites, guaranteeing the
+truncated fragment contains a binding site.
 
-窗口两侧留 30 残基余量，最短 150aa（太短的多是锌指之类的小模块，
-不是可成药口袋），最长夹到 1170aa。
+The window is padded by 30 residues on each side, floored at 150aa (below
+that is mostly small modules like zinc fingers, not a druggable pocket),
+and capped at 1170aa.
 """
 import json
 import re
@@ -61,7 +70,7 @@ def gql(ids):
 
 
 def uniprot_bulk(accs):
-    """一次取全：结构域注释 + 结合/活性/一般位点。"""
+    """Fetch everything in one pass: domain annotations + binding/active/generic sites."""
     out = {}
     for i in range(0, len(accs), 60):
         chunk = accs[i:i + 60]
@@ -92,14 +101,14 @@ def uniprot_bulk(accs):
 
 
 def clamp(beg, end, L):
-    """加余量、保证最短长度、夹到上限。"""
+    """Add padding, enforce the minimum length, and cap at the ceiling."""
     beg, end = max(1, beg - PAD), min(L, end + PAD)
-    if end - beg + 1 < MIN_LEN:                     # 太短则以中心扩展
+    if end - beg + 1 < MIN_LEN:                     # too short: expand around the center
         mid = (beg + end) // 2
         beg = max(1, mid - MIN_LEN // 2)
         end = min(L, beg + MIN_LEN - 1)
         beg = max(1, end - MIN_LEN + 1)
-    if end - beg + 1 > LIMIT:                       # 太长则以中心收缩
+    if end - beg + 1 > LIMIT:                       # too long: shrink around the center
         mid = (beg + end) // 2
         beg = max(1, mid - LIMIT // 2)
         end = min(L, beg + LIMIT - 1)
@@ -113,10 +122,10 @@ def main():
     up2pdb = json.load(open(f"{B}/data/t3/pdb_meta.json"))["up2pdb"]
     print(f"待截取靶点: {len(targets)}", flush=True)
 
-    # ---------- 候选区间来源 1：每个 PDB 条目的构建体范围 ----------
+    # ---------- Candidate interval source 1: each PDB entry's construct range ----------
     pdb_ids = sorted({p for u in targets for p in (up2pdb.get(u) or [])[:12]})
     print(f"涉及 PDB 条目: {len(pdb_ids)}", flush=True)
-    cand = {u: [] for u in targets}          # uniprot -> [(beg, end, 来源)]
+    cand = {u: [] for u in targets}          # uniprot -> [(beg, end, source)]
     tset = set(targets)
     for i in range(0, len(pdb_ids), 50):
         d = None
@@ -144,13 +153,13 @@ def main():
         if (i // 50) % 5 == 0:
             print(f"  RCSB {min(i + 50, len(pdb_ids))}/{len(pdb_ids)}", flush=True)
 
-    # ---------- 候选区间来源 2 + 位点：UniProt ----------
+    # ---------- Candidate interval source 2 + sites: UniProt ----------
     feats = uniprot_bulk(targets)
     for u in targets:
         for d in (feats.get(u) or {}).get("domains") or []:
             cand[u].append((d[0], d[1], "uniprot_domain"))
 
-    # ---------- 选区间 ----------
+    # ---------- Select the interval ----------
     result, unresolved = {}, []
     for u in targets:
         L = seqs[u]["length"]
@@ -167,7 +176,7 @@ def main():
             else:
                 best, n_cov = None, 0
             if n_cov == 0:
-                # 没有任何候选区间盖到位点 —— 直接以位点簇开窗
+                # No candidate interval covers any site -- open a window directly around the site cluster
                 lo, hi = min(sites), max(sites)
                 beg, end = clamp(lo, hi, L)
                 src, n_cov = "site_window", sum(1 for s in sites if beg <= s <= end)

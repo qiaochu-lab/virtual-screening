@@ -1,16 +1,20 @@
-"""给 DrugCLIP / BindCLIP 加上 --test-task T3。
+"""Add --test-task T3 support to DrugCLIP / BindCLIP.
 
-做法与之前加 DEKOIS 支持时一致：**从已验证的 test_dekois_target 生成新方法，
-只做路径替换**，不改任何模型前向逻辑。这样 T3 与 DEKOIS/DUD-E 走的是
-同一条推理路径，横评时不会掺进实现差异。
+Same approach as when DEKOIS support was added previously: **generate
+the new method from the already-validated test_dekois_target by
+swapping paths only**, without changing any of the model's forward
+logic. This way T3 runs the exact same inference path as DEKOIS/DUD-E,
+so no implementation difference leaks into the cross-model comparison.
 
-（当初加 DEKOIS 支持时，DrugCLIP 的结果与 LigUnity 论文里报的
-DrugCLIP-on-DEKOIS 基线偏差 0.0%，等于独立验证了这种「路径替换」补丁的正确性。）
+(When DEKOIS support was first added, DrugCLIP's results deviated 0.0%
+from the DrugCLIP-on-DEKOIS baseline reported in the LigUnity paper,
+which independently validated the correctness of this "path swap"
+patching approach.)
 
-T3 的数据布局：
+T3's data layout:
     data/T3_6A/<layer>/<uniprot>/<uniprot>_lig.lmdb
                                 /<uniprot>_pocket.lmdb
-结果落盘：
+Results are written to:
     <results_path>/T3/<layer>/<uniprot>/saved_preds.npy + saved_labels.npy
 """
 import argparse

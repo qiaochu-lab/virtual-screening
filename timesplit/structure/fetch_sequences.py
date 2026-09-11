@@ -1,7 +1,9 @@
-"""拉取 T3 全部靶点的 UniProt 序列。
+"""Fetch UniProt sequences for all of T3's targets.
 
-序列类模型（ConPLex、SPRINT）不需要口袋，但需要完整序列；
-之前只有走 Boltz-2 的那批靶点在 yaml 里带了序列，有 PDB 结构的那 972 个没有。
+Sequence-based models (ConPLex, SPRINT) don't need a pocket, but do need
+the full sequence; previously only the batch of targets routed through
+Boltz-2 had sequences in their yaml, not the 972 targets that have a PDB
+structure.
 """
 import json
 import os

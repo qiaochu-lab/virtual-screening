@@ -1,13 +1,13 @@
-"""在 T3 评测集上跑 ConPLex，输出统一评测层要的原始分数。
+"""Run ConPLex on the T3 evaluation set, producing the raw scores the unified evaluation layer needs.
 
-输出格式与 DrugCLIP/BindCLIP/LigUnity 的补丁一致：
-    <out_dir>/<layer>/<uniprot>/saved_preds.npy    每个分子一个分数（越高越可能是 active）
+Output format matches the DrugCLIP/BindCLIP/LigUnity patch:
+    <out_dir>/<layer>/<uniprot>/saved_preds.npy    one score per molecule (higher = more likely active)
     <out_dir>/<layer>/<uniprot>/saved_labels.npy   1=active, 0=decoy
-这样 docs/eval/metrics.py 可以不加改动地统一计算 EF/AUROC/BEDROC。
+This lets docs/eval/metrics.py compute EF/AUROC/BEDROC uniformly with no changes needed.
 
-ConPLex 的两个接口特点（都踩过）：
-  - 输入 TSV 是 `蛋白ID  分子ID  序列  SMILES`（无表头）
-  - **输出列序与输入相反**：`分子ID  蛋白ID  分数`
+Two quirks of ConPLex's interface (both bit us):
+  - the input TSV is `protein_id  mol_id  sequence  SMILES` (no header)
+  - **the output column order is reversed from the input**: `mol_id  protein_id  score`
 """
 import argparse
 import json
@@ -40,10 +40,10 @@ def run_layer(layer, out_dir, work_dir, seqs, max_len, limit=None):
     if not usable:
         return
 
-    # 一次性写一个大 TSV：ConPLex 的蛋白/分子特征都按唯一值缓存，合批远快于逐靶点
+    # Write one big TSV in a single pass: ConPLex caches protein/molecule features by unique value, so batching is far faster than going target by target
     os.makedirs(work_dir, exist_ok=True)
     tsv = f"{work_dir}/{layer}_pairs.tsv"
-    index = []                      # (uniprot, mol_id, label) 与 TSV 行一一对应
+    index = []                      # (uniprot, mol_id, label), one-to-one with the TSV rows
     with open(tsv, "w") as f:
         for r in usable:
             up = r["uniprot"]
@@ -65,7 +65,7 @@ def run_layer(layer, out_dir, work_dir, seqs, max_len, limit=None):
         print(p.stdout[-3000:], file=sys.stderr)
         raise SystemExit(f"[{layer}] ConPLex 失败 (returncode={p.returncode})")
 
-    # 输出列序是 分子ID -> 蛋白ID -> 分数
+    # Output column order is mol_id -> protein_id -> score
     score = {}
     with open(out_tsv) as f:
         for line in f:
@@ -83,7 +83,7 @@ def run_layer(layer, out_dir, work_dir, seqs, max_len, limit=None):
 
     n_ok = 0
     for up, (s, l) in per.items():
-        if sum(l) == 0 or sum(l) == len(l):      # 全同标签算不了 AUROC
+        if sum(l) == 0 or sum(l) == len(l):      # AUROC is undefined when every label is the same
             continue
         d = f"{out_dir}/{layer}/{up}"
         os.makedirs(d, exist_ok=True)

@@ -1,12 +1,16 @@
-"""ChEMBL 37 时间切分（切分点 ≤2024-12）。
+"""ChEMBL 37 time split (split point <=2024-12).
 
-口径
-----
-- 时间依据用 `docs.year`（文献发表年份）。ChEMBL 的 assay 随文献入库，
-  发表年份 ≥2025 即为切分点之后的新数据。
-- 差集：排除 assay_id 已出现在 LigUnity 训练集（PocketAffDB）中的记录。
-- 只保留有 UniProt 映射、有 SMILES、有可用活性值的记录。
-- 活性值统一转 pAffinity = -log10(M)，取 Ki/Kd/IC50/EC50（标准单位 nM）。
+Convention
+----------
+- The time basis is `docs.year` (the publication year). ChEMBL assays are
+  deposited along with their publication, so a publication year >=2025
+  marks data that is new relative to the split point.
+- Set difference: excludes records whose assay_id already appears in
+  LigUnity's training set (PocketAffDB).
+- Only records with a UniProt mapping, a SMILES, and a usable activity
+  value are kept.
+- Activity values are all converted to pAffinity = -log10(M), taken from
+  Ki/Kd/IC50/EC50 (standard unit nM).
 """
 import json, math, os, sqlite3
 

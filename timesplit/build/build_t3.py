@@ -1,15 +1,15 @@
-"""合并 ChEMBL 37 + BindingDB 的时间切分结果，做 L1–L4 难度分层。
+"""Merge the time-split results from ChEMBL 37 + BindingDB and stratify into L1-L4 difficulty layers.
 
-分层依据（PPT slide 12）
-------------------------
-L1 旧靶点 · 近骨架     训练集见过该靶点，且配体骨架也见过
-L2 旧靶点 · 新骨架     训练集见过该靶点，但骨架是新的（scaffold generalization）
-L3 新靶点 · 同家族     靶点没见过，但训练集里有同家族蛋白（family transfer）
-L4 新靶点 · 新家族     靶点和家族都没见过（最严格 OOD）
+Stratification criteria (PPT slide 12)
+----------------------------------------
+L1 seen target * near scaffold    training set has seen this target, and the ligand scaffold too
+L2 seen target * new scaffold     training set has seen this target, but the scaffold is new (scaffold generalization)
+L3 new target * same family       target unseen, but the training set has a same-family protein (family transfer)
+L4 new target * new family        neither target nor family seen (strictest OOD)
 
-去重：canonical InChIKey + UniProt
-家族划分：用 figshare 提供的 uniport40.clstr（CD-HIT 40% 序列相似度聚类）
-骨架：Bemis–Murcko
+Dedup: canonical InChIKey + UniProt
+Family split: uniport40.clstr from figshare (CD-HIT 40% sequence-identity clustering)
+Scaffold: Bemis-Murcko
 """
 import json, os
 from collections import Counter, defaultdict
@@ -22,7 +22,7 @@ B = "/data/work/vs-benchmark"
 TD = f"{B}/code/LigUnity/test_datasets"
 T3 = f"{B}/data/t3"
 
-# ---------- 1. 训练集基线 ----------
+# ---------- 1. Training-set baseline ----------
 lab = json.load(open(f"{TD}/train_label_blend_seq_full.json"))
 train_up = {a["uniprot"] for a in lab if a.get("uniprot")}
 train_scaffolds = set()
@@ -41,7 +41,7 @@ for a in lab:
             pass
 print(f"训练集: {len(train_up):,} UniProt, {n_lig:,} 配体 -> {len(train_scaffolds):,} 个骨架", flush=True)
 
-# ---------- 2. 家族聚类（CD-HIT 40%）----------
+# ---------- 2. Family clustering (CD-HIT 40%) ----------
 fam = {}
 cid = -1
 for line in open(f"{B}/data/raw/figshare/uniport40.clstr"):
@@ -54,7 +54,7 @@ for line in open(f"{B}/data/raw/figshare/uniport40.clstr"):
 train_fams = {fam[u] for u in train_up if u in fam}
 print(f"CD-HIT 40% 聚类: {len(set(fam.values())):,} 个家族，训练集覆盖 {len(train_fams):,} 个", flush=True)
 
-# ---------- 3. 合并两源 ----------
+# ---------- 3. Merge both sources ----------
 recs = []
 for src, fn in [("bindingdb", "bindingdb_2025plus.jsonl"), ("chembl37", "chembl37_2025plus.jsonl")]:
     p = f"{T3}/{fn}"
@@ -69,7 +69,7 @@ for src, fn in [("bindingdb", "bindingdb_2025plus.jsonl"), ("chembl37", "chembl3
     print(f"  {src}: {n:,} 条", flush=True)
 print(f"合计 {len(recs):,} 条", flush=True)
 
-# ---------- 4. 去重 + 分层 ----------
+# ---------- 4. Dedup + stratify ----------
 seen = set()
 layers = Counter()
 out = defaultdict(list)

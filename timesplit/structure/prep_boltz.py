@@ -1,10 +1,15 @@
-"""为 494 个待预测靶点生成 Boltz-2 输入。
+"""Generate Boltz-2 inputs for the 494 targets that still need a prediction.
 
-每个靶点取**亲和力最高**的配体作为代表——预测出的复合物用于后续按任意阈值
-截取口袋（口袋阈值未定不影响这一步，结构本身与阈值无关）。
+For each target, take the ligand with the **highest affinity** as the
+representative -- the predicted complex is used later to cut a pocket at
+any threshold (the pocket threshold isn't decided yet, but that doesn't
+affect this step, since the structure itself is independent of the
+threshold).
 
-长度 >1170aa 的单独列出：Boltz-2 在本机实测的上限，且这类多为多聚蛋白，
-按之前 hivpr 的教训应先按结构域截取，不在本批处理。
+Targets with sequence length >1170aa are listed separately: this is the
+empirically-tested ceiling for Boltz-2 on our machine, and such targets
+are mostly multimeric proteins that, per the earlier hivpr lesson, should
+first be truncated by domain -- they are not processed in this batch.
 """
 import json, os, time, urllib.parse, urllib.request
 from collections import defaultdict
@@ -17,7 +22,7 @@ cov = json.load(open(f"{B}/data/t3/new_target_structure_coverage.json"))
 need = sorted(set(cov["no_pdb"]))
 print(f"待预测靶点: {len(need):,}", flush=True)
 
-# 每个靶点取亲和力最高的配体
+# For each target, take the ligand with the highest affinity
 best = {}
 for L in ["L3", "L4"]:
     for line in open(f"{B}/data/t3/layers/{L}.jsonl"):
@@ -27,7 +32,7 @@ for L in ["L3", "L4"]:
             best[u] = d
 print(f"有代表配体的: {len(best):,}", flush=True)
 
-# 批量取序列
+# Fetch sequences in batches
 seqs = {}
 BATCH = 80
 for i in range(0, len(need), BATCH):

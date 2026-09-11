@@ -1,14 +1,19 @@
-"""给序列类模型（ConPLex / ConGLUDe / SPRINT）建 target-swap 的评测集。
+"""Build the target-swap evaluation set for the sequence-based models (ConPLex / ConGLUDe / SPRINT).
 
-口袋类模型的 swap 是换 `_pocket.lmdb` 所在的目录树（build_target_swap.py）。
-序列类模型不读口袋——它们从评测集 jsonl 的 `uniprot` 字段去查序列/结构，
-所以对它们来说，「换靶点」= 换记录里的 uniprot，配体池原样保留。
+For pocket-based models, the swap is done by swapping the directory tree
+that `_pocket.lmdb` lives in (build_target_swap.py). Sequence-based
+models don't read a pocket -- they look up the sequence/structure from
+the `uniprot` field in the evaluation jsonl, so for them "swapping the
+target" means swapping the uniprot in the record while leaving the
+ligand pool untouched.
 
-两边**共用同一份 swap_manifest.json**，所以配对关系完全一致，
-跨模型的结果可以直接放在一张表里比。
+Both sides **share the same swap_manifest.json**, so the pairing is
+exactly consistent and results across models can be placed directly in
+one table for comparison.
 
-输出记录的 uniprot 是**替身**（与口袋树的目录命名一致），
-回读时同样用 manifest 映射回原靶点。
+The uniprot in the output records is the **swapped identity** (matching
+the pocket tree's directory naming); reading it back likewise uses the
+manifest to map back to the original target.
 """
 import argparse, json, os
 
@@ -30,7 +35,7 @@ def main():
                 print(f"⚠️ manifest 里没有 {key}，跳过")
                 continue
             pairs = man[key]["pairs"]
-            # 原靶点 -> 替身
+            # original target -> swapped identity
             sub = {p["ligand_pool_from"]: p["identity_from"] for p in pairs}
 
             recs = {json.loads(l)["uniprot"]: json.loads(l)
@@ -44,8 +49,8 @@ def main():
                     if r is None:
                         continue
                     r = dict(r)
-                    r["uniprot"] = subst          # 身份换成替身
-                    r["swap_ligand_pool_from"] = orig   # 留痕，回读时不必再查 manifest
+                    r["uniprot"] = subst          # identity replaced with the swapped identity
+                    r["swap_ligand_pool_from"] = orig   # keep a trace so reading it back doesn't need the manifest again
                     f.write(json.dumps(r, ensure_ascii=False) + "\n")
                     n += 1
             print(f"round{rnd}/{L}: 写出 {n} 条（配体池不变，身份换成替身）")

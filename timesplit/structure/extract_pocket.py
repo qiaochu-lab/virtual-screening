@@ -1,12 +1,17 @@
-"""从 Boltz-2 预测的复合物结构中提取口袋，写成各模型需要的 pocket.lmdb 格式。
+"""Extract pockets from Boltz-2-predicted complex structures and write them
+into the pocket.lmdb format each model expects.
 
-提取逻辑严格照搬 DrugCLIP 官方 py_scripts/write_dude_multi.py 的 get_different_raid()：
+Extraction logic follows DrugCLIP's official
+py_scripts/write_dude_multi.py get_different_raid() exactly:
 
-    对每个蛋白原子 i、每个配体原子 j，若距离 < threshold，
-    则把 i 所属的**整个残基**收入口袋（残基级，不是原子级）。
+    For every protein atom i and every ligand atom j, if the distance
+    is below threshold, the **entire residue** that i belongs to is
+    added to the pocket (residue-level, not atom-level).
 
-官方默认 threshold=6，我们的阈值扫描也确认 6 Å 优于 8 Å，故 6 Å 为主口径；
-同时输出 5 Å 版本作对照（PocketAffDB 文件名暗示 5.0 Å），可并入 T5 结构鲁棒性。
+The official default is threshold=6, and our own threshold sweep confirms
+6 Å beats 8 Å, so 6 Å is the primary convention; a 5 Å version is also
+emitted as a control (the PocketAffDB filename implies 5.0 Å) and can feed
+into the T5 structure-robustness analysis.
 """
 import argparse, os, pickle, sys
 import lmdb
@@ -15,7 +20,7 @@ from scipy.spatial import cKDTree
 
 
 def read_complex_pdb(path):
-    """读 Boltz-2 输出：链 A = 蛋白(ATOM)，链 B = 配体(HETATM, resname LIG)。"""
+    """Read a Boltz-2 output: chain A = protein (ATOM), chain B = ligand (HETATM, resname LIG)."""
     prot = {"coord": [], "atom_type": [], "residue_id": [], "residue_type": []}
     lig = []
     with open(path) as f:
@@ -40,10 +45,10 @@ def read_complex_pdb(path):
 
 
 def extract_pocket(prot, lig_coord, threshold):
-    """返回 (atom_types, coords, residue_types)。残基级选择，与官方实现一致。"""
+    """Return (atom_types, coords, residue_types). Residue-level selection, matching the official implementation."""
     if len(prot["coord"]) == 0 or len(lig_coord) == 0:
         return None
-    # 官方是 O(N*M) 双循环；这里用 KD-tree 等价加速
+    # The official implementation is an O(N*M) double loop; here a KD-tree gives an equivalent speedup.
     tree = cKDTree(lig_coord)
     dmin, _ = tree.query(prot["coord"], k=1)
     near = dmin < threshold

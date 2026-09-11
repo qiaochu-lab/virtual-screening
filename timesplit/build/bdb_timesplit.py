@@ -1,12 +1,15 @@
-"""从 BindingDB 抽取时间切分后的候选数据（切分点 ≤2024-12，2026-08-12 定稿）。
+"""Extract time-split candidate data from BindingDB (split point <=2024-12, finalized 2026-08-12).
 
-口径
-----
-- 用 `Date in BindingDB`（入库日期）而非 `Date of publication`：
-  模型能看到某条数据的前提是它已入库。LigUnity 用的是 BindingDB v2024m5，
-  故入库日期 ≥2025-01 的记录对所有被评测模型都是「未来数据」。
-- 同时记录发表日期，供后续按 PPT slide 12 做更严格的筛选。
-- 亲和力取 Ki 优先，其次 IC50，转为 pAffinity = -log10(M)。
+Convention
+----------
+- Uses `Date in BindingDB` (the deposit date), not `Date of publication`:
+  a model can only have seen a record once it has been deposited.
+  LigUnity was trained on BindingDB v2024m5, so records deposited
+  >=2025-01 are "future data" for every model under evaluation.
+- The publication date is also recorded, to support a stricter filter
+  later per PPT slide 12.
+- Affinity prefers Ki, falling back to IC50, converted to
+  pAffinity = -log10(M).
 """
 import csv, json, math, sys
 from collections import defaultdict
@@ -18,7 +21,7 @@ TRAIN = "/data/work/vs-benchmark/code/LigUnity/test_datasets/train_label_blend_s
 train_up = {a["uniprot"] for a in json.load(open(TRAIN)) if a.get("uniprot")}
 print(f"LigUnity 训练集 UniProt: {len(train_up):,}", flush=True)
 
-# 列索引（1-based → 0-based）
+# Column indices (1-based -> 0-based)
 C_SMILES, C_KI, C_IC50, C_PUB, C_INDB, C_UP = 1, 8, 9, 23, 24, 44
 
 def year(s):
@@ -30,7 +33,7 @@ def year(s):
     return None
 
 def to_p(v):
-    """nM -> pAffinity。去掉 > < 等修饰符。"""
+    """nM -> pAffinity. Strips modifiers like > and <."""
     if not v:
         return None
     v = v.strip().lstrip("><=~ ")

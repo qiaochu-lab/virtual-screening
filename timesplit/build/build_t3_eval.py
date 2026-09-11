@@ -1,26 +1,34 @@
-"""构建 T3 虚筛评测集（跨靶点 decoy）。
+"""Build the T3 virtual-screening evaluation set (cross-target decoys).
 
-口径（用户 2026-08-15 确定）
----------------------------
-active   该靶点 pAff ≥ 6（1 µM）的实测配体，按 InChIKey 去重
-decoy    从 T3 全局分子池里抽「作用于不相似靶点」的真实分子
-比例     1 : 50（与 DUD-E 同量级，保证 EF@1% 有意义）
+Convention (finalized with the user 2026-08-15)
+--------------------------------------------------
+active   measured ligands with pAff >= 6 (1 uM) for this target, deduped by InChIKey
+decoy    real molecules drawn from T3's global molecule pool that act on dissimilar targets
+ratio    1:50 (same order of magnitude as DUD-E, so EF@1% stays meaningful)
 
-为什么用跨靶点 decoy 而不是属性匹配
------------------------------------
-DUD-E 式的属性匹配 decoy 正是本项目要批评的偏倚来源（模型可能靠理化性质
-而非结合模式取胜）。跨靶点 decoy 全是真实类药分子，与 active 同处一个
-化学空间，不引入属性差；同时也避免了随机大库那种反方向的偏倚
-（随机分子性质分布与 active 差太远，模型只靠分子量就能分开）。
+Why cross-target decoys instead of property-matched decoys
+--------------------------------------------------------------
+DUD-E-style property-matched decoys are exactly the bias source this
+project set out to criticize (a model can win on physicochemical
+properties rather than binding mode). Cross-target decoys are all real
+drug-like molecules occupying the same chemical space as the actives, so
+they don't introduce a property gap; this also avoids the opposite bias
+seen with a large random library (where the random molecules' property
+distribution is so far from the actives that a model can separate them
+by molecular weight alone).
 
-三重排除（保证 decoy 尽可能真的不结合）
----------------------------------------
-1. 该靶点自己的 active（按 InChIKey）
-2. 作用于**同一 mmseqs 40% 簇**靶点的分子 —— 同源靶点常共享配体
-3. 与该靶点任一 active **骨架相同**（Bemis-Murcko）的分子
+Triple exclusion (to keep decoys as genuinely non-binding as possible)
+--------------------------------------------------------------------------
+1. The target's own actives (by InChIKey)
+2. Molecules that act on a target in the **same mmseqs 40% cluster** --
+   homologous targets often share ligands
+3. Molecules with the **same scaffold** (Bemis-Murcko) as any of this
+   target's actives
 
-第 2、3 条会让部分靶点凑不满 50 倍，此时按实际能凑到的数量给，
-并在输出里记录真实比例——EF 依赖库大小，这个数必须显式带着。
+Criteria 2 and 3 leave some targets short of the full 50x ratio; when
+that happens, whatever count can actually be assembled is used, and the
+real ratio is recorded in the output -- EF depends on library size, so
+this number must be carried explicitly.
 """
 import json
 import os
@@ -31,12 +39,12 @@ B = "/data/work/vs-benchmark"
 OUT = f"{B}/data/t3/eval"
 PAFF_CUT = 6.0
 RATIO = 50
-MIN_ACTIVES = 10          # 少于这个数的靶点，EF 方差过大，不入正式表
+MIN_ACTIVES = 10          # targets with fewer actives than this have too much EF variance and are excluded from the main table
 SEED = 0
 
 
 def load_clusters():
-    """mmseqs 的 cluster.tsv：第 1 列是代表序列，第 2 列是成员。"""
+    """mmseqs's cluster.tsv: column 1 is the representative sequence, column 2 is the member."""
     c = {}
     with open(f"{B}/data/t3/cluster/t3_40_cluster.tsv") as f:
         for line in f:
@@ -51,12 +59,12 @@ def main():
     clust = load_clusters()
     os.makedirs(OUT, exist_ok=True)
 
-    # ---------- 读全部层 ----------
+    # ---------- Read every layer ----------
     rows_by_layer = {}
     for L in ["L1", "L2", "L3", "L4"]:
         rows_by_layer[L] = [json.loads(l) for l in open(f"{B}/data/t3/layers/{L}.jsonl")]
 
-    # ---------- 全局分子池：inchikey -> (smiles, 作用的簇集合) ----------
+    # ---------- Global molecule pool: inchikey -> (smiles, set of clusters it acts on) ----------
     pool_smi, pool_clust, pool_scaf = {}, defaultdict(set), {}
     for L, rows in rows_by_layer.items():
         for r in rows:
@@ -83,7 +91,7 @@ def main():
         n_t, n_small, n_short, ratios = 0, 0, 0, []
         with open(out_path, "w") as fo:
             for up, acts in sorted(by_t.items()):
-                # active 去重
+                # dedup actives
                 uniq = {}
                 for r in acts:
                     uniq.setdefault(r["inchikey"], r)
@@ -101,9 +109,9 @@ def main():
                 for ik in all_ik:
                     if ik in act_ik:
                         continue
-                    if my_cl and my_cl in pool_clust.get(ik, ()):   # 同簇靶点的配体
+                    if my_cl and my_cl in pool_clust.get(ik, ()):   # ligand of a same-cluster target
                         continue
-                    if pool_scaf.get(ik) in act_scaf:               # 骨架撞车
+                    if pool_scaf.get(ik) in act_scaf:               # scaffold collision
                         continue
                     cands.append(ik)
                 rng.shuffle(cands)
