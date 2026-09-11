@@ -177,6 +177,12 @@ def sign_test(vals, null):
 def sign_note(k, n, p):
     """一行：k/n + 二项 p + 该不该信这一行的汇总。
 
+    ⚠️ **符号检验故意丢掉了幅度**：AUROC 0.95 和 0.51 各算一票。所以它只能决定
+    「这一行的汇总能不能单独引用」，**不能反过来当「没有效应」的证据**。
+    反例：逐靶点 0.72/0.68/0.65/0.61/0.58/0.55/0.53/0.51/0.47/0.45/0.42/0.38
+    是 8/12、p=0.39，符号检验判成噪声，但正向那半明显更强，逐靶点表一看就知道
+    不是噪声。**判断效应始终以逐靶点表为准**，这也是它印在汇总行之前的原因。
+
     ⚠️ n 很小时符号检验**根本达不到 0.05**（n=5 时即使 5/5 也只有 0.0625）。
     这种情况下「仅供参考」是**检验本身没功效**，不是「逐靶点异质」的证据——
     两者读起来一样但含义完全相反，所以必须分开写，否则会把「测不了」
@@ -202,11 +208,19 @@ def floor_note(n):
 
 
 def wilcoxon_vs(vals, null):
-    """逐靶点对一个常数零假设做 Wilcoxon。"""
+    """逐靶点对一个常数零假设做 Wilcoxon。
+
+    ⚠️ 返回的 n 是**剔除平局之后**的。scipy 的 wilcoxon 默认就丢掉零差值
+    （zero_method="wilcox"），所以有效样本量本来就是剔除后的那个；
+    如果拿剔除前的 n 去算 p 的下界 2/2^n，下界会偏小、显得比实际更有功效。
+    12 个靶点里有两个平局，n 其实是 10，下界从 0.0005 变 0.002。
+    """
     v = np.asarray([x for x in vals if np.isfinite(x)], dtype=float)
+    k = int((v > null).sum())
+    v = v[v != null]                       # 平局剔除，和 sign_test 口径一致
     if len(v) < 5 or np.allclose(v, null):
-        return float("nan"), int((v > null).sum()), len(v)
-    return float(stats.wilcoxon(v - null).pvalue), int((v > null).sum()), len(v)
+        return float("nan"), k, len(v)
+    return float(stats.wilcoxon(v - null).pvalue), k, len(v)
 
 
 def coverage_gate(man, aff):
@@ -342,6 +356,8 @@ def main():
         print("%-10s%8d%8d%8d%14.4f%s%s"
               % (up, n_decoy[up], n_missed[up], n_found[up], a_missed[i], fa, df))
     print("-" * 75)
+    print("⚠️ 判断效应以上表为准。下面的汇总行和符号检验只决定「这一行能不能单独")
+    print("   引用」——符号检验只看方向不看幅度，不能反过来当「没有效应」的证据。")
 
     p, w, n = wilcoxon_vs(a_missed, 0.5)
     v = np.array([x for x in a_missed if np.isfinite(x)])
