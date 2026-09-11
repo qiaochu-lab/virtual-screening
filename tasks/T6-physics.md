@@ -515,11 +515,13 @@ none at all.**
    [`physics/check_missed_vs_found_props.py`](../physics/check_missed_vs_found_props.py).
    In the pre-registered join of per-target AUROC gap against property AUC, the
    novelty and molecular-weight columns **point in opposite directions**. At n = 5
-   this is not resolvable. (A collaborating analysis reports that on L4 a
-   molecular-weight-only baseline outscores AIMNet2, which would make MW a
-   confound in physics scores generally rather than a blind-spot signal; that
-   number is not reproduced in this repo and is noted here only as a reason not to
-   read the MW column, not as a result.)
+   this is not resolvable — and the MW column should not be read as a blind-spot
+   signal anyway, because **molecular weight is not distinguishable from a physics
+   score on novel targets**: on L4 an MW-only baseline reaches Spearman +0.194
+   against AIMNet2's +0.117 (paired over 21 targets, p = 0.66, AIMNet2 ahead on
+   9/21), and on L3 +0.117 against +0.217 (p = 0.43)
+   ([`results/T2_aimnet_mw_baseline.txt`](../results/T2_aimnet_mw_baseline.txt)).
+   The claim that survives is the weak one — MW keeps pace, not that it wins.
 4. **The active fraction here (median 41%) is nothing like a screening deck.**
    This is a *ranking* test on a constructed set, not an enrichment measurement;
    absolute numbers do not transfer.
