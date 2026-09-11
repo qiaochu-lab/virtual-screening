@@ -224,6 +224,19 @@ already working in this area.
    [`PATCHES.md`](PATCHES.md).
    → [T2](tasks/T2-affinity-ranking.md)
 
+   **Against the most trivial baseline there is, that decay has a sharper
+   reading.** A "model" that reads nothing but molecular weight ranks actives
+   within target at ρ = +0.12 (L1) and +0.14 (L4). Paired per target, BH-FDR over
+   20 tests: at **L1** HypSeek `_rk`, LigUnity-protein and LigUnity-pocket beat it
+   outright (68.7% / 62.4% / 60.1% of targets won, p = 1.6e-09 … 0.0013). At
+   **L4 no model beats it** — all five sit below molecular weight on both the mean
+   and the win rate (37.8–44.7%), and DrugCLIP is significantly worse (p =
+   0.00098). So on novel targets the ranking signal is not merely weak, it stops
+   being distinguishable from a single descriptor in the direction that favours
+   the descriptor. ⚠️ LiTENCLIP L4 misses the BH threshold by 0.0009 and is
+   recorded as unresolved.
+   → [`results/T2_vs_mw_baseline.txt`](results/T2_vs_mw_baseline.txt)
+
    **Half of CASF-2016 is in these models' training files, by construction.**
    148 of 285 CASF PDB IDs (51.9%) appear verbatim in the PocketAffDB training
    labels — identity, not similarity. The training code drops DUD-E, LIT-PCBA and
