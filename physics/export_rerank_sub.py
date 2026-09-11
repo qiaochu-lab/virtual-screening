@@ -94,7 +94,8 @@ Wilcoxon 双侧下界就是 2/2^5=0.0625，这个检验读方向不读显著性�
                      (b) 补回的活性本身更难，上面那张表没能排除它。
 
 **出分之后要做的直接检验**：把逐靶点的 Boltz AUROC 差（missed − found）和
-上表的性质 AUC 做相关。n=5 证据很弱，但这是唯一直接对题的检验。
+上表的性质 AUC 放在一起看。**只列那五个点，不报 r 和 p**——n=5 上相关系数
+本身就是个汇总统计量，正是上面刚证明会骗人的那一类。让读者看五个点。
 
 ## ⚠️ 绝对指标不可与前四轮或全库 EF 比
 
@@ -139,6 +140,31 @@ def metrics(lab, sc):
     ranks = np.where(lo == 1)[0] + 1
     return (float(lo[:5].mean()), float(lo[:10].mean()), float(ranks.mean()),
             auroc(sc[lab == 1], sc[lab == 0]))
+
+
+def consistency(vals, null):
+    """逐单位方向与汇总结论是否一致。
+
+    ⚠️ 这是这轮最大教训的执行件（PATCHES.md「n 小的时候三个汇总统计量各给一个
+    答案」）。七个性质维度上，五个靶点没有一个同向——**没有共同效应可合并**，
+    三个汇总统计量于是互相打架，因为它们都在回答一个前提不成立的问题。
+    不是 n 小的问题，是异质的问题；n 小只是让异质无法被检出。
+
+    所以凡是汇总行承载结论的地方，都要报「几个单位同向」，不同向就标仅供参考。
+    """
+    v = np.array([x for x in vals if np.isfinite(x)], dtype=float)
+    if len(v) == 0:
+        return 0, 0, False
+    side = np.sign(v.mean() - null)
+    same = int((np.sign(v - null) == side).sum())
+    return same, len(v), same == len(v)
+
+
+def floor_note(n):
+    """n 个单位时 Wilcoxon 双侧 p 的下界。够不到 0.05 就必须说明。"""
+    f = 2 / 2 ** n if n > 0 else float("nan")
+    tail = "，够不到 0.05" if f > 0.05 else ""
+    return f"n={n}，双侧 p 下界 {f:.4f}{tail}"
 
 
 def wilcoxon_vs(vals, null):
@@ -197,6 +223,7 @@ def main():
                for up, v in by.items()}
     n_missed = {up: sum(1 for e in v if e["label"] == 1 and e["rank"] >= tn)
                 for up, v in by.items()}
+    n_decoy = {up: sum(1 for e in v if e["label"] == 0) for up, v in by.items()}
 
     rows = ["target,n_shortlist,n_decoy,n_active_found,n_active_missed,"
             "method,p_at_5,p_at_10,mean_active_rank,auroc,"
@@ -252,10 +279,27 @@ def main():
     print("\n" + "=" * 72)
     print("主分析：检索漏掉的活性，Boltz 捞不捞得回来（对诱饵算 AUROC，零假设 0.5）")
     print("=" * 72)
+    # ⚠️ 逐靶点表在汇总行**之前**，不是附录。汇总和逐靶点打架时以逐靶点为准。
+    print("【逐靶点】这是主表。下面的汇总行只是它的摘要。")
+    print("%-10s%8s%8s%8s%14s%14s%13s"
+          % ("靶点", "诱饵", "missed", "found", "AUROC missed", "AUROC found", "差"))
+    print("-" * 75)
+    for i, up in enumerate(ups):
+        fa = f"{a_found[i]:14.4f}" if np.isfinite(a_found[i]) else f"{'无定义':>13}"
+        df = (f"{a_missed[i] - a_found[i]:+13.4f}"
+              if np.isfinite(a_found[i]) else f"{'-':>13}")
+        print("%-10s%8d%8d%8d%14.4f%s%s"
+              % (up, n_decoy[up], n_missed[up], n_found[up], a_missed[i], fa, df))
+    print("-" * 75)
+
     p, w, n = wilcoxon_vs(a_missed, 0.5)
     v = np.array([x for x in a_missed if np.isfinite(x)])
-    print(f"  补回的活性（检索漏掉）vs 诱饵    AUROC {v.mean():.4f}   "
+    same, tot, unanimous = consistency(a_missed, 0.5)
+    print(f"\n【汇总】missed vs 诱饵   AUROC 均值 {v.mean():.4f}   "
           f"高于 0.5 的 {w}/{n}   p={p:.4f}")
+    print(f"  {floor_note(n)}")
+    print(f"  逐靶点同向 {same}/{tot}"
+          + ("" if unanimous else "  ⚠️ **不同向——这一行仅供参考，以上表为准**"))
     print(f"  （{n} 个靶点全可算：每个都有 >=11 个 missed 活性和 >=84 个诱饵）")
 
     print("\n" + "-" * 72)
@@ -277,10 +321,12 @@ def main():
               f"missed 更高的 {(d > 0).sum()}/{len(d)}")
         # ⚠️ n=5 的 Wilcoxon 双侧 p 下界是 2/2^5=0.0625，够不到 0.05。
         #    报一个注定不显著的 p 值会误导，所以把下界一起写出来。
-        if len(d) >= 5:
+        same = int((np.sign(d) == np.sign(np.median(d))).sum())
+        print(f"  逐靶点同向 {same}/{len(d)}"
+              + ("" if same == len(d) else "  ⚠️ **不同向——汇总仅供参考，以逐靶点为准**"))
+        if len(d) >= 2:
             pw = stats.wilcoxon(d).pvalue if not np.allclose(d, 0) else float("nan")
-            print(f"  Wilcoxon p={pw:.4f}（⚠️ n={len(d)} 时双侧 p 的下界是 "
-                  f"{2 / 2 ** len(d):.4f}，这个检验本来就够不到 0.05，看上表的逐靶点差）")
+            print(f"  Wilcoxon p={pw:.4f}（⚠️ {floor_note(len(d))}；看上表的逐靶点差）")
         print("  （missed ≪ found ⇒ 物理和检索的盲区重合，级联加这一级补不上什么）")
         print("  ⚠️ 解读前先看本文件开头：混合比较的性质差异被靶点构成效应污染了，")
         print("     但**「补回的活性本身更难」并没有被排除**（n=5，逐靶点异质极大）。")
@@ -302,8 +348,11 @@ def main():
     for i, lab_, null in ((3, "AUROC", np.full(n_t, 0.5)), (0, "P@5", fa), (1, "P@10", fa)):
         d = V[:, i] - null
         p = stats.wilcoxon(d).pvalue if not np.allclose(d, 0) else float("nan")
+        same = int((np.sign(d) == np.sign(np.mean(d))).sum())
         print(f"  boltz {lab_:6} {V[:, i].mean():.3f} 对随机 {null.mean():.3f}   "
-              f"赢 {(d > 0).sum()}/{n_t}   p={p:.4f}")
+              f"赢 {(d > 0).sum()}/{n_t}   p={p:.4f}   （{floor_note(n_t)}）")
+        print(f"    逐靶点同向 {same}/{n_t}"
+              + ("" if same == n_t else "  ⚠️ 不同向，汇总仅供参考")) 
 
     print("\n⚠️ 不打印「对 retrieval」的配对检验：补回的活性按构造排在所有诱饵之后，")
     print("   12 个靶点里 5 个的检索 AUROC 是精确的 0。那个比较在任何覆盖率下都是假象。")
