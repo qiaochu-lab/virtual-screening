@@ -1,37 +1,49 @@
-"""NEW-4：靶点新颖度 × 配体新颖度的**正式**交互检验（任务清单 3.2 / Fig. 3）。
+"""NEW-4: the **formal** interaction test between target novelty and ligand
+novelty (task list 3.2 / Fig. 3).
 
-要检验的模型
-------------
-    Performance ~ TargetNovelty + LigandNovelty + TargetNovelty × LigandNovelty
+Model under test
+-----------------
+    Performance ~ TargetNovelty + LigandNovelty + TargetNovelty x LigandNovelty
 
-之前只做了描述性 2×2（比「新/熟比」在 seen 和 unseen 两组的中位数），
-那说明不了交互项是不是统计上为零。这里做正式的。
+Previously only a descriptive 2x2 was done (comparing the median
+"novel/familiar ratio" between the seen and unseen groups), which cannot
+tell whether the interaction term is statistically zero. This does the
+formal version.
 
-为什么用二项 GLM 而不是对 EF 做回归
------------------------------------
-EF_t = recall_t / 0.01 有大量精确的 0（某档活性一个都没进 top-1%），
-取对数会变成 -inf，加个 epsilon 又让结果依赖 epsilon 怎么选。
+Why a binomial GLM rather than a regression on EF
+----------------------------------------------------
+EF_t = recall_t / 0.01 has a large number of exact zeros (a tier's actives
+had none land in the top-1%), taking a log turns those into -inf, and adding
+an epsilon makes the result depend on how the epsilon is chosen.
 
-回到 EF 的定义本身：它就是「该档活性进 top-1% 的比例」除以 0.01。
-所以直接把**每个活性是否进 top-1%** 当伯努利响应，做 logit 回归：
+Go back to what EF actually is: "the fraction of that tier's actives that
+land in the top-1%", divided by 0.01. So treat **whether each active lands
+in the top-1%** directly as a Bernoulli response and run a logit regression:
 
-    logit P(进 top-1%) = β0 + β1·TargetSeen + β2·LigandTier + β3·(TargetSeen × LigandTier)
+    logit P(in top-1%) = beta0 + beta1*TargetSeen + beta2*LigandTier + beta3*(TargetSeen x LigandTier)
 
-零天然被处理，不需要任何变换。β3 就是交互项。
+Zeros are handled naturally, with no transform needed. beta3 is the
+interaction term.
 
-为什么 bootstrap 而不是 GLM 自带的标准误
-----------------------------------------
-同一个靶点的活性不独立（同系列），GLM 假定独立会把标准误算得过小。
-任务清单允许「target-level bootstrap 或 mixed-effects」，这里用前者：
-**按靶点有放回重抽**，每次重抽后重新拟合，取 β3 的 2.5/97.5 分位。
-这把靶点内相关性吸收进了重抽单元，不需要假定随机效应的分布形式。
+Why bootstrap rather than the GLM's own standard errors
+------------------------------------------------------------
+One target's actives are not independent (same series); a GLM assuming
+independence would compute standard errors that are too small. The task
+list allows "target-level bootstrap or mixed-effects"; this uses the former:
+**resample targets with replacement**, refit after each resample, and take
+the 2.5/97.5 percentiles of beta3. This absorbs the within-target
+correlation into the resampling unit, without needing to assume any
+distributional form for random effects.
 
-⚠️ 参照系必须逐模型
-------------------
-配体新颖度必须按**各模型自己的训练配体**算：结构半那三个模型用
-`ligand_novelty_drugclip.json`（13,590 个配体），亲和力半那四个用
-`ligand_novelty.json`（428,767 个）。混用会让交互项是假的——同一个分子在
-两套参照系下能差 0.4 个 Tanimoto。ConPLex / SPRINT 的缓存还没有，先不进模型。
+Warning: the reference set must be per-model
+--------------------------------------------------
+Ligand novelty must be computed against **each model's own training
+ligands**: the three structure-half models use
+`ligand_novelty_drugclip.json` (13,590 ligands), the four affinity-half ones
+use `ligand_novelty.json` (428,767). Mixing them would make the interaction
+term spurious -- the same molecule can differ by 0.4 Tanimoto between the
+two reference sets. ConPLex / SPRINT don't have a cache yet, so they are
+left out of the model for now.
 """
 import argparse
 import collections
@@ -49,8 +61,8 @@ TIER_NAME = ["全新 <0.35", "远 0.35–0.5", "近 0.5–0.7", "极近 ≥0.7"]
 FRAC = 0.01
 MIN_T = 3
 
-# 模型 → (训练靶点集合的来源, 配体新颖度缓存)
-AREF = "ligand_novelty_drugclip.json"      # 13,590 个训练配体
+# model -> (source of the training-target set, ligand-novelty cache)
+AREF = "ligand_novelty_drugclip.json"      # 13,590 training ligands
 BREF = "ligand_novelty.json"               # 428,767
 CREF = "ligand_novelty_conplex.json"       # 3,814
 DREF = "ligand_novelty_sprint.json"        # 1,390,031
@@ -61,10 +73,13 @@ MODELS = {
     "litenclip": ("B", BREF), "hypseek_rk": ("B", BREF),
     "conplex": ("C", CREF), "sprint": ("D", DREF),
 }
-# ⚠️ 训练配体池差两个数量级（3,814 → 1,390,031），「新颖度」在不同模型之间
-# 根本不是同一个量。ConPLex 有 87.9% 的 T3 分子落在最低档、只有 0.5% 在最高档，
-# 这个自变量几乎没有方差——即使 z 标准化也不改变偏度。所以下面把每个模型
-# novelty 的 IQR 一起报出来，宽 CI 要能读成「功效不足」而不是「没有交互」。
+# Warning: the training-ligand pools differ by two orders of magnitude
+# (3,814 -> 1,390,031), so "novelty" is not remotely the same quantity across
+# models. ConPLex has 87.9% of T3 molecules in the lowest tier and only 0.5%
+# in the highest -- this covariate has almost no variance, and z-scoring
+# does not fix the skew. So each model's novelty IQR is reported alongside
+# the results below, so that a wide CI can be read as "underpowered" rather
+# than "no interaction".
 
 
 def tier_of(v):
@@ -75,7 +90,8 @@ def tier_of(v):
 
 
 def model_order(up, L, n, rec, labels, root):
-    """还原模型看到的分子顺序并硬校验；对不上返回 None。"""
+    """Reconstruct the molecule order the model actually saw and strictly
+    validate it; returns None if it doesn't check out."""
     act = {x["smiles"] for x in rec["actives"]}
 
     def ok(seq):
@@ -134,10 +150,12 @@ def load_train_sets(root):
 
 
 def fit(rows):
-    """加权 logit：每个 (靶点, 档) 贡献 hit 次成功和 tot-hit 次失败。
+    """Weighted logit: each (target, tier) contributes `hit` successes and
+    `tot-hit` failures.
 
-    返回 (β_target, β_tier, β_interaction)。用 sample_weight 而不是把每个活性
-    展开成一行，等价但快得多。
+    Returns (beta_target, beta_tier, beta_interaction). Using sample_weight
+    instead of expanding each active into its own row is equivalent but
+    much faster.
     """
     X, y, w = [], [], []
     for seen, tier, hit, tot in rows:
@@ -168,11 +186,14 @@ def main():
                     default=f"{B}/results/export/T3_novelty_interaction_cells.csv")
     args = ap.parse_args()
 
-    # ⚠️ 键必须是 (层, 靶点)：350 子集 328 条 / 293 个唯一 uniprot，
-    # 35 个 uniprot 出现在多个层，只按 uniprot 过滤会多算别的层的记录。
+    # Warning: the key must be (layer, uniprot): the 350-quota subset has
+    # 328 entries / 293 unique uniprots, and 35 uniprots appear in more than
+    # one layer; filtering by uniprot alone would double-count records from
+    # other layers.
     keep = {(r["layer"], r["uniprot"]) for r in csv.DictReader(open(args.subset))}
     SETS = load_train_sets(args.root)
-    # 从 MODELS 里收集实际用到的缓存，别硬编码——加模型时最容易漏这一行
+    # Collect the caches actually used from MODELS, don't hardcode -- this
+    # line is the easiest thing to forget when adding a model
     novc = {f: json.load(open(f"{args.root}/data/t3/{f}"))
             for f in {ref for _tag, ref in MODELS.values()}}
     recs = {L: [json.loads(x) for x in open(f"{args.eval_dir}/{L}.jsonl")]
@@ -180,16 +201,18 @@ def main():
 
     # cells[model] = [(seen, tier, hit, tot, uniprot), ...]
     cells = collections.defaultdict(list)
-    novvals = collections.defaultdict(list)   # 该模型参照系下的活性新颖度分布
+    novvals = collections.defaultdict(list)   # distribution of actives' novelty under this model's own reference set
     iqr = {}
     for m, (tag, ref) in MODELS.items():
         nov = novc[ref]
         T = SETS[tag]
         n_bad = 0
         for L in args.layers:
-            # 结果目录布局不统一：口袋类模型写 results/t3_raw/{m}/T3/{层}/，
-            # 序列类模型（ConPLex 等）少一层 T3 且在 results/t3/ 下。
-            # 不列全候选路径，ConPLex 会静默产出 0 个格子而不报错。
+            # The results-directory layout isn't uniform: pocket models
+            # write to results/t3_raw/{m}/T3/{layer}/, while sequence models
+            # (ConPLex etc.) skip the T3 level and live under results/t3/.
+            # Without listing all candidate paths, ConPLex would silently
+            # produce 0 cells with no error.
             d = None
             for cand in (f"{args.raw}/{m}/T3/{L}",
                          f"{args.raw}/{m}/{L}",
@@ -276,7 +299,7 @@ def main():
                 bs.append(f[2])
         bs = np.array(bs)
         lo, hi = np.percentile(bs, [2.5, 97.5])
-        # 双侧 p：bootstrap 分布中越过 0 的比例 ×2
+        # two-sided p: fraction of the bootstrap distribution crossing 0, x2
         p = 2 * min((bs <= 0).mean(), (bs >= 0).mean())
         sign = "无交互" if lo <= 0 <= hi else ("放大" if base[2] > 0 else "削弱")
         print("%-26s %6d %7d %10.3f %10.3f %12.4f  [%+.3f, %+.3f] %7.4f"
@@ -287,10 +310,13 @@ def main():
                      f"{lo:.4f}", f"{hi:.4f}", f"{p:.5f}", sign])
     print("-" * 108)
 
-    # ---- 合并拟合 ----
-    # 七个模型单独看都不显著，但 β 的符号如果一致，可能只是单模型功效不足。
-    # 合并成一个回归（模型作固定效应），靶点级 bootstrap——同一个靶点在所有模型
-    # 里的记录一起重抽，这样模型之间共享靶点造成的相关性被正确吸收。
+    # ---- pooled fit ----
+    # None of the seven models is significant on its own, but if beta's sign
+    # is consistent across them that could just mean each model alone is
+    # underpowered. Pool into a single regression (model as a fixed
+    # effect), with target-level bootstrap -- one target's records across
+    # all models are resampled together, so the correlation induced by
+    # models sharing targets is correctly absorbed.
     pooled = [(s_, t_, h_, n_, u_, mi)
               for mi, m in enumerate(MODELS) for s_, t_, h_, n_, u_ in cells[m]]
     if pooled:

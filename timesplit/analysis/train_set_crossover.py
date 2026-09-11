@@ -1,28 +1,36 @@
-"""训练集归属的交叉对照：靶点按**两个标签文件**切格，看谁在哪一格相对更强。
+"""Training-set membership crossover control: split targets by **two label
+files** and see which model is relatively stronger in which cell.
 
-设计为什么要重做
-----------------
-第一版把靶点切成 A∩B / A only / B only / neither，前提是 A（DrugCLIP 的
-train_no_test_af）和 B（LigUnity 系）是两套互斥的训练集。**这个前提是错的。**
-`train_task.py:523-524` 显示 LigUnity 系同时读两个标签文件，其中
-`train_label_pdbbind_seq.json` 覆盖 16,744 个 PDB ID，与 `train_no_test_af`
-**完全相同**（交集 16,744，各自独有 0）。所以 **A 是 B 的真子集**，
-「B only 减 A only」不能读成「PocketAffDB 成员身份的价值」。
+Why the design had to be redone
+------------
+The first version split targets into A∩B / A only / B only / neither, on
+the premise that A (DrugCLIP's train_no_test_af) and B (the LigUnity
+family) were two mutually exclusive training sets. **That premise is
+wrong.** `train_task.py:523-524` shows the LigUnity family reads two label
+files at once, and one of them, `train_label_pdbbind_seq.json`, covers
+16,744 PDB IDs that are **exactly the same** as `train_no_test_af`
+(intersection 16,744, nothing exclusive to either side). So **A is a true
+subset of B**, and "B only minus A only" cannot be read as "the value of
+PocketAffDB membership".
 
-改成按两个标签文件本身切，这样每一格的含义是明确的：
+Switched to splitting by the two label files themselves, so each cell's
+meaning is unambiguous:
 
-    P  train_label_pdbbind_seq.json   结构半，只有口袋，**A 和 B 都训过**
-    L  train_label_blend_seq_full.json 亲和力半，带 pAff，**只有 B 训过**
+    P  train_label_pdbbind_seq.json    structure half, pocket only, **both A and B trained on it**
+    L  train_label_blend_seq_full.json affinity half, with pAff, **only B trained on it**
 
-四格：P∩L / 仅 P / 仅 L / 都没有。
+Four cells: P∩L / P only / L only / neither.
 
-真正要读的对比是 **仅 L vs 仅 P**：
-  · 两格 B 组都训过，差别只在**标签类型**（亲和力 vs 只有结构）
-  · 仅 L 那格 A 组**完全没训过**
-所以如果 B 组在「仅 L」相对更强而 A 组相对更弱，说明起作用的是
-**亲和力标签这一半**，不是「训练集成员身份」这个笼统的东西。
+The comparison that actually matters is **L only vs P only**:
+  * both cells were trained on by group B — the only difference is **label
+    type** (affinity vs structure-only)
+  * group A **never trained on** the L-only cell at all
+So if group B is relatively stronger on "L only" while group A is
+relatively weaker, that shows what's doing the work is **the affinity-label
+half**, not the broad notion of "training-set membership".
 
-名次是靶点内十个模型的相对排位，靶点难不难会被自动消掉。
+Rank is each model's relative position within a target among the ten
+models, so target difficulty is automatically cancelled out.
 """
 import csv
 import json
@@ -42,11 +50,13 @@ LAYERS = ["L1", "L2", "L3", "L4"]
 
 
 def load_sets():
-    """四套训练集。B 组是**两个**标签文件的并集，见 per_model_layers.load_B 的注释。
+    """The four training sets. Set B is the union of **two** label files — see the
+    comment on per_model_layers.load_B.
 
-    train_task.py:523-524 同时读 pdbbind 半（3,468 UniProt / 16,744 PDB）和
-    blend 半（2,196 UniProt）。pdbbind 半覆盖的 16,744 个 PDB 与 DrugCLIP 的
-    train_no_test_af 完全相同，所以 **A ⊂ B**。
+    train_task.py:523-524 reads both the pdbbind half (3,468 UniProt / 16,744 PDB)
+    and the blend half (2,196 UniProt). The 16,744 PDB entries covered by the
+    pdbbind half are exactly the same as DrugCLIP's train_no_test_af, so
+    **A ⊂ B**.
     """
     import pickle
 
@@ -71,7 +81,7 @@ def load_sets():
 
 
 def load_halves():
-    """分别返回结构半 P 和亲和力半 L 的 UniProt 集合。"""
+    """Returns the UniProt sets for the structure half P and the affinity half L, respectively."""
     out = []
     for f in ("train_label/train_label_pdbbind_seq.json",
               "train_label_blend_seq_full.json"):
@@ -89,9 +99,11 @@ def main():
                          "全量版是稳健性检查：「仅 P」格从 7 个涨到 28 个，"
                          "小样本假象会在那里现形")
     args = ap.parse_args()
-    # ⚠️ 键必须是 (层, 靶点) 不能只用靶点：350 子集是 328 条 / 293 个唯一 uniprot，
-    # 35 个 uniprot 出现在多个层。只按 uniprot 过滤会把「该靶点在别的层的记录」
-    # 也算进来——实测 seen+unseen 报到 417，比子集本身的 328 条还多 89 条。
+    # ⚠️ The key must be (layer, target), not target alone: the 350 subset is
+    # 328 entries / 293 unique uniprots, and 35 uniprots appear in more than
+    # one layer. Filtering by uniprot alone would pull in "this target's
+    # records in other layers" too — empirically, seen+unseen then reports
+    # 417, 89 more than the 328 entries in the subset itself.
     keep = None if args.subset == "all" else {
         (r["layer"], r["uniprot"]) for r in csv.DictReader(open(args.subset))}
     A, Bs = load_sets()
@@ -137,7 +149,7 @@ def main():
         if min(len(v[c]) for c in ("仅 P", "仅 L")) < 5:
             print(f"{m}: 仅 P / 仅 L 样本太少，跳过"); continue
         mv = {c: float(np.mean(v[c])) if v[c] else float("nan") for c in cells}
-        # 仅 L 的名次是否显著好于 仅 P（名次小 = 强，所以检验 less）
+        # whether L-only's rank is significantly better than P-only's (smaller rank = stronger, hence the "less" alternative)
         p = mannwhitneyu(v["仅 L"], v["仅 P"], alternative="less").pvalue
         d = mv["仅 L"] - mv["仅 P"]
         print("%-24s %-3s %8.2f %8.2f %8.2f %8.2f %+14.2f %10.5f"

@@ -1,29 +1,36 @@
-"""T2 亲和力排序 —— 修正版，按分子身份对齐，而不是按下标顺序。
+"""T2 affinity ranking — corrected version, aligned by molecule identity
+instead of by index order.
 
-为什么要重写
+Why this needed a rewrite
 ------------
-旧版 score_t2.py 这样取值：
-    act = np.nonzero(lab == 1)[0]     # 模型顺序里 active 的下标（升序）
+The old score_t2.py took values like this:
+    act = np.nonzero(lab == 1)[0]     # index of actives in the model's order (ascending)
     sc  = s[act]
-    ρ   = spearman(sc, pa)            # pa 来自评测集 jsonl 的 active 顺序
-它默认「模型顺序里的第 k 个 active，就是评测集里的第 k 个 active」。
-对 ConGLUDe / ConPLex 成立（它们直接遍历 jsonl）；
-对 UniMol 系（DrugCLIP/BindCLIP/LigUnity/LiTENCLIP/HypSeek）**不成立**——
-它们读 lmdb，而 lmdb 的 key 是字符串，遍历顺序是字典序
-（0, 1, 10, 100, 1000, …），不是写入时的数值序。
+    ρ   = spearman(sc, pa)            # pa comes from the eval-set jsonl's active order
+This assumes "the k-th active in the model's order is the k-th active in
+the eval set". That holds for ConGLUDe / ConPLex (they iterate the jsonl
+directly); it **does not hold** for the UniMol family
+(DrugCLIP/BindCLIP/LigUnity/LiTENCLIP/HypSeek) — they read from lmdb, and
+lmdb keys are strings, so iteration order is lexicographic
+(0, 1, 10, 100, 1000, …), not the numeric order they were written in.
 
-后果：分数和亲和力被打乱配对，相关系数被摊平到零。
-这正好解释了一件一直没想通的事——ConGLUDe（唯一走 jsonl 顺序的模型）
-在 T3 上的 ρ 是所有模型里最高的（L1 +0.129），而七个结构模型全在 0 附近。
-不是它更强，是只有它没被这个 bug 打乱。
+Consequence: scores and affinities get paired up scrambled, and the
+correlation is flattened toward zero. This turns out to explain something
+that had never quite made sense — ConGLUDe (the only model that follows
+jsonl order) has the highest ρ on T3 of all models (L1 +0.129), while the
+seven structure models all sit near 0. It isn't stronger — it's just the
+only one this bug didn't scramble.
 
-修正做法
+The fix
 --------
-按**分子身份**对齐：先还原模型看到的分子顺序（lmdb 游标序或 jsonl 序），
-用 InChIKey 把每个 active 对上它自己的 pAffinity，再算相关。
-InChIKey 由 SMILES 现算，不依赖任何顺序假设。
+Align by **molecule identity**: first reconstruct the molecule order the
+model actually saw (lmdb cursor order or jsonl order), then use InChIKey to
+match each active to its own pAffinity before computing correlation.
+InChIKey is computed on the fly from SMILES, so it doesn't rely on any
+ordering assumption.
 
-同时报旧口径的数，方便审计这次修正到底改了多少。
+The old-convention numbers are also reported alongside, so the size of this
+correction can be audited.
 """
 import argparse
 import json
@@ -35,8 +42,9 @@ import numpy as np
 from rdkit import Chem, RDLogger
 from scipy import stats
 
-# 顺序守卫：拼接逐分子数据前先验证 LMDB 游标序与 saved_labels 一致。
-# 这个 bug 让 T2 的结论错过两次，且完全不报错。见 eval/order_guard.py
+# Order guard: verify the LMDB cursor order matches saved_labels before
+# concatenating per-molecule data. This bug cost T2 two wrong conclusions,
+# and it fails completely silently. See eval/order_guard.py
 import sys as _sys
 _sys.path.insert(0, "/data/yicheng/xqc/vs-benchmark/eval")
 from order_guard import assert_cursor_order as _assert_order
@@ -49,7 +57,7 @@ MIN_ACT = 10
 
 
 def model_smiles(up, L, n_pred, rec):
-    """模型看到的分子顺序 -> [smiles]；两种布局都试，都对不上返回 None。"""
+    """The molecule order the model saw -> [smiles]; tries both layouts, returns None if neither matches."""
     jsonl = [m["smiles"] for m in rec["actives"]] + [m["smiles"] for m in rec["decoys"]]
     if len(jsonl) == n_pred:
         return jsonl
@@ -59,7 +67,7 @@ def model_smiles(up, L, n_pred, rec):
     e = lmdb.open(p, subdir=False, readonly=True, lock=False)
     out = []
     with e.begin() as t:
-        for _k, v in t.cursor():      # 游标序 = 模型看到的顺序
+        for _k, v in t.cursor():      # cursor order = the order the model saw
             out.append(pickle.loads(v)["smi"])
     e.close()
     return out if len(out) == n_pred else None
@@ -105,7 +113,7 @@ def main():
             if not os.path.isdir(d):
                 continue
             new_r, old_r, new_t, ns, skip = [], [], [], [], 0
-            ups = []   # 逐靶点留痕：换靶点子集重新汇总时用，不必重跑
+            ups = []   # per-target trace: used when re-aggregating over a different target subset, without re-running
             for up in sorted(os.listdir(d)):
                 rec = EV[L].get(up)
                 if rec is None:
@@ -144,7 +152,8 @@ def main():
                 new_r.append(r); new_t.append(t); ns.append(len(pairs))
                 ups.append(up)
 
-                # 旧口径：模型 active 下标（升序）直接对评测集 active 顺序
+                # Old convention: model active indices (ascending) matched directly
+                # against the eval-set active order
                 pa_old = [float(a["paff"]) for a in rec["actives"]]
                 if len(pa_old) == len(act_idx):
                     ro = stats.spearmanr(s[act_idx], pa_old).statistic

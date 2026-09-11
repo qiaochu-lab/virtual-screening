@@ -1,20 +1,30 @@
-"""T5-a：同一批靶点上，用实验 holo 结构 vs Boltz-2 预测结构，结果差多少。
+"""T5-a: on the same set of targets, how much do results differ between
+experimental holo structures and Boltz-2 predicted structures.
 
-这是 T5「结构鲁棒性」的核心问题之一：模型对结构来源有多敏感？
-材料是现成的——组装 T3 数据时每个靶点用的是哪种结构已逐靶点记录在
-data/T3_6A/manifest.json 里，直接按来源切一刀即可。
+This is one of T5's "structure robustness" core questions: how sensitive is
+the model to the structure source? The material is already at hand — which
+structure type was used for each target when T3 data was assembled is
+already recorded per-target in data/T3_6A/manifest.json, so it's a matter
+of slicing by source directly.
 
-注意这**不是**随机对照：一个靶点有没有实验结构本身就不随机
-（研究得多的靶点才有），所以两组的靶点难度本来就可能不同。
-阴性对照是两个**纯序列模型**（ConPLex、LigUnity-protein）——它们完全不用结构，
-若它们在两组间也有同样的差距，说明差距来自靶点本身而非结构来源。
+Note that this is **not** a random control: whether a target has an
+experimental structure is itself non-random (only well-studied targets have
+one), so the two groups' target difficulty may differ to begin with. The
+negative control is two **pure sequence models** (ConPLex, LigUnity-protein)
+— they don't use structure at all, so if they show the same gap between the
+two groups, that indicates the gap comes from the targets themselves rather
+than the structure source.
 
-⚠️ 必须显式传 --models
---------------------
-早期版本对 summary.json 里的模型做 `for m in sorted(s)` 遍历。那个文件每跑一次
-score_t3.py 就被覆盖成当次的模型集，于是这张表报了哪些模型取决于上一条命令跑了
-什么——文档里曾因此只报了 BindCLIP 两个模型、得出「无显著差异」，而跑全十个模型
-时有四个在 L4 上显著。现在必须显式传模型名，缺谁就报缺谁，不再静默漏报。
+⚠️ --models must be passed explicitly
+------------
+An earlier version iterated the models in summary.json with
+`for m in sorted(s)`. That file gets overwritten with whichever model set
+was run each time score_t3.py runs, so which models this table reported
+depended on what the previous command happened to run — the docs once
+reported only two BindCLIP models this way and concluded "no significant
+difference", while running all ten models shows four are significant at L4.
+Model names must now be passed explicitly; whichever is missing gets
+reported as missing, instead of silently dropped.
 """
 import argparse
 import csv
@@ -30,7 +40,7 @@ B = "/data/work/vs"
 ALL = ["drugclip", "bindclip_randneg", "bindclip_hardneg",
        "ligunity_pocket_ranking", "ligunity_protein_ranking", "litenclip",
        "hypseek_rk", "conglude", "conplex", "sprint"]
-# 不使用结构的模型，用作阴性对照
+# Models that don't use structure, used as a negative control
 SEQ_ONLY = {"conplex", "ligunity_protein_ranking"}
 
 
@@ -92,7 +102,7 @@ def main():
                 direction.append(np.mean(h) > np.mean(p_))
     print("-" * 84)
 
-    # 多重比较：BH 步进
+    # Multiple comparisons: BH step-up procedure
     pvals = sorted(float(r[8]) for r in rows[1:])
     n = len(pvals)
     k_max = max((i for i, p in enumerate(pvals, 1) if p <= 0.05 * i / n), default=0)
@@ -105,11 +115,15 @@ def main():
     if direction:
         from math import comb
         k = sum(direction)
-        # ⚠️ 必须双侧。原来写的是 2*P(X>=k)，那只检测「实验结构更好」这一个方向：
-        # 如果反过来（k < n/2），这个式子返回 >1 的数，检测不到「预测结构显著更好」。
-        # 这次 k=8/10、10/10 都在 k>n/2 一侧，两式恰好相等，**已发布的数不受影响**，
-        # 但换一批数据就会静默失效。队友在 paired_vs_mw.py 上踩到过同一个坑，
-        # 他那版还 clamp 到 1，把「显著更差」读成了「没有差别」。
+        # ⚠️ Must be two-sided. The original code used 2*P(X>=k), which only
+        # detects the single direction "experimental structure is better": if it
+        # went the other way (k < n/2), that formula returns a number >1 and can't
+        # detect "predicted structure is significantly better".
+        # This time k=8/10 and 10/10 both fall on the k>n/2 side, so the two
+        # formulas happen to be equal and **the already-published numbers are
+        # unaffected** — but it would fail silently on a different dataset. A
+        # teammate hit the same pitfall in paired_vs_mw.py, and that version also
+        # clamped to 1, turning "significantly worse" into "no difference".
         _n = len(direction)
         _pk = [comb(_n, i) for i in range(_n + 1)]
         sign = min(1.0, sum(x for x in _pk if x <= _pk[k]) / 2 ** _n)

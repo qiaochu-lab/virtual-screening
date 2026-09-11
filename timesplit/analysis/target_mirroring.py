@@ -1,27 +1,36 @@
-"""T3 的靶点，跟模型训练集里的靶点有多同源——「新靶点」到底有多新。
+"""How homologous T3's targets are to the targets in the models' training
+set — just how "novel" is a "novel target".
 
-背景
-----
-Mattsson & Walters (bioRxiv 2026.06.29.735309) 把这个现象叫 **target mirroring**：
-同源蛋白即使整体序列一致性很低，结合谱依然高度相关，所以按序列一致性切分
-不足以防泄漏；他们在 ChEMBL 36 上发现泄漏一直持续到一致性低至 **0.2**。
+Background
+------------
+Mattsson & Walters (bioRxiv 2026.06.29.735309) call this phenomenon
+**target mirroring**: homologous proteins can have highly correlated
+binding profiles even when overall sequence identity is very low, so
+splitting by sequence identity alone isn't enough to prevent leakage; on
+ChEMBL 36 they found leakage persisting down to identities as low as
+**0.2**.
 
-我们的 L3/L4 定义为「靶点没见过」，家族边界用的是 LigUnity 提供的
-uniport40.clstr（CD-HIT 40% 聚类）。CD-HIT 除了一致性还卡覆盖度，
-所以它认定的「不同家族」可能仍有相当高的局部一致性——
-在 T3 子集内部已经发现 VEGFR1(L4) 对 VEGFR2(L1) 有 45%。
-这个脚本把比较对象换成**完整训练集**，给出真正的下界。
+Our L3/L4 are defined as "target unseen"; the family boundary comes from
+LigUnity's supplied uniport40.clstr (CD-HIT 40% clustering). CD-HIT gates on
+coverage as well as identity, so a pair it calls "different families" may
+still have substantial local identity — within the T3 subset we've already
+found VEGFR1(L4) at 45% identity to VEGFR2(L1). This script swaps in the
+**full training set** as the comparison target, to give the true lower
+bound.
 
-为什么用 mmseqs 而不是 cd-hit
------------------------------
-cd-hit 的词表机制决定它在 40% 以下不可靠，而我们恰恰需要看 20–40% 这一段。
-mmseqs 用 -s 7.5 的敏感搜索能覆盖到远同源。
+Why mmseqs instead of cd-hit
+------------
+cd-hit's word-table mechanism makes it unreliable below 40% identity, which
+is exactly the 20-40% range we need to look at. mmseqs' sensitive search
+(-s 7.5) can reach remote homologues.
 
-怎么读结果
-----------
-· L1/L2 靶点本来就在训练集里，自身命中 100% 是预期的，用来验证流水线没接错。
-· L3/L4 的最高命中才是要看的：若大量落在 40% 以上，说明「新靶点」名不副实，
-  这两层的成绩偏高，报出来的衰减是低估。
+How to read the results
+------------
+* L1/L2 targets are already in the training set, so a 100% self-hit is
+  expected and just verifies the pipeline is wired correctly.
+* What matters is L3/L4's highest hit: if a large share land above 40%,
+  "novel target" is a misnomer, these two layers' scores are inflated, and
+  the reported decay is an underestimate.
 """
 import argparse
 import collections
@@ -66,7 +75,7 @@ def main():
 
     os.makedirs(args.workdir, exist_ok=True)
 
-    # ---- 查询集：T3 靶点
+    # ---- Query set: T3 targets
     allseq = json.load(open(args.sequences))
     if os.path.exists(args.sequences_extra):
         allseq.update(json.load(open(args.sequences_extra)))
@@ -79,7 +88,7 @@ def main():
     nq = write_fasta(f"{args.workdir}/query.fa", q)
     print(f"T3 唯一靶点 {len(layers)}，有序列 {nq}")
 
-    # ---- 参照集：训练集靶点（多个标签文件取并集，按 uniprot 去重）
+    # ---- Reference set: training-set targets (union of multiple label files, deduplicated by uniprot)
     paths = ([args.train_label] if isinstance(args.train_label, str)
              else list(args.train_label))
     lab, t = [], {}
@@ -101,7 +110,7 @@ def main():
     overlap = set(q) & set(t)
     print(f"两边都出现的 UniProt: {len(overlap)}（L1/L2 本来就该在训练集里）\n")
 
-    # ---- mmseqs 敏感搜索
+    # ---- mmseqs sensitive search
     res = f"{args.workdir}/hits.tsv"
     cmd = [MMSEQS, "easy-search", f"{args.workdir}/query.fa",
            f"{args.workdir}/train.fa", res, f"{args.workdir}/tmp",
@@ -118,15 +127,16 @@ def main():
             print(r.stdout[-2000:]); print(r.stderr[-2000:])
             raise SystemExit("mmseqs 失败")
 
-    # ---- 每个 T3 靶点，排除自身命中后的最佳同源
+    # ---- For each T3 target, the best homologue after excluding self-hits
     best_self, best_other = {}, {}
     for line in open(res):
         p = line.rstrip("\n").split("\t")
         if len(p) < 8:
             continue
         qu, tu, fid, aln, qc, tc = p[0], p[1], float(p[2]), int(p[3]), float(p[4]), float(p[5])
-        # 不过滤的话会命中一堆「几个残基 100% 一致」的碎片：
-        # 首轮就出现 fident=1.00 而 qcov=1% 的结果，全是噪声。
+        # Without filtering, this hits a pile of "a few residues 100% identical"
+        # fragments: the first pass already turned up fident=1.00 with qcov=1%
+        # results, which are pure noise.
         if float(p[6]) > args.max_evalue or qc < args.min_cov or tc < args.min_cov:
             continue
         if qu == tu:

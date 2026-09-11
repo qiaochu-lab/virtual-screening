@@ -1,17 +1,22 @@
-"""提高 active 数门槛，会不会把某些蛋白类别整个删掉？
+"""Does raising the actives-count floor delete entire protein classes?
 
-背景
-----
-合作者建议「去掉 50 个 active 以下的靶点看看」。按 active 数筛选不是中性操作：
-研究得多的靶点文献里活性化合物多，冷门靶点少。所以抬高门槛可能系统性地保留
-热门类别、删掉冷门类别——那样得到的子集就不能代表全集。
+Background
+----------
+A collaborator suggested "try dropping targets with fewer than 50 actives".
+Filtering by actives count is not a neutral operation: well-studied targets
+have more active compounds in the literature, obscure targets have fewer. So
+raising the floor could systematically keep the popular classes and drop the
+obscure ones — leaving a subset that no longer represents the full set.
 
-这个脚本量化两件事：
-  1. 各门槛下每个蛋白类别还剩多少靶点、占比变了多少
-  2. 与三个公开基准的 active 数分布对照，看「多少算够」有没有行业标准
+This script quantifies two things:
+  1. How many targets remain per protein class at each floor, and how the
+     class proportions shift
+  2. How the actives-count distribution compares against three public
+     benchmarks, to check whether there is an industry standard for
+     "how many is enough"
 
-用法
-----
+Usage
+-----
     python actives_floor_classes.py [--targets CSV] [--out CSV]
 """
 import argparse
@@ -21,7 +26,8 @@ import csv
 THRESHOLDS = (10, 20, 30, 50, 100)
 LAYERS = ("L1", "L2", "L3", "L4")
 
-# 三个公开基准的 active 数分布，从各自的 saved_labels.npy 数出来（见 standard/）
+# Actives-count distribution for the three public benchmarks, counted from
+# each one's saved_labels.npy (see standard/)
 REFERENCE = {
     "DUD-E":    dict(n=102, lo=40, q25=102, med=158, q75=338, hi=592, ge50=95, ge100=82),
     "DEKOIS":   dict(n=81,  lo=37, q25=40,  med=40,  q75=40,  hi=40,  ge50=0,  ge100=0),
@@ -38,7 +44,7 @@ def main():
     rows = list(csv.DictReader(open(args.targets)))
     print(f"T3 共 {len(rows)} 个靶点\n")
 
-    # --- 每层还剩多少
+    # --- how many targets remain per layer
     by_layer = collections.defaultdict(list)
     for r in rows:
         by_layer[r["layer"]].append(int(r["n_actives"]))
@@ -55,7 +61,7 @@ def main():
     print("%-6s" % "合计" + "".join("%9d" % total[t] for t in THRESHOLDS))
     print("%-6s" % "" + "".join("%9s" % f"{100*total[t]/total[10]:.0f}%" for t in THRESHOLDS))
 
-    # --- 类别构成
+    # --- class composition
     cls = collections.defaultdict(lambda: collections.defaultdict(int))
     for r in rows:
         c = r.get("protein_class") or "(未标注)"
@@ -83,7 +89,7 @@ def main():
     with open(args.out, "w", newline="") as f:
         csv.writer(f).writerows(out_rows)
 
-    # --- 哪些类别在 ≥50 时已经不够用
+    # --- which classes already have too few targets at >=50
     print("\n=== ≥50 时样本不足的类别（少于 10 个靶点就撑不起分层结论）===")
     dead = [(c, cls[10][c], cls[50][c]) for c in order if cls[50][c] < 10]
     for c, a, b in dead:
@@ -91,7 +97,7 @@ def main():
     if not dead:
         print("  （无）")
 
-    # --- 与公开基准对照
+    # --- comparison against public benchmarks
     print("\n=== 「多少算够」有行业标准吗：三个公开基准的 active 数 ===")
     print("%-10s %6s %6s %6s %7s %7s %8s %9s %9s"
           % ("基准", "靶点", "最小", "25%", "中位", "75%", "最大", "≥50", "≥100"))

@@ -1,23 +1,31 @@
-"""测试配体离训练集有多远——按配体新颖度分档，看模型捞到的是新分子还是熟分子。
+"""How far are the test ligands from the training set -- bin by ligand
+novelty and check whether the model retrieves novel molecules or familiar
+ones.
 
-背景
-----
-Mattsson & Walters (bioRxiv 2026.06.29.735309) 的核心提议是
-**Novelty-Tiered Benchmark**：把测试数据按配体新颖度分档，最难那档
-（对训练配体 Tanimoto < 0.35）才是检验真泛化的地方。
+Background
+----------
+The core proposal of Mattsson & Walters (bioRxiv 2026.06.29.735309) is a
+**Novelty-Tiered Benchmark**: bin the test data by ligand novelty, and only
+the hardest tier (Tanimoto < 0.35 to the training ligands) actually tests
+real generalization.
 
-我们原来的 L1/L2 分界用的是 Bemis-Murcko 骨架**是否见过**（二值）。
-两个分子可以骨架不同但 Tanimoto 0.7，所以这个分界偏粗。这里换成连续相似度。
+Our original L1/L2 boundary used **whether the Bemis-Murcko scaffold had
+been seen** (a binary flag). Two molecules can have different scaffolds and
+still sit at Tanimoto 0.7, so that boundary is coarse. This switches to a
+continuous similarity instead.
 
-两部分
-------
-A. 每个 T3 分子对训练集 42.6 万个配体的最大 Tanimoto，按层看分布；
-   诱饵作对照——诱饵是别的靶点的真实活性，它们的新颖度就是"背景水平"。
-B. 更要紧的一问：**模型排进 top-1% 的活性里，有多少是新的？**
-   如果模型只捞回熟分子，那 EF 高就只说明它记性好。
+Two parts
+---------
+A. Each T3 molecule's maximum Tanimoto to the training set's 426k ligands,
+   viewed as a distribution per layer; decoys serve as the control -- they
+   are real actives on other targets, so their novelty is the "background
+   level".
+B. The more important question: **of the actives the model ranks into the
+   top-1%, how many are novel?** If the model only retrieves familiar
+   molecules, a high EF only shows that it has a good memory.
 
-只对 T3 的 14.7 万个唯一分子各算一次（不是逐"分子×靶点"对），
-所以 42.6 万 × 14.7 万的比较跑一遍就够。
+Computed only once per T3's 147k unique molecules (not per "molecule x
+target" pair), so the 426k x 147k comparison only needs to run once.
 """
 import argparse
 import collections
@@ -56,12 +64,17 @@ def max_sim(smi):
 
 
 def model_order(up, L, n, rec, labels, b_root):
-    """还原模型看到的分子顺序并**硬校验**；对不上返回 None。
+    """Reconstruct the molecule order the model actually saw and **strictly
+    validate** it; returns None if it doesn't check out.
 
-    ⚠️ 只比长度是不够的。模型读 lmdb，游标是字典序（0, 1, 10, 100, …），
-    与评测集 jsonl 的「活性+诱饵」顺序不同而**长度相同**。本项目已经因为
-    只比长度而静默错配三次（PATCHES.md）。所以还原顺序后必须验
-    「标签为 1 的位置上确实是该靶点的 active」，验不过就跳过该靶点。
+    Warning: comparing only the length is not enough. The model reads an
+    lmdb whose cursor order is lexicographic (0, 1, 10, 100, ...), which
+    differs from the eval-set jsonl's "actives+decoys" order while having
+    **the same length**. This project has already had three silent
+    mismatches from comparing only the length (PATCHES.md). So after
+    reconstructing the order it must be validated that "the positions
+    labeled 1 really are that target's actives"; skip the target if that
+    check fails.
     """
     act = {x["smiles"] for x in rec["actives"]}
 
@@ -112,7 +125,7 @@ def main():
     ap.add_argument("--out", default=f"{B}/results/export/T3_ligand_novelty.csv")
     args = ap.parse_args()
 
-    # ---------- 训练集指纹 ----------
+    # ---------- training-set fingerprints ----------
     lab = json.load(open(args.train_label))
     tsmi = sorted({l["smi"] for a in lab for l in (a.get("ligands") or [])
                    if isinstance(l, dict) and l.get("smi")})
@@ -121,7 +134,7 @@ def main():
         tfps = [f for f in ex.map(fp, tsmi, chunksize=1000) if f is not None]
     print(f"训练集指纹 {len(tfps):,}", flush=True)
 
-    # ---------- T3 唯一分子的新颖度 ----------
+    # ---------- novelty of T3's unique molecules ----------
     recs = {L: [json.loads(x) for x in open(f"{args.eval_dir}/{L}.jsonl")]
             for L in ("L1", "L2", "L3", "L4")}
     mols = {}
@@ -149,7 +162,7 @@ def main():
         json.dump(nov, open(args.cache, "w"))
         print(f"  写入 {args.cache}")
 
-    # ---------- A. 分布 ----------
+    # ---------- A. distribution ----------
     print("\n" + "=" * 78)
     print("A. 配体新颖度分布（对训练集 42.6 万配体的最大 Tanimoto）")
     print("=" * 78)
@@ -169,7 +182,7 @@ def main():
                         + [f"{100*c[t[2]]/n:.2f}" for t in TIERS])
         print()
 
-    # ---------- B. 模型捞回的是新分子还是熟分子 ----------
+    # ---------- B. does the model retrieve novel or familiar molecules ----------
     print("=" * 78)
     print("B. 模型排进 top-1% 的活性里，各新颖度档占多少")
     print("   （对照：该层活性本身的档位构成，见 A）")
@@ -194,7 +207,7 @@ def main():
                 if len(p) != len(y):
                     continue
                 order = model_order(up, L, len(y), r, y, B)
-                if order is None:          # 顺序验不过，跳过而不是猜
+                if order is None:          # order failed validation: skip rather than guess
                     n_bad += 1
                     continue
                 k = int(np.ceil(0.01 * len(y)))

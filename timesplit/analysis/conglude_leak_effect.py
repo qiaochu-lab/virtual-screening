@@ -1,8 +1,11 @@
-"""量化污染的影响：把 ConGLUDe 在 L3/L4 的结果按「它训练时见没见过」分层。
+"""Quantify the effect of contamination: stratify ConGLUDe's L3/L4 results by
+whether it saw that target during training.
 
-若「见过」组明显更好 → 污染确实抬高了它的成绩，其 T3 结果需单独标注。
-用 ConPLex 作阴性对照：它的训练集与 ConGLUDe 无关，
-若它在同样两组间也有差异，说明差异来自靶点本身而非污染。
+If the "seen" group is clearly better -> contamination did inflate its
+score, and its T3 result needs to be flagged separately. ConPLex serves as
+a negative control: its training set has nothing to do with ConGLUDe's, so
+if it also shows a difference between the same two groups, that difference
+comes from the targets themselves rather than from contamination.
 """
 import glob, json, os
 import numpy as np

@@ -1,14 +1,17 @@
-"""共享的靶点子集过滤器。
+"""Shared target-subset filter.
 
-导师 2026-09-04 定了新口径（活性 ≥50、类别构成对齐 VSDS-vd），
-最终配额定在 350，产出一个 **328 条（293 个唯一靶点）** 的子集
-（早先 250 配额那版是 242 条 / 222 靶点，已不再使用）。所有下游分析都要能切到这个子集上，
-而每个靶点的指标本来就是在它自己的候选池里算的、靶点之间互不影响，
-所以「换子集」只是换一批数求平均，不需要重跑任何模型。
+The advisor set a new criterion on 2026-09-04 (≥50 actives, class composition
+matched to VSDS-vd); the final quota was set at 350, producing a subset of
+**328 entries (293 unique targets)** (an earlier 250-quota version had 242
+entries / 222 targets and is no longer used). Every downstream analysis needs
+to be able to slice down to this subset, and since each target's metric is
+computed within its own candidate pool independently of other targets,
+"switching subsets" is just averaging over a different set of numbers — no
+model needs to be re-run.
 
-用法：
+Usage:
     from _subset import load_subset
-    keep = load_subset(args.subset)          # None 表示不过滤
+    keep = load_subset(args.subset)          # None means no filtering
     if keep and (L, up) not in keep: continue
 """
 import csv
@@ -21,7 +24,7 @@ def add_subset_arg(ap, default=None):
 
 
 def load_subset(path):
-    """返回 {(layer, uniprot)} 或 None。"""
+    """Returns {(layer, uniprot)} or None."""
     if not path:
         return None
     if not os.path.exists(path):

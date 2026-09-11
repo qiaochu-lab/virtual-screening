@@ -1,31 +1,38 @@
-"""逐模型分层：每个模型按**它自己的**训练集判 seen/unseen，各算各的衰减。
+"""Per-model layering: judge seen/unseen against **each model's own**
+training set, and compute each model's own decay.
 
-为什么
-------
-现在的 L1–L4 是按 PocketAffDB（B）画的，而 B 只是十个模型里四个的训练集。
-逐模型审计显示这套标签对别人错配得很厉害：A 在 L1 只覆盖 77%，在 L3/L4
-却覆盖 21–23%。用这套标签比较不同训练集的模型再谈「训练数据 vs 架构」，
-是循环论证。
+Why
+----
+The current L1-L4 is drawn against PocketAffDB (B), and B is the training
+set for only four of the ten models. A per-model audit shows this label set
+badly mismatches the others: A only covers 77% at L1, yet covers just 21-23%
+at L3/L4. Using this label set to compare models with different training
+sets and then claiming "training data vs. architecture" is circular.
 
-这里换成每个模型自己的口径：靶点在它训练集里 = seen，否则 = unseen，
-然后算 seen→unseen 的衰减，跨模型直接可比。
+This switches to each model's own convention instead: a target is seen if
+it is in that model's training set, unseen otherwise, and then computes the
+seen->unseen decay, which is directly comparable across models.
 
-为什么只做两层不做四层
-----------------------
-L1/L2 的分界是配体骨架见没见过，L3/L4 是家族见没见过。前者要每个模型的
-**训练配体**清单，后者要按每个模型训练集重跑一次聚类。配体清单十个模型
-里只有两三个拿得到，所以四层的逐模型版做不实。靶点级的 seen/unseen 是
-能对所有已知训练集的模型一致执行的最细粒度，先把这层做干净。
+Why only two tiers, not four
+-------------------------------
+L1/L2's boundary is whether the ligand scaffold has been seen, L3/L4's is
+whether the family has been seen. The former needs each model's **training
+ligand** list, the latter needs re-running clustering against each model's
+training set. The ligand list is only obtainable for two or three of the
+ten models, so a four-layer per-model version isn't practical. Target-level
+seen/unseen is the finest granularity that can be applied consistently to
+every model whose training set is known, so get this layer clean first.
 
-四套训练集
-----------
-  A  train_no_test_af  →  DrugCLIP、BindCLIP ×2
-  B  PocketAffDB       →  LigUnity ×2、LiTENCLIP、HypSeek
-  C  ConPLex BindingDB →  ConPLex（mmseqs 反查，≥95% 同一性）
-  D  SPRINT MERGED     →  SPRINT
-  ConGLUDe 的清单仍未获得，跳过。
+Four training sets
+---------------------
+  A  train_no_test_af  ->  DrugCLIP, BindCLIP x2
+  B  PocketAffDB       ->  LigUnity x2, LiTENCLIP, HypSeek
+  C  ConPLex BindingDB ->  ConPLex (mmseqs reverse lookup, >=95% identity)
+  D  SPRINT MERGED     ->  SPRINT
+  ConGLUDe's list is still unobtained, skipped.
 
-衰减一律按「超出随机」算：EF 的随机底是 1.0，AUROC 是 0.5。
+Decay is always computed as "excess over random": EF's random floor is 1.0,
+AUROC's is 0.5.
 """
 import argparse
 import csv
@@ -43,26 +50,31 @@ MODEL_SET = {
     "litenclip": "B", "hypseek_rk": "B",
     "conplex": "C",
     "sprint": "D",
-    # conglude: 清单未获得
+    # conglude: list not obtained
 }
 LAYERS = ["L1", "L2", "L3", "L4"]
 
 
 def decay(hi, lo, floor):
-    """超出随机基线的损失比例。floor 是该指标的随机值。"""
+    """Fractional loss beyond the random baseline. floor is that metric's
+    random value."""
     base = hi - floor
     return float("nan") if base <= 0 else (base - (lo - floor)) / base
 
 
 def load_B():
-    """B 组（LigUnity ×2 / LiTENCLIP / HypSeek）的训练靶点 = 两个标签文件的并集。
+    """Group B's (LigUnity x2 / LiTENCLIP / HypSeek) training targets = the
+    union of two label files.
 
-    train_task.py:523-524 同时读 train_label_pdbbind_seq.json（结构半，3,468 个
-    UniProt / 16,744 个 PDB）和 train_label_blend_seq_full.json（亲和力半，
-    2,196 个）。此前只算了后者。
+    train_task.py:523-524 reads both train_label_pdbbind_seq.json (the
+    structure half, 3,468 UniProt / 16,744 PDB) and
+    train_label_blend_seq_full.json (the affinity half, 2,196). Only the
+    latter was counted previously.
 
-    而结构半覆盖的 16,744 个 PDB 与 DrugCLIP 的 train_no_test_af **完全相同**
-    （交集 16,744，各自独有 0），所以 A 组训练结构是 B 组的真子集。
+    And the structure half's 16,744 PDB entries are **exactly identical** to
+    DrugCLIP's train_no_test_af (intersection 16,744, neither has any
+    exclusive entries), so group A's training structures are a proper
+    subset of group B's.
     """
     ups = set()
     for f in ("train_label_blend_seq_full.json",
@@ -77,7 +89,8 @@ def load_B():
 
 
 def load_B_blend_only():
-    """只有亲和力半 —— 用来把「亲和力标签」和「结构」两件事分开。"""
+    """The affinity half only -- used to separate "affinity labels" from
+    "structure"."""
     lab = json.load(open(f"{B}/data/raw/figshare/train_label_blend_seq_full.json"))
     return {a["uniprot"] for a in lab if a.get("uniprot")}
 
@@ -118,15 +131,18 @@ def main():
     ap.add_argument("--out", default=f"{B}/results/export/T3_per_model_layers.csv")
     args = ap.parse_args()
 
-    # ⚠️ 键必须是 (层, 靶点) 不能只用靶点：350 子集是 328 条 / 293 个唯一 uniprot，
-    # 35 个 uniprot 出现在多个层。只按 uniprot 过滤会把「该靶点在别的层的记录」
-    # 也算进来——实测 seen+unseen 报到 417，比子集本身的 328 条还多 89 条。
+    # Warning: the key must be (layer, uniprot), not uniprot alone: the
+    # 350-quota subset has 328 entries / 293 unique uniprots, and 35
+    # uniprots appear in more than one layer. Filtering by uniprot alone
+    # would also pull in "that target's records in other layers" -- measured
+    # in practice, seen+unseen came out to 417, 89 more than the subset's
+    # own 328 entries.
     keep = {(r["layer"], r["uniprot"]) for r in csv.DictReader(open(args.subset))}
     orig = {r["uniprot"]: r["layer"] for r in csv.DictReader(open(args.subset))}
     print(f"子集靶点 {len(keep)}")
 
     SETS = {"A": load_A(), "B": load_B(), "C": load_C(), "D": load_D()}
-    ups = {u for _, u in keep}          # keep 是 (层, 靶点) 对，覆盖率要按靶点算
+    ups = {u for _, u in keep}          # keep holds (layer, target) pairs; coverage must be computed per target
     for k, v in SETS.items():
         n = len(v & ups)
         print(f"  训练集 {k}: {len(v):,} UniProt，覆盖子集 "

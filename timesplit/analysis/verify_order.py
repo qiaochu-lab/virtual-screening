@@ -1,5 +1,6 @@
-"""改完之后先验证：SMILES 序列里 active 的位置，是否与 saved_labels 一致。
-不一致就别往下跑——上一轮就是没验证，白跑了一批 GPU。"""
+"""After making the change, verify first: do the active positions in the
+SMILES sequence match saved_labels? If they don't, don't proceed — last
+round skipped this check and wasted a batch of GPU time."""
 import json, os, pickle
 import lmdb, numpy as np
 B="/data/work/vs-benchmark"

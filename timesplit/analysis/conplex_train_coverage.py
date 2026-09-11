@@ -1,9 +1,11 @@
-"""ConPLex 训练集对 T3 靶点的覆盖率。
+"""ConPLex training-set coverage of T3 targets.
 
-之前 per_model_audit.py 把 ConPLex 归到 "unavailable"，因为官方只给序列不给
-accession。现在用 mmseqs 反查：把 ConPLex 的 BindingDB train 序列当库，
-T3 靶点序列当查询，双向覆盖 ≥50%、E ≤1e-3，按同一性分档。
-DUD-E 那 57 个靶点（对比学习用过的）也一并算进「见过」。
+per_model_audit.py previously filed ConPLex under "unavailable" because the
+official release gives only sequences, not accessions. This now reverse-looks
+it up with mmseqs: ConPLex's BindingDB train sequences as the library, T3
+target sequences as the query, both-direction coverage >=50%, E <=1e-3,
+binned by identity. The 57 DUD-E targets used for contrastive training are
+also folded into "seen".
 """
 import json, os, subprocess, sys
 B = "/data/work/vs-benchmark"

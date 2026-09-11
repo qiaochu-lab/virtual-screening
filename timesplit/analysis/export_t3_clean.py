@@ -1,20 +1,28 @@
-"""导出「剔除训练集已有 pair」之后的干净 T3 主表。
+"""Export the clean T3 main table after removing pairs already present in the
+training set.
 
-为什么值得做成正式产物
-----------------------
-T3 的分层只做了时间切分，L1 里 20.9% 的 (靶点,分子) 对训练集中已存在。
-之前 score_t3_clean.py 把这件事当**一次性稳健性检验**跑过，
-但主表报的仍是含污染的数字，读者只能在 LIMITATIONS 里看到一句「是上界」。
-这里把干净版做成与主表并列的 CSV，让「衰减 64–81%」变成一个区间而非单点。
+Why this deserves to be a first-class artifact
+-------------------------------------------------
+T3's layering only does a time split; 20.9% of the (target, molecule) pairs
+in L1 already exist in the training set. score_t3_clean.py previously ran
+this as a **one-off robustness check**, but the main table still reports the
+contaminated numbers, and a reader only sees a single line in LIMITATIONS
+saying "this is an upper bound". This makes the clean version into a CSV
+that sits alongside the main table, turning "64-81% decay" into a range
+rather than a single point.
 
-口径与限制
-----------
-· 只删「(靶点,分子) 对在训练集里已有」的 active，decoy 不动
-· 因此删完后 active:decoy 比例会从 1:50 略微变化（active 变少），
-  EF 的分母随之改变——这是与「重新构建评测集并重跑推理」的唯一差别。
-  真正重建需要九个模型全部重跑推理，代价与收益不成比例，故采用删下标的方式，
-  并在此写明差别。
-· L3/L4 污染为 0，所以那两层的数字与主表完全相同，可用作自检。
+Conventions and limitations
+------------------------------
+- Only actives with a (target, molecule) pair already in the training set
+  are removed; decoys are untouched.
+- Consequently, after removal the active:decoy ratio drifts slightly away
+  from 1:50 (fewer actives), and EF's denominator shifts along with it --
+  this is the only difference from "rebuild the eval set from scratch and
+  rerun inference". A true rebuild would need all nine models to rerun
+  inference, and the cost is disproportionate to the benefit, so index
+  removal is used instead, with the difference documented here.
+- L3/L4 contamination is zero, so those two layers' numbers are identical to
+  the main table and can serve as a self-check.
 """
 import json
 import os
@@ -50,7 +58,7 @@ def model_smiles(up, L, n, rec):
     e = lmdb.open(p, subdir=False, readonly=True, lock=False)
     out = []
     with e.begin() as t:
-        for _k, v in t.cursor():          # 游标序才是模型看到的顺序
+        for _k, v in t.cursor():          # cursor order is the order the model actually saw
             out.append(pickle.loads(v)["smi"])
     e.close()
     return out if len(out) == n else None
@@ -89,7 +97,7 @@ def main():
                 rec = EV[L].get(up)
                 smis = model_smiles(up, L, len(p), rec) if rec else None
                 if smis is None:
-                    clean.append(r)          # 对不上顺序：按原样计入，不猜
+                    clean.append(r)          # order couldn't be matched: count as-is, don't guess
                     continue
                 mask = np.zeros(len(p), dtype=bool)
                 for i in np.nonzero(y == 1)[0]:

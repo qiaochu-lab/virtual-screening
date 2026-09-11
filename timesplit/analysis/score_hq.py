@@ -1,6 +1,8 @@
-"""在「高质量结构」子集上重算主表，检验结论是否依赖低置信预测结构。
+"""Recompute the main table on the "high-quality structure" subset, to check
+whether the conclusions depend on low-confidence predicted structures.
 
-高质量 = 有 RCSB 实验结构，或 Boltz-2 预测且 complex_plddt≥0.70 且 iptm≥0.60。
+High quality = has an experimental RCSB structure, or is a Boltz-2 prediction
+with complex_plddt >= 0.70 and iptm >= 0.60.
 """
 import json
 import numpy as np

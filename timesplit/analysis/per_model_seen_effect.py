@@ -1,21 +1,27 @@
-"""逐模型 seen/unseen 的难度对照——不用除法的版本。
+"""Per-model difficulty control for the seen/unseen comparison — the division-free version.
 
-第一版用 r_t = EF(模型,t) / median(EF(其余模型,t)) 归一化难度，但分母接近 0
-时比值会爆掉：drugclip 的倍数中位是 1.85、均值却是 0.57，两个方向相反，
-说明这个比值的分布被极端值主导，不能报。
+The first version normalised difficulty with
+r_t = EF(model,t) / median(EF(other models,t)), but the ratio blows up when
+the denominator is near 0: drugclip's fold ratio has a median of 1.85 but a
+mean of 0.57 — opposite directions — showing that this ratio's distribution
+is dominated by outliers and can't be reported.
 
-换两个不需要除法的统计量：
+Switch to two statistics that don't need division:
 
-1. **P(seen > unseen)** —— 随机取一个 seen 靶点和一个 unseen 靶点，
-   前者 r 更大的概率。就是 Mann-Whitney U / (n1·n2)，有界在 [0,1]，
-   0.5 = 没差别。它和 p 值是同一个检验的两面，但能读出效应大小。
+1. **P(seen > unseen)** — the probability that a randomly drawn seen target
+   has a larger r than a randomly drawn unseen target. This is just
+   Mann-Whitney U / (n1·n2), bounded in [0,1], with 0.5 meaning no
+   difference. It is the same test as the p-value, just read for effect size
+   rather than significance.
 
-2. **组内名次** —— 每个靶点上把十个模型按 EF1 排名（1 = 最好），
-   比较该模型在自己 seen 靶点和 unseen 靶点上的平均名次。
-   完全绕开除法，也自动把靶点难度消掉（名次是靶点内部的相对量）。
-   名次变好（数值变小）才说明有训练集优势。
+2. **Within-target rank** — at each target, rank the ten models by EF1
+   (1 = best), then compare a model's average rank on its own seen targets
+   against its unseen targets. This sidesteps division entirely and
+   automatically cancels out target difficulty (rank is a within-target
+   relative quantity). A better (numerically smaller) rank is what indicates
+   a training-set advantage.
 
-两个统计量方向一致，结论才算立住。
+The conclusion only holds if both statistics agree in direction.
 """
 import csv
 import json
@@ -35,11 +41,13 @@ LAYERS = ["L1", "L2", "L3", "L4"]
 
 
 def load_sets():
-    """四套训练集。B 组是**两个**标签文件的并集，见 per_model_layers.load_B 的注释。
+    """The four training sets. Set B is the union of **two** label files — see the
+    comment on per_model_layers.load_B.
 
-    train_task.py:523-524 同时读 pdbbind 半（3,468 UniProt / 16,744 PDB）和
-    blend 半（2,196 UniProt）。pdbbind 半覆盖的 16,744 个 PDB 与 DrugCLIP 的
-    train_no_test_af 完全相同，所以 **A ⊂ B**。
+    train_task.py:523-524 reads both the pdbbind half (3,468 UniProt / 16,744 PDB)
+    and the blend half (2,196 UniProt). The 16,744 PDB entries covered by the
+    pdbbind half are exactly the same as DrugCLIP's train_no_test_af, so
+    **A ⊂ B**.
     """
     import pickle
 
@@ -69,12 +77,17 @@ def load_sets():
 
 
 def main():
-    # ⚠️ 键必须是 (层, 靶点) 不能只用靶点：350 子集是 328 条 / 293 个唯一 uniprot，
-    # 35 个 uniprot 出现在多个层。只按 uniprot 过滤会把「该靶点在别的层的记录」
-    # 也算进来——实测 seen+unseen 报到 417，比子集本身的 328 条还多 89 条。
-    # 这里另有一层：EF 原来按 uniprot 建字典，同一靶点在两个层就会被后一层覆盖，
-    # 取到哪个值取决于层的遍历顺序。改成按 (层, 靶点) 建键，靶点内名次也在
-    # (层, 靶点) 内部算——这本来就是更正确的口径。
+    # ⚠️ The key must be (layer, target), not target alone: the 350 subset is
+    # 328 entries / 293 unique uniprots, and 35 uniprots appear in more than
+    # one layer. Filtering by uniprot alone would pull in "this target's
+    # records in other layers" too — empirically, seen+unseen then reports
+    # 417, 89 more than the 328 entries in the subset itself.
+    # There's a second issue here: EF used to be keyed by uniprot, so the
+    # same target appearing in two layers would get overwritten by whichever
+    # layer was processed last, and which value survives depends on
+    # iteration order. Keying by (layer, target) instead, with within-target
+    # rank also computed inside (layer, target) — which is the more correct
+    # convention anyway.
     keep = {(r["layer"], r["uniprot"]) for r in csv.DictReader(
         open(f"{B}/results/export/T3_vsds_matched.csv"))}
     SETS = load_sets()
@@ -87,14 +100,14 @@ def main():
                 if (L, r["uniprot"]) in keep:
                     EF.setdefault((L, r["uniprot"]), {})[m] = r["ef1"]
 
-    # 只用十个模型都有结果的靶点，名次才是可比的
+    # Use only targets where all ten models have a result — otherwise rank isn't comparable
     full = sorted(t for t in EF if len(EF[t]) == len(S))
     print(f"十个模型都有结果的子集靶点：{len(full)} / {len(keep)}")
 
     RANK = {}
     for t in full:
         ms = sorted(EF[t])
-        rk = rankdata([-EF[t][m] for m in ms], method="average")   # 1 = 最好
+        rk = rankdata([-EF[t][m] for m in ms], method="average")   # 1 = best
         RANK[t] = dict(zip(ms, rk, strict=True))
 
     rows = [["model", "train_set", "n_seen", "n_unseen", "P_seen_gt_unseen",

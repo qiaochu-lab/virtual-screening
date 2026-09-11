@@ -1,23 +1,33 @@
-"""剔除「训练集里已有的 (靶点,分子) 对」之后重算 T3 主表。
+"""Recompute the T3 main table after removing "(target, molecule) pairs
+already present in the training set".
 
-为什么要做
-----------
-T3 只做了时间切分（取 2025+ 入库的记录），没做内容层面的差集。
-check_pair_contamination.py 量出来：**L1 有 20.9% 的 pair 训练集里已经有了**
-（L2 只有 0.01%，L3/L4 为 0）。也就是说 L1 这个对照层被系统性抬高，
-主结论「L1→L4 衰减 64–77%」是个**上界**。
+Why this is needed
+------------
+T3 only does a temporal split (records ingested from 2025 onward); it does
+not do a content-level set difference. check_pair_contamination.py measured
+this: **20.9% of L1's pairs already exist in the training set** (only 0.01%
+for L2, 0% for L3/L4). In other words, the L1 control layer is
+systematically inflated, and the headline finding "L1->L4 decay is 64-77%"
+is an **upper bound**.
 
-这里把污染的 active 从打分数组里直接删掉再重算，得到一个干净的下界。
-不需要 GPU：所有模型的逐分子打分都已落盘，只是换一批下标重算指标。
+This script removes the contaminated actives directly from the scoring
+arrays and recomputes, to get a clean lower bound. No GPU needed: every
+model's per-molecule scores are already on disk — this is just recomputing
+metrics over a different set of indices.
 
-分子顺序怎么对齐
-----------------
-各模型的输入构造方式不同，落盘顺序也就不同：
-  · UniMol 系（DrugCLIP/BindCLIP/LigUnity/LiTENCLIP/HypSeek）
-    读 data/T3_6A/{L}/{up}/{up}_lig.lmdb，缺构象的分子会被跳过 → 顺序是 lmdb 的
-  · 其余（ConPLex/ConGLUDe/SPRINT）直接遍历评测集 jsonl → 顺序是 actives+decoys
-脚本按长度自动判断用哪套顺序；两套都对不上就跳过这个靶点并计数，
-**不猜**——猜错会把污染标到别的分子头上，比不做还糟。
+How the molecule order is aligned
+------------
+Different models construct their input differently, so their on-disk order
+differs too:
+  * UniMol family (DrugCLIP/BindCLIP/LigUnity/LiTENCLIP/HypSeek) read
+    data/T3_6A/{L}/{up}/{up}_lig.lmdb, skipping molecules with no conformer
+    -> order follows lmdb
+  * The rest (ConPLex/ConGLUDe/SPRINT) iterate the eval-set jsonl directly
+    -> order is actives+decoys
+The script infers which order applies from the length; if neither matches,
+it skips that target and counts it — **it never guesses**, since a wrong
+guess would attribute contamination to the wrong molecule, which is worse
+than not checking at all.
 """
 import argparse
 import json
@@ -39,7 +49,7 @@ CACHE = f"{B}/data/t3/train_pairs.json"
 
 
 def train_pairs():
-    """训练集里的 (uniprot, inchikey) 对。算一次缓存下来，重跑就秒开。"""
+    """The (uniprot, inchikey) pairs present in the training set. Computed once and cached, so a re-run is instant."""
     if os.path.exists(CACHE):
         d = json.load(open(CACHE))
         print(f"训练对（缓存）: {len(d):,}")
@@ -84,9 +94,10 @@ def lmdb_smis(path):
 
 
 def contaminated_mask(up, L, n_pred, ikey_cache):
-    """返回长度 n_pred 的布尔数组：True = 该分子与本靶点的组合训练集里已有。
+    """Returns a boolean array of length n_pred: True = this (target, molecule)
+    combination already exists in the training set.
 
-    对不上顺序就返回 None，调用方跳过这个靶点。
+    Returns None if the order can't be matched; the caller then skips this target.
     """
     rec = EVAL[L].get(up)
     if rec is None:
@@ -100,7 +111,7 @@ def contaminated_mask(up, L, n_pred, ikey_cache):
     else:
         ls = lmdb_smis(f"{B}/data/T3_6A/{L}/{up}/{up}_lig.lmdb")
         if ls is not None and len(ls) == n_pred:
-            # lmdb 里 active 在前，个数从评测集的 active smiles 集合反推
+            # In lmdb, actives come first; the count is inferred from the eval set's active smiles set
             aset = {m["smiles"] for m in rec["actives"]}
             smis = ls
             acts = {i for i, s in enumerate(ls) if s in aset}
@@ -141,8 +152,8 @@ def main():
     summary = {}
     for m in args.models:
         for L in args.layers:
-            # 两种落盘布局：UniMol 系是 t3_raw/<模型>/T3/<层>，
-            # ConGLUDe/ConPLex 是 results/t3/<模型>/<层>
+            # Two on-disk layouts: the UniMol family is t3_raw/<model>/T3/<layer>,
+            # ConGLUDe/ConPLex is results/t3/<model>/<layer>
             d = f"{args.raw}/{m}/T3/{L}"
             if not os.path.isdir(d):
                 d = f"{B}/results/t3/{m}/{L}"
@@ -162,7 +173,7 @@ def main():
                 mask = contaminated_mask(up, L, len(p), ikey_cache)
                 if mask is None:
                     nskip += 1
-                    c.append(o[-1])          # 对不上顺序：保守起见按原样计入
+                    c.append(o[-1])          # order didn't match: conservatively count it as-is
                     continue
                 if not mask.any():
                     c.append(o[-1])

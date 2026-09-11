@@ -1,21 +1,29 @@
-"""给 T3 评测集靶点标注蛋白类别（v3：ChEMBL 官方分类树，可用版）。
+"""Annotate protein class for T3 eval-set targets (v3: ChEMBL's official
+classification tree, the working version).
 
-两版失败教训
-------------
-v1 手写 UniProt 关键词规则 → L4 有 21% 落进「未分类」，抽查发现里面全是
-   明摆着的 GPCR（多巴胺 D2/D4、内皮素受体 A/B、PAR-4），只因规则写的是
-   "g-protein coupled receptor" 而漏了 "G-protein-coupled" 这种带连字符的写法。
-   手写词表天然会漏，漏多少还无法自查。
-v2 改用 ChEMBL，但查错了端点：`target.json` 的 target_components 里
-   **不含** protein_classifications，结果 868 个靶点全部返回空。
+Lessons from two failed versions
+---------------------------------
+v1 used hand-written UniProt keyword rules -> 21% of L4 fell into
+   "unclassified", and spot-checking found it was full of obvious GPCRs
+   (dopamine D2/D4, endothelin receptor A/B, PAR-4) — only because the rule
+   was written as "g-protein coupled receptor" and missed the hyphenated
+   spelling "G-protein-coupled". Hand-written word lists inevitably miss
+   cases, and there is no way to self-check how many.
+v2 switched to ChEMBL but queried the wrong endpoint: `target.json`'s
+   target_components does **not** contain protein_classifications, so all
+   868 targets came back empty.
 
-v3 的正确路径：
-   1. 一次性拉下整棵分类树（905 个节点），按 parent_id 重建 id → 完整路径
-   2. `target_component.json?accession=<UniProt>` 拿该蛋白的 protein_class_id
-   3. 用路径匹配折成与 DUD-E 可比的粒度
+v3's correct path:
+   1. Pull the entire classification tree once (905 nodes), rebuild
+      id -> full path via parent_id
+   2. Hit `target_component.json?accession=<UniProt>` for that protein's
+      protein_class_id
+   3. Fold via path matching into a granularity comparable to DUD-E
 
-用 ChEMBL 分类而不是自己定规则，是因为它是虚筛领域做靶点分类的事实标准，
-层级由 ChEMBL 维护，不依赖我拍脑袋列词表。
+ChEMBL's classification is used instead of a hand-rolled rule set because it
+is the de facto standard for target classification in virtual screening, and
+the hierarchy is maintained by ChEMBL rather than depending on a word list I
+made up.
 """
 import argparse
 import json
@@ -41,7 +49,7 @@ def get(url):
 
 
 def load_tree():
-    """拉全部 905 个节点，按 parent_id 重建 id -> ['Enzyme','Kinase',...]。"""
+    """Pull all 905 nodes, rebuild id -> ['Enzyme','Kinase',...] via parent_id."""
     nodes, offset = {}, 0
     while True:
         d = get(f"{ROOT}/protein_classification.json?limit=1000&offset={offset}")
@@ -80,7 +88,8 @@ def fetch_component(acc):
 
 
 def to_dude_class(paths):
-    """折成与 DUD-E 可比的粒度；判定顺序从特异到宽泛。"""
+    """Fold into a granularity comparable to DUD-E; checked in order from
+    specific to broad."""
     if not paths:
         return None
     t = " ; ".join(" / ".join(p) for p in paths).lower()

@@ -1,19 +1,27 @@
-"""CASF-2016 的复合物有没有直接落在 LigUnity/HypSeek 的训练集里。
+"""Do CASF-2016's complexes fall directly inside LigUnity/HypSeek's training
+set?
 
-为什么是「直接」而不是「相似」
-------------------------------
-PocketAffDB 的每条 assay 带一个 `pockets` 列表，元素形如
-`2q5sA--2q5s_NZA_A_1.lmdb`，前四位就是 PDB ID。CASF-2016 的 285 个测试复合物
-也是 PDB 条目。两者可以精确 join——如果交集非空，那不是「训练集里有相似的」，
-而是**同一条结构就在训练集里**，泄漏审计到此为止，不用再做序列/配体相似度。
+Why "directly" rather than "similar"
+--------------------------------------
+Each PocketAffDB assay carries a `pockets` list whose entries look like
+`2q5sA--2q5s_NZA_A_1.lmdb`, where the first four characters are the PDB ID.
+CASF-2016's 285 test complexes are also PDB entries. The two can be joined
+exactly — if the intersection is non-empty, that isn't "something similar is
+in the training set", it is **the same structure sitting in the training
+set**, and the leakage audit stops there; no sequence/ligand similarity is
+needed.
 
-有个具体的疑点值得查：LigUnity 的模型卡只说过**筛选权重**训练时剔除了测试
-蛋白，**排序权重**（T2 的 CASF 用的正是它）有没有剔除 CASF，从没确认过。
+One specific concern is worth checking: LigUnity's model card only states
+that test proteins were removed when training the **screening weight** — it
+has never been confirmed whether the **ranking weight** (the one T2's CASF
+run actually uses) excludes CASF.
 
-三个层级一起给，从严到宽：
-  1. PDB ID 精确重合         —— 同一条结构
-  2. 配体 InChIKey 重合      —— 同一个分子（可能在别的蛋白上）
-  3. UniProt 重合            —— 同一个蛋白（不同结构、不同配体）
+Reported at three levels together, from strictest to loosest:
+  1. Exact PDB ID overlap    -- the same structure
+  2. Ligand InChIKey overlap -- the same molecule (possibly on a different
+     protein)
+  3. UniProt overlap         -- the same protein (different structure,
+     different ligand)
 """
 import collections
 import json
@@ -25,12 +33,13 @@ B = "/data/work/vs-benchmark"
 
 
 def casf_entries():
-    """CASF 的 (pdb_ids, uniprot, smiles)。
+    """CASF's (pdb_ids, uniprot, smiles).
 
-    casf_label_seq.json 是 285 条的 list，每条形如
-    ``{"pockets": ["4eky"], "uniprot": "P00489", "sequence": ..., "ligands": [...]}``。
-    PDB ID 在 ``pockets`` 里，不是 key——第一版按 key 取，取到 None，
-    重合数假性为 0。
+    casf_label_seq.json is a list of 285 entries, each shaped like
+    ``{"pockets": ["4eky"], "uniprot": "P00489", "sequence": ..., "ligands": [...]}``.
+    The PDB ID lives inside ``pockets``, not as a key -- the first version
+    fetched it as a key, got None back, and the overlap count came out as a
+    false zero.
     """
     p = f"{B}/code/LigUnity/test_datasets/casf_label_seq.json"
     out = []
@@ -69,14 +78,14 @@ def main():
         print("   " + " ".join(sorted(ov_pdb)[:40]))
         if len(ov_pdb) > 40:
             print(f"   …共 {len(ov_pdb)} 个")
-    # 逐条目：这条 CASF 复合物的结构是不是整条都在训练集里
+    # Per-entry: is this CASF complex's whole structure in the training set
     hit_entry = sum(1 for pdbs, _, _ in ce if pdbs and set(pdbs) & train_pdb)
     print(f"   按 285 个条目算：{hit_entry}/{len(ce)} "
           f"({100*hit_entry/len(ce):.1f}%) 的复合物结构在训练集里")
     print(f"③ UniProt 重合：**{len(ov_up)}/{len(cu)}** "
           f"({100*len(ov_up)/max(1,len(cu)):.1f}%)")
 
-    # ② 配体 InChIKey
+    # (2) Ligand InChIKey
     try:
         from rdkit import Chem, RDLogger
         RDLogger.DisableLog("rdApp.*")

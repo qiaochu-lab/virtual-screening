@@ -1,18 +1,24 @@
-"""让 ConPLex 也跑 CASF-2016，把 T2 第三套数据的模型数从 4 个补到 5 个。
+"""Run ConPLex on CASF-2016 too, bringing the model count for T2's third
+dataset from 4 up to 5.
 
-为什么它能跑而别的不能
+Why this one can run and the others can't
 ----------------------
-CASF 只需要「蛋白 + 配体 → 一个分数」，而 `casf_label_seq.json` 里
-285 个复合物各自带 uniprot、完整序列、配体 SMILES 和实测 act。
-ConPLex 恰好只吃序列 + SMILES，所以不需要任何额外准备。
-ConGLUDe 要 .pdb（可按 PDB ID 下 285 个，工作量中等）；
-SPRINT 要在这些结构上跑 foldseek 出 3Di；
-DrugCLIP/BindCLIP 的仓库里根本没有 CASF 分支，要移植。这三类都不是"顺手"。
+CASF only needs "protein + ligand -> one score", and `casf_label_seq.json`
+carries, for each of its 285 complexes, a uniprot, full sequence, ligand
+SMILES, and measured act. ConPLex takes exactly sequence + SMILES as input,
+so no extra preparation is needed.
+ConGLUDe needs .pdb files (downloadable by PDB ID for all 285, a moderate
+amount of work);
+SPRINT needs foldseek run on these structures to produce 3Di;
+DrugCLIP/BindCLIP's repos have no CASF branch at all and would need porting.
+None of these three is a quick add.
 
-两个口径与 score_casf.py 保持一致
+Two conventions kept consistent with score_casf.py
 ---------------------------------
-· scoring power  285 个复合物一起算相关（跨靶点，考绝对亲和力）
-· ranking power  按 uniprot 分组（68 个蛋白）算靶点内 Spearman 再平均
+* scoring power: correlation computed jointly over all 285 complexes
+  (cross-target, tests absolute affinity)
+* ranking power: grouped by uniprot (68 proteins), within-target Spearman
+  computed then averaged
 """
 import json
 import os
@@ -28,7 +34,7 @@ ENV = "/data/work/envs/conplex/bin/conplex-dti"
 CKPT = f"{B}/ckpt/conplex/BindingDB_ExperimentalValidModel.pt"
 LAB = f"{B}/code/LigUnity/test_datasets/casf_label_seq.json"
 WORK = f"{B}/tmp/conplex_casf"
-MAX_LEN = 2000          # ProtBert 上下文限制，与 T3/T1 那边一致
+MAX_LEN = 2000          # ProtBert context limit, consistent with T3/T1
 
 
 def main():
@@ -58,7 +64,7 @@ def main():
         print(p.stdout[-2500:], file=sys.stderr)
         raise SystemExit(f"ConPLex 失败 (returncode={p.returncode})")
 
-    # 输出列序是 分子ID -> 蛋白ID -> 分数（与 T3 那边同一个坑）
+    # Output column order is molecule ID -> protein ID -> score (same pitfall as on the T3 side)
     score = {}
     for line in open(out_tsv):
         c = line.rstrip("\n").split("\t")

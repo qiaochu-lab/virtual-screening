@@ -1,42 +1,57 @@
-"""化学记忆偏好 CMP：模型捞回的分子，比候选池本身熟多少。
+"""Chemical Memory Preference (CMP): how much more familiar are the
+molecules a model retrieves than the candidate pool itself.
 
-定义
-----
-对一个靶点，设 S 为分子对训练集配体的最大 ECFP4 Tanimoto：
+Definition
+----------
+For a target, let S be a molecule's maximum ECFP4 Tanimoto to the training
+ligands:
 
-    CMP = P(S ≥ 0.7 | 被排进 top-1%) − P(S ≥ 0.7 | 候选池全体)
+    CMP = P(S >= 0.7 | ranked into top-1%) - P(S >= 0.7 | whole candidate pool)
 
-⚠️ 但这个数**不能直接读成「偏好」**（本脚本第一版的 docstring 就读错了）
---------------------------------------------------------------------
-活性和诱饵的新颖度分布本来就不同：L1 的活性有 53.9% 落在 ≥0.7 档，诱饵只有
-8.7%。所以一个**准**的模型，光是因为把活性排上去，CMP 就会是正的，
-哪怕它对熟悉化学毫无偏好。CMP 混了「准确率」和「活性本身有多熟」两件事。
+Warning: this number **cannot be read as "preference" directly** (this
+script's first-version docstring got that wrong)
+----------------------------------------------------------------------------
+Actives and decoys already have different novelty distributions: 53.9% of
+L1's actives fall in the >=0.7 tier, versus only 8.7% of decoys. So an
+**accurate** model gets a positive CMP purely from ranking the actives up,
+even with zero preference for familiar chemistry. CMP conflates "accuracy"
+with "how familiar the actives themselves are".
 
-分解
-----
-把准确率能解释的那部分先算出来。设模型 top-1% 里活性占 π（= precision@1%），
-该层活性中熟悉化学占 a、诱饵中占 d，则**纯靠准确率**应当得到：
+Decomposition
+--------------
+First compute the part accuracy alone explains. Let pi be the fraction of
+actives in the model's top-1% (= precision@1%), a be the fraction of that
+layer's actives that are familiar chemistry, and d be the same fraction
+among decoys. Then **accuracy alone** should give:
 
-    CMP_pred = [π·a + (1−π)·d] − 池内熟悉比例
+    CMP_pred = [pi*a + (1-pi)*d] - fraction familiar in the pool
 
-真正的偏好是超出这个预测的残差：
+The real preference is the residual beyond that prediction:
 
-    CMP_excess = CMP_obs − CMP_pred
+    CMP_excess = CMP_obs - CMP_pred
 
-CMP_excess ≈ 0：模型只是准，对化学熟不熟没有额外偏好。
-CMP_excess > 0：在同样的准确率下，它**还是**更愿意捞熟悉的分子。
+CMP_excess ~= 0: the model is merely accurate, with no extra preference for
+familiar chemistry.
+CMP_excess > 0: at matched accuracy, it **still** prefers to retrieve
+familiar molecules.
 
-三个数都写出来：`cmp_all`（原始观测）、`cmp_pred`（准确率能解释的）、
-`cmp_excess`（残差，这个才是「偏好」）。
-另附 `cmp_actives`——只在该靶点的活性内部比较（捞回的活性 vs 全部活性），
-它天然不受活性/诱饵分布差异影响，是 excess 的一个独立旁证。
+All three numbers are written out: `cmp_all` (raw observed), `cmp_pred`
+(what accuracy explains), `cmp_excess` (the residual -- this is the real
+"preference").
+Also included: `cmp_actives` -- compared only within that target's own
+actives (retrieved actives vs. all actives), which is unaffected by the
+actives/decoys distribution difference by construction, giving an
+independent corroboration of excess.
 
-⚠️ 分子顺序必须硬校验
---------------------
-模型读 lmdb，游标是字典序（0, 1, 10, 100, …），和评测集 jsonl 顺序不同，
-而两者长度相同——只比长度会静默错配，这个坑在本项目里出现过三次。
-`ligand_novelty.py` 的 B 段就只比了长度，本脚本改成验「标签为 1 的位置上
-确实是该靶点的 active」，验不过就跳过并报出来。
+Warning: molecule order must be strictly validated
+-----------------------------------------------------
+The model reads an lmdb whose cursor order is lexicographic (0, 1, 10, 100,
+...), which differs from the eval-set jsonl order, while the two have the
+same length -- comparing only the length silently produces mismatches, and
+this pitfall has bitten this project three times. `ligand_novelty.py`'s
+section B only compared lengths; this script instead validates that "the
+positions labeled 1 really are that target's actives", and skips and reports
+whenever that check fails.
 """
 import argparse
 import collections
@@ -48,12 +63,13 @@ import pickle
 import numpy as np
 
 B = "/data/work/vs-benchmark"
-THR = 0.70          # 「熟悉化学」的门限，与 §3/§4 的「极近」档一致
+THR = 0.70          # threshold for "familiar chemistry", consistent with the "very close" tier in SS3/SS4
 FRAC = 0.01
 
 
 def model_order(up, L, n, rec, labels):
-    """还原模型看到的分子顺序并硬校验；对不上返回 None。"""
+    """Reconstruct the molecule order the model actually saw and strictly
+    validate it; returns None if it doesn't check out."""
     act = {x["smiles"] for x in rec["actives"]}
 
     def ok(seq):
@@ -151,7 +167,8 @@ def main():
                     continue
                 pp.append(pool)
                 pr.append(float(np.mean([s[i] >= THR for i in th])))
-                # 该靶点的活性 / 诱饵各自的熟悉比例，以及 top-1% 里活性占比
+                # This target's familiar fraction among actives / decoys
+                # separately, and the fraction of actives within top-1%
                 ai = [i for i in range(len(y)) if y[i] == 1 and s[i] >= 0]
                 di = [i for i in range(len(y)) if y[i] == 0 and s[i] >= 0]
                 if ai and di:
@@ -168,7 +185,8 @@ def main():
                 continue
             c_all = float(np.mean(pr)) - float(np.mean(pp))
             c_act = float(np.mean(pa)) if pa else float("nan")
-            # 逐靶点算 CMP_pred = [π·a + (1−π)·d] − 池内熟悉比例，再取均值
+            # Compute CMP_pred = [pi*a + (1-pi)*d] - pool-familiar fraction
+            # per target, then average
             if pd:
                 preds = [(pi * a + (1 - pi) * dd) - pl for a, dd, pi, pl in pd]
                 c_pred = float(np.mean(preds))

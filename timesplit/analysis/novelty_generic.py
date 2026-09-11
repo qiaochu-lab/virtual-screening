@@ -1,12 +1,14 @@
-"""按任意一份训练配体 SMILES 清单，算 T3 分子的最大 Tanimoto 新颖度。
+"""Compute T3 molecules' maximum-Tanimoto novelty against any given list of
+training ligand SMILES.
 
-口径与 ligand_novelty.py / novelty_drugclip.py 完全一致：
-ECFP4（Morgan r=2, fpSize=2048），对训练配体取最大 Tanimoto，
-这样几套缓存可以并排读。
+The convention matches ligand_novelty.py / novelty_drugclip.py exactly:
+ECFP4 (Morgan r=2, fpSize=2048), maximum Tanimoto to the training ligands,
+so multiple caches can be read side by side.
 
-为什么每个模型要一套：三套训练集的配体空间差两个数量级
-（DrugCLIP 13,590 / PocketAffDB 428,767 / SPRINT 1,390,031），
-用别人的训练集给一个模型划新颖度档，档位标签是没有意义的。
+Why each model needs its own: the three training sets' ligand spaces differ
+by two orders of magnitude (DrugCLIP 13,590 / PocketAffDB 428,767 / SPRINT
+1,390,031), so binning a model's novelty tiers using someone else's training
+set would give tier labels that mean nothing.
 """
 import argparse, json, os
 from concurrent.futures import ProcessPoolExecutor

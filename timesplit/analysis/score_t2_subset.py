@@ -1,8 +1,9 @@
-"""T2 的排序指标重算到靶点子集上。
+"""Recompute T2's ranking metrics on a target subset.
 
-score_t2_v2.py 原来只存每层的汇总值，换靶点子集就没法重算，
-所以给它加了 per_target 输出（uniprot / spearman / kendall / n_actives）。
-本脚本只做筛选和求平均，不重跑推理。
+score_t2_v2.py originally only stored per-layer summary values, which made
+it impossible to recompute on a different target subset, so per_target
+output (uniprot / spearman / kendall / n_actives) was added to it. This
+script only filters and averages — it does not re-run inference.
 """
 import argparse
 import collections

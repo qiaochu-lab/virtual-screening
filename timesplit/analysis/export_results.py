@@ -1,6 +1,7 @@
-"""把各任务的结果导出成 CSV，供交接与外部分析。
+"""Export each task's results to CSV, for handoff and external analysis.
 
-只导出聚合层（每模型每层一行），不导原始打分——后者几十 GB 且含数据集内容。
+Only the aggregated layer is exported (one row per model per layer); raw
+scores are not exported -- those run tens of GB and contain dataset content.
 """
 import csv, json, os
 import numpy as np
@@ -10,7 +11,7 @@ B = "/data/work/vs-benchmark"
 OUT = f"{B}/results/export"
 os.makedirs(OUT, exist_ok=True)
 
-# ---------- T3 主表 ----------
+# ---------- T3 main table ----------
 s = json.load(open(f"{B}/results/t3/summary.json"))
 with open(f"{OUT}/T3_main.csv", "w", newline="") as f:
     w = csv.writer(f)
@@ -25,7 +26,7 @@ with open(f"{OUT}/T3_main.csv", "w", newline="") as f:
                         f"{d['ef1']:.3f}", f"{d['ef5']:.3f}"])
 print("  T3_main.csv")
 
-# ---------- T5 阈值 ----------
+# ---------- T5 threshold ----------
 rows = []
 for tag, fn in [("4A", "summary_4a.json"), ("6A", "summary.json"), ("8A", "summary_8a.json")]:
     p = f"{B}/results/t3/{fn}"
@@ -40,7 +41,7 @@ with open(f"{OUT}/T5_pocket_threshold.csv", "w", newline="") as f:
     w = csv.writer(f); w.writerow(["model", "threshold", "layer", "EF1%", "AUROC"]); w.writerows(rows)
 print("  T5_pocket_threshold.csv")
 
-# ---------- T2 (T3 数据) ----------
+# ---------- T2 (T3 data) ----------
 t2 = json.load(open(f"{B}/results/t3/summary_t2.json"))
 with open(f"{OUT}/T2_on_T3.csv", "w", newline="") as f:
     w = csv.writer(f)
@@ -55,7 +56,7 @@ with open(f"{OUT}/T2_on_T3.csv", "w", newline="") as f:
                         f"{d['frac_positive']:.3f}", d["median_n_actives"]])
 print("  T2_on_T3.csv")
 
-# ---------- T2 (FEP 数据) + 物理参考 ----------
+# ---------- T2 (FEP data) + physics reference ----------
 ref = json.load(open(f"{B}/data/t3/fep_reference.json"))
 phys = {**ref["jacs"], **ref["merck"]}
 JACS = set(ref["jacs"])
@@ -82,7 +83,7 @@ with open(f"{OUT}/T2_on_FEP.csv", "w", newline="") as f:
     w.writerows(rows)
 print("  T2_on_FEP.csv")
 
-# ---------- 靶点元信息 ----------
+# ---------- target metadata ----------
 cls = json.load(open(f"{B}/data/t3/target_class.json"))["class"]
 qual = json.load(open(f"{B}/data/t3/target_quality.json"))
 grade, conf = qual["grade"], qual.get("confidence", {})

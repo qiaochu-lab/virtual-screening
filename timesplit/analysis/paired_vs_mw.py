@@ -1,7 +1,11 @@
-"""逐靶点配对：检索模型 vs 分子量基线。均值不算数，本项目已经吃过三次亏。
+"""Per-target pairing: retrieval models vs. the molecular-weight baseline.
+Means don't count -- this project has already been burned by that three
+times.
 
-按我们定稿的复核标准报：逐靶点表优先、配对 p 附 n 和下界、
-符号检验数「高于零假设」的个数（这里零假设 = 两者无差，差值 > 0）。
+Reported by our finalized review standard: per-target table takes priority,
+paired p comes with n and a floor, and the sign test counts how many are
+"above the null hypothesis" (here, null = no difference between the two,
+alternative = the difference is > 0).
 """
 import json, collections, os
 import numpy as np
@@ -84,8 +88,10 @@ for m in MODELS:
         diff = a - b
         nz = diff[diff != 0]
         k = int((nz > 0).sum()); n = len(nz)
-        # ⚠️ 双侧精确二项检验。第一版只算了 P(X>=k)，那只检测「模型赢」，
-        # 「分子量赢」时会返回 p=1，把「模型显著更差」读成「没有差别」。
+        # Warning: two-sided exact binomial test. The first version only
+        # computed P(X>=k), which only detects "the model wins" -- when
+        # molecular weight wins it would return p=1, misreading "the model
+        # is significantly worse" as "no difference".
         if n:
             pk = [comb(n, i) for i in range(n + 1)]
             bp = min(1.0, sum(x for x in pk if x <= pk[k]) / 2**n)

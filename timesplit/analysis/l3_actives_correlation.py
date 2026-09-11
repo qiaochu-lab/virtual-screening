@@ -1,5 +1,8 @@
-"""L3 随门槛下移，是「小靶点分数系统性偏高」还是「样本太少的抽样噪声」？
-直接查：层内 active 数与各指标的相关性。若小靶点确实偏高，相关应为负。"""
+"""When the floor drops, does L3 move because "small targets are
+systematically scored higher" or because of "sampling noise from too few
+targets"? Check directly: the correlation within a layer between actives
+count and each metric. If small targets really do score higher, the
+correlation should be negative."""
 import numpy as np, collections, sys
 from scipy import stats
 sys.path.insert(0, "/data/work/vs/eval")

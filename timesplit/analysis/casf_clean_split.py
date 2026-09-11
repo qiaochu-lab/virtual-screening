@@ -1,35 +1,44 @@
-"""CASF-2016 拆成「训练集里有的」和「没有的」两半，分别算打分力与排序力。
+"""Split CASF-2016 into "in the training set" and "not in it", and compute
+scoring power and ranking power separately on each half.
 
-为什么要做
-----------
-`casf_train_overlap.py` 查出 **285 个 CASF 复合物里 148 个（51.9%）的 PDB ID
-直接出现在 PocketAffDB 的训练文件里**——不是「相似」，是同一条 deposition。
-四个模型（LigUnity ×2 / HypSeek / LiTENCLIP）都训在这份数据上。
+Why this is needed
+-------------------
+`casf_train_overlap.py` found that **148 of 285 CASF complexes (51.9%) have a
+PDB ID that appears directly in PocketAffDB's training file** — not "similar",
+the same deposition. Four models (LigUnity x2 / HypSeek / LiTENCLIP) all
+trained on this data.
 
-这直接威胁 T2 的两条结论：
-1. CASF 上 ρ = 0.42–0.55 而 T3 上只有 0.09–0.26；
-2. 我们把这个差距归因于 T3 自己的 `pAff ≥ 6` 门限造成的范围受限
-   （`t2_gap.py`，解释掉 75–91%）。
+This directly threatens two T2 conclusions:
+1. CASF gives rho = 0.42-0.55 while T3 gives only 0.09-0.26;
+2. We attributed that gap to the restriction of range caused by T3's own
+   `pAff >= 6` cutoff (`t2_gap.py`, explaining away 75-91% of it).
 
-「CASF 高是因为一半是训练数据」是个**竞争解释**，和范围受限分不开。
-这个脚本把它分开：如果干净那半的 ρ 掉下来，泄漏解释成立；
-如果基本不动，范围受限那条反而被加固。
+"CASF is high because half of it is training data" is a **competing
+explanation**, and it is entangled with restriction of range. This script
+separates them: if rho collapses on the clean half, the leakage explanation
+holds; if it barely moves, the restriction-of-range explanation is instead
+reinforced.
 
-两个口径，分开报
-----------------
-· **打分力（scoring power）**：跨复合物比绝对亲和力。按**复合物**是否在训练集
-  里拆两半——这一半干净不干净是复合物自己的属性，拆得干净。
-· **排序力（ranking power）**：同一靶点内 5 个配体排序。一个靶点的 5 个复合物
-  可能一半在训练集一半不在，所以按**靶点**分类：
-    - 全脏 = 5 个全在训练集
-    - 全净 = 一个都不在  ← 这一档才是真正的干净对照
-    - 混合 = 其余
-  只在「全净」上重算，才是没有泄漏的排序力。
+Two conventions, reported separately
+-------------------------------------
+- **Scoring power**: absolute affinity compared across complexes. Split into
+  two halves by whether the **complex** is in the training set — whether
+  this half is clean is a property of the complex itself, so the split is
+  clean.
+- **Ranking power**: ranking the 5 ligands within one target. A target's 5
+  complexes may be half in the training set and half not, so classify by
+  **target** instead:
+    - fully dirty = all 5 in the training set
+    - fully clean = none in it  <- this tier is the real clean control
+    - mixed = everything else
+  Only recomputing on "fully clean" gives ranking power with no leakage.
 
-⚠️ 这是**观察性**拆分，不是干预。干净/脏两半的靶点本身可能难度不同
-（PDBbind 收录得早的往往是研究得透的经典靶点）。真正的干预版本是换
-LigUnity 的三档 `--protein-similarity-thres` 权重重跑同一批复合物，
-那需要 GPU，见 T2 文档。
+Warning: this is an **observational** split, not an intervention. The
+targets in the clean/dirty halves may themselves differ in difficulty
+(targets deposited early in PDBbind tend to be well-studied, classic
+targets). The real interventional version would be to rerun the same
+complexes with LigUnity's three `--protein-similarity-thres` weight tiers,
+which needs a GPU — see the T2 documentation.
 """
 import argparse
 import csv
@@ -70,9 +79,10 @@ def scoring(score, y):
 
 
 def ranking(per, boot=2000, seed=0):
-    """per: uniprot -> [(score, act)]；返回 (平均 ρ, 靶点数, (lo, hi))。
+    """per: uniprot -> [(score, act)]; returns (mean rho, n_targets, (lo, hi)).
 
-    靶点数只有十几个，均值没有区间就没法读，所以对靶点做自助重采样。
+    There are only a dozen or so targets, so a mean with no interval can't be
+    read; bootstrap-resample over targets instead.
     """
     rs = []
     for v in per.values():
@@ -94,7 +104,8 @@ def ranking(per, boot=2000, seed=0):
 
 
 def thorndike(r, k):
-    """范围受限校正（case II）：把在窄展布上测到的 r 折算到宽 k 倍的展布上。"""
+    """Restriction-of-range correction (case II): rescale an r measured on a
+    narrow spread to what it would be on a spread k times wider."""
     return r * k / np.sqrt(1 + r * r * (k * k - 1))
 
 
@@ -111,7 +122,7 @@ def main():
     over = load_overlap(args.overlap)
     truth = load_truth()
 
-    # 靶点分类：全脏 / 全净 / 混合
+    # Classify targets: fully dirty / fully clean / mixed
     tcx = defaultdict(list)                     # uniprot -> [pdb]
     for pdb, (_a, up) in truth.items():
         tcx[up].append(pdb)
@@ -127,8 +138,10 @@ def main():
         print(f"  {c} 靶点 {len(ups):3d}  复合物 "
               f"{sum(len(tcx[u]) for u in ups):3d}")
 
-    # ⚠️ 必须先排掉的混杂：干净靶点会不会本身亲和力展布就窄？
-    # 那样排序 ρ 低就又是范围受限（t2_gap.py 那条），不是泄漏。
+    # Warning: confound to rule out first -- could the clean targets simply
+    # have a narrower affinity spread themselves? In that case a low ranking
+    # rho would again be restriction of range (the t2_gap.py finding), not
+    # leakage.
     print("\n混杂检查：各类靶点的靶点内 pAff 展布")
     print("%-8s %8s %10s %12s %10s" % ("靶点类", "靶点数", "配体中位", "SD 中位", "极差中位"))
     spread = {}
@@ -189,8 +202,10 @@ def main():
 
         for name, keep in (("全部", None), ("全脏靶点", "全脏"), ("全净靶点", "全净")):
             per = defaultdict(list)
-            # strict=True：三者由同一个 ids 构造，长度必须相等。裸 zip 遇到
-            # 不等长会静默截断——本项目的四次索引 bug 有三次是这样躲过检查的。
+            # strict=True: all three are built from the same ids, so their
+            # lengths must match. A bare zip silently truncates on unequal
+            # lengths -- three of this project's four indexing bugs slipped
+            # past review exactly this way.
             for s, a, g in zip(score, y, up, strict=True):
                 if np.isnan(a):
                     continue
@@ -211,7 +226,9 @@ def main():
     with open(args.out, "w", newline="") as f:
         csv.writer(f).writerows(rows)
     print(f"\n写入 {args.out}")
-    # 全净靶点的展布比全脏窄，所以直接比 ρ 不公平——先按 Thorndike 折算到同一展布
+    # The fully-clean targets' spread is narrower than the fully-dirty ones',
+    # so comparing rho directly isn't fair -- first rescale to the same
+    # spread via Thorndike
     k = spread["全脏"][0] / spread["全净"][0] if ("全脏" in spread and "全净" in spread) else None
     if k:
         print(f"\n把「全净靶点」的 ρ 按展布比 k={k:.2f} 校正到「全脏靶点」的展布上")

@@ -1,26 +1,31 @@
-"""T5 的 apo 对照：先查有多少靶点找得到无配体（apo）结构。
+"""T5's apo control: first survey how many targets have an available
+ligand-free (apo) structure.
 
-要回答什么
-----------
-T5 已经证明「用预测结构替代实验结构没有显著差异」，但**都是 holo 结构**——
-口袋是被配体撑开的构象。真实虚筛拿到的常常是 apo（未结合）构象，
-侧链没有为配体让位。这是这类模型在实践中最可能吃亏的地方，也是 T5 原计划里
-一直没做的一项。
+What this is answering
+------------
+T5 has already shown "substituting predicted structures for experimental
+ones makes no significant difference", but **both were holo structures** —
+pockets in a conformation opened up by the ligand. Real screening campaigns
+often only have an apo (unbound) conformation, where side chains haven't
+made room for a ligand. This is where these models are most likely to
+suffer in practice, and it's the one item T5's original plan never covered.
 
-怎么判 apo
-----------
-pdb_meta.json 里 `pdb_lig` 给出每个 PDB 条目的非聚合物配体列表。
-去掉水、离子、缓冲剂、冷冻保护剂这些结晶添加物之后，
-**一个配体都不剩的条目**就是 apo 候选。
-只统计「同一个 UniProt 既有 holo（我们已经用过的）又有 apo」的靶点——
-只有这样才能做同靶点的配对比较，避免把靶点难度差混进来。
+How apo is determined
+------------
+pdb_meta.json's `pdb_lig` gives each PDB entry's list of non-polymer
+ligands. After removing crystallisation additives — water, ions, buffers,
+cryoprotectants — **an entry with no ligand left at all** is an apo
+candidate.
+Only targets where the same UniProt has both a holo structure (already used)
+and an apo structure are counted — that's the only way to do a same-target
+paired comparison without mixing in differences in target difficulty.
 """
 import json
 from collections import Counter
 
 B = "/data/work/vs-benchmark"
 
-# 结晶添加物：不算真正的结合配体
+# Crystallisation additives: not counted as genuine bound ligands
 JUNK = {
     "HOH", "DOD", "SO4", "PO4", "CL", "NA", "K", "MG", "CA", "ZN", "MN", "FE",
     "FE2", "CU", "NI", "CO", "CD", "HG", "IOD", "BR", "F", "ACT", "EDO", "GOL",
@@ -35,7 +40,7 @@ def main():
     meta = json.load(open(f"{B}/data/t3/pdb_meta.json"))
     up2pdb, pdb_lig = meta["up2pdb"], meta["pdb_lig"]
     choice = json.load(open(f"{B}/data/t3/crystal_ligand_choice.json"))
-    holo_up = set(choice["choice"])   # 文件顶层是 choice/need_boltz/no_ref_ligand 三段
+    holo_up = set(choice["choice"])   # the file's top level has three sections: choice/need_boltz/no_ref_ligand
     print(f"有共晶配体选择的靶点（holo 可用）: {len(holo_up):,}")
 
     stat = Counter()
@@ -45,7 +50,7 @@ def main():
             continue
         apo = []
         for pid in pdbs:
-            ligs = [l for l in pdb_lig.get(pid, []) if l["comp_id"].upper() not in JUNK]  # 记录是 dict，不是字符串
+            ligs = [l for l in pdb_lig.get(pid, []) if l["comp_id"].upper() not in JUNK]  # each record is a dict, not a string
             if not ligs:
                 apo.append(pid)
         if apo:

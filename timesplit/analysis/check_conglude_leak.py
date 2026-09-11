@@ -1,12 +1,16 @@
-"""检验 ConGLUDe 的训练靶点是否与我们 T3 的「新靶点」重叠。
+"""Check whether ConGLUDe's training targets overlap our T3 "novel targets".
 
-为什么要查：ConGLUDe 2026-01 投稿，训练数据版本未公开。T3 的切分点
-2024-12 是按 DrugCLIP/LigUnity 的训练库定的。若 ConGLUDe 训练数据更新，
-它可能见过 T3 的测试靶点——那它的 T3 成绩就不是泛化能力。
+Why this needs checking: ConGLUDe was submitted 2026-01 and its training-data
+version was never disclosed. T3's cutoff of 2024-12 was set against
+DrugCLIP/LigUnity's training corpus. If ConGLUDe's training data is newer, it
+may have seen T3's test targets — in which case its T3 performance would not
+be measuring generalization.
 
-这个检验不依赖版本号：直接看它的训练靶点 UniProt 与 T3 各层靶点的交集。
-L3/L4 按定义是「训练集里没有的新靶点」，若大量出现在 ConGLUDe 训练集里，
-就是污染的直接证据。
+This check does not depend on a version number: it looks directly at the
+intersection between ConGLUDe's training-target UniProts and each T3 layer's
+targets. L3/L4 are by definition "novel targets absent from the training
+set"; if a large fraction of them turn up in ConGLUDe's training set, that is
+direct evidence of contamination.
 """
 import json, os, glob
 B = "/data/work/vs-benchmark"
@@ -27,7 +31,7 @@ for p in glob.glob(f"{D}/info_dicts/*.json"):
 
 print(f"ConGLUDe 训练条目 {n_files:,} 个 → 唯一 UniProt {len(train_up):,}\n")
 
-# 也读 protein_ids.txt（可能含非 PDB 靶点）
+# Also read protein_ids.txt (may include non-PDB targets)
 for f in ["train_protein_ids.txt", "vs_train_protein_ids.txt"]:
     p = f"{D}/{f}"
     if os.path.exists(p):

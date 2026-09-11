@@ -1,25 +1,38 @@
-"""冻结 T3 的逐靶点逐分子中间表，让未来任何一次重新分层都只是重新汇总。
+"""Freeze a per-target, per-molecule intermediate table for T3, so that any
+future re-layering is just a re-aggregation.
 
-为什么要有这个
---------------
-「这个靶点模型见没见过」不是客观事实，是随模型训练集而变的标签。所以 L1–L4
-必须按模型重画，而且不止一次——本项目已经重画过三次（fall-through bug、
-逐模型分层、结构半/亲和力半并集）。每次重画要多久，取决于保留了什么：
+Why this exists
+----------------
+"Has this target's model seen it" is not an objective fact, it's a label
+that changes with whatever training set the model has. So L1-L4 has to be
+redrawn per model, and more than once -- this project has already redrawn it
+three times (the fall-through bug, per-model stratification, the union of
+the structure half and the affinity half). How long each redraw takes
+depends on what was kept:
 
-· 只留汇总表 → 得重跑模型，十个模型一天 GPU
-· 留逐靶点逐分子的中间表 → 只是重新 group by，几分钟纯 CPU
+- Only the summary table kept -> models must be rerun, one GPU-day for ten
+  models
+- The per-target, per-molecule intermediate table kept -> just a re-group-by,
+  a few minutes of pure CPU
 
-三张表
-------
-1. `T3_molecules.csv.gz`  唯一分子：mol_id, inchikey, smiles, 两套新颖度
-2. `T3_index.csv.gz`      逐靶点逐分子：层、靶点、**两种顺序下的位置**、
-                          mol_id、标签、pAffinity
-3. `T3_model_order.csv`   每个模型每个靶点用的是哪种顺序，以及是否通过硬校验
+Three tables
+------------
+1. `T3_molecules.csv.gz`  unique molecules: mol_id, inchikey, smiles, two
+                          novelty scores
+2. `T3_index.csv.gz`      per-target, per-molecule: layer, target,
+                          **position under both orderings**, mol_id, label,
+                          pAffinity
+3. `T3_model_order.csv`   which ordering each model used for each target,
+                          and whether it passed strict validation
 
-**第 2 张里的 jsonl_pos / lmdb_pos 是这套东西的核心。** 模型读 lmdb 时游标是
-字典序（0, 1, 10, 100, …），与评测集 jsonl 的「活性+诱饵」顺序不同而长度相同；
-只比长度会静默错配，本项目因此毁过一次 T2 的全部结论、并在另外两处重现
-（PATCHES.md）。把两种顺序的位置一起存死，以后任何重算都不必再推导一次。
+**The jsonl_pos / lmdb_pos columns in table 2 are the core of this setup.**
+When a model reads an lmdb its cursor order is lexicographic
+(0, 1, 10, 100, ...), which differs from the eval-set jsonl's
+"actives+decoys" order while having the same length; comparing only the
+length silently produces mismatches, and this has already wrecked every T2
+conclusion once in this project and recurred in two other places
+(PATCHES.md). Storing both orderings' positions once and for all means no
+future recomputation ever has to re-derive it.
 """
 import argparse, csv, gzip, json, os, pickle
 from concurrent.futures import ProcessPoolExecutor
@@ -91,7 +104,7 @@ def main():
                         f"{nov_p.get(s, -1):.4f}", f"{nov_d.get(s, -1):.4f}"])
     print(f"  写入 T3_molecules.csv.gz")
 
-    # ---- 逐靶点逐分子，两种顺序的位置一起存 ----
+    # ---- per-target, per-molecule: store positions under both orderings together ----
     n_rows = 0
     n_nolmdb = 0
     with gzip.open(f"{args.out_dir}/T3_index.csv.gz", "wt", newline="") as f:
@@ -103,11 +116,14 @@ def main():
                 up = r["uniprot"]
                 jl = [(x["smiles"], 1, x.get("paff")) for x in r["actives"]] + \
                      [(x["smiles"], 0, None) for x in r["decoys"]]
-                # ⚠️ 不要求 len(lmdb) == len(jsonl)。建 lmdb 时有分子会被丢掉
-                # （RDKit 解析或构象生成失败），546 个靶点里 413 个的 jsonl 池子
-                # 比 lmdb 多 1~9 个分子。**lmdb 才是模型实际打过分的那一批**，
-                # 所以按 SMILES 对位；jsonl 里有而 lmdb 里没有的记 -1，
-                # 这本身就是这张表要留的信息。
+                # Warning: len(lmdb) == len(jsonl) is not assumed. Some
+                # molecules get dropped when the lmdb is built (RDKit parsing
+                # or conformer generation failures) -- 413 of 546 targets have
+                # a jsonl pool 1-9 molecules larger than their lmdb.
+                # **The lmdb is the batch the model actually scored**, so
+                # align by SMILES; a molecule present in jsonl but absent
+                # from lmdb is recorded as -1, which is itself exactly the
+                # information this table is meant to preserve.
                 lo = lmdb_order(up, L)
                 lpos = {}
                 if lo is not None:
@@ -122,7 +138,7 @@ def main():
             print(f"  {L} 完成，累计 {n_rows:,} 行", flush=True)
     print(f"写入 T3_index.csv.gz（{n_rows:,} 行；{n_nolmdb} 个靶点没有可用 lmdb）")
 
-    # ---- 每个模型每个靶点实际用的顺序 ----
+    # ---- the ordering actually used by each model for each target ----
     with open(f"{args.out_dir}/T3_model_order.csv", "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["model", "layer", "uniprot", "n_molecules", "order_used"])

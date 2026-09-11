@@ -1,25 +1,31 @@
-"""逐模型的训练集新颖度审计。
+"""Per-model training-set novelty audit.
 
-为什么需要
-----------
-现在 T3 的 L1–L4 分层**只用 LigUnity 的训练集**（PocketAffDB）判定，
-所以「L1」字面意思是「PocketAffDB 见过这个靶点」。用这个标签去比较
-「用 PocketAffDB 训的模型」和「用 DrugCLIP 集训的模型」，再得出
-「训练数据比架构更重要」，是循环论证——标签本身就是按其中一组的训练集画的。
+Why this is needed
+--------------------
+T3's L1-L4 layering currently is decided **only using LigUnity's training
+set** (PocketAffDB), so "L1" literally means "PocketAffDB has seen this
+target". Using that label to compare "models trained on PocketAffDB" against
+"models trained on DrugCLIP's set" and then concluding "training data
+matters more than architecture" is circular -- the label itself was drawn
+against one of the two groups' training set.
 
-正确做法是逐模型算它自己的 seen/unseen：
+The correct approach is to compute each model's own seen/unseen:
 
-    S_protein^(m)(t) = max_{p ∈ Train_m} Identity(t, p)
-    S_ligand^(m)(x)  = max_{z ∈ Train_m} Tanimoto(x, z)
+    S_protein^(m)(t) = max_{p in Train_m} Identity(t, p)
+    S_ligand^(m)(x)  = max_{z in Train_m} Tanimoto(x, z)
 
-两套训练集
-----------
-七个口袋系模型实际只有两套（见 build_train_union.py）：
-  A  train_no_test_af  →  DrugCLIP、BindCLIP-randneg、BindCLIP-hardneg
-  B  PocketAffDB       →  LigUnity ×2、LiTENCLIP、HypSeek
-ConPLex 官方只发布训练序列不发布 accession，所以它的清单是用 mmseqs 反查的
-（conplex_t3_cov.py，双向覆盖 ≥50%、同一性 ≥95%），单列为第三套 C。
-ConGLUDe / SPRINT 的清单仍未获得，输出里标 unavailable。
+Two training sets
+-------------------
+The seven pocket-family models actually reduce to only two (see
+build_train_union.py):
+  A  train_no_test_af  ->  DrugCLIP, BindCLIP-randneg, BindCLIP-hardneg
+  B  PocketAffDB       ->  LigUnity x2, LiTENCLIP, HypSeek
+ConPLex's official release publishes training sequences but no accessions,
+so its list is reverse-looked-up with mmseqs (conplex_t3_cov.py,
+bidirectional coverage >=50%, identity >=95%), listed separately as a third
+set C.
+ConGLUDe / SPRINT's lists are still unobtained, and marked unavailable in the
+output.
 """
 import argparse, collections, csv, json, os, pickle, sys
 import numpy as np
@@ -32,19 +38,23 @@ GROUP = {
     "C(ConPLex BindingDB)": ["conplex"],
     "unavailable": ["conglude", "sprint"],
 }
-# ConPLex 的训练靶点是序列反查来的，同一性门限
+# ConPLex's training targets are reverse-looked-up from sequences; identity threshold
 CONPLEX_IDENT = 0.95
 
 
 def load_B():
-    """B 组（LigUnity ×2 / LiTENCLIP / HypSeek）的训练靶点 = 两个标签文件的并集。
+    """Group B's (LigUnity x2 / LiTENCLIP / HypSeek) training targets = the
+    union of two label files.
 
-    train_task.py:523-524 同时读 train_label_pdbbind_seq.json（结构半，3,468 个
-    UniProt / 16,744 个 PDB）和 train_label_blend_seq_full.json（亲和力半，
-    2,196 个）。此前只算了后者。
+    train_task.py:523-524 reads both train_label_pdbbind_seq.json (the
+    structure half, 3,468 UniProt / 16,744 PDB) and
+    train_label_blend_seq_full.json (the affinity half, 2,196). Only the
+    latter was counted previously.
 
-    而结构半覆盖的 16,744 个 PDB 与 DrugCLIP 的 train_no_test_af **完全相同**
-    （交集 16,744，各自独有 0），所以 A 组训练结构是 B 组的真子集。
+    And the structure half's 16,744 PDB entries are **exactly identical** to
+    DrugCLIP's train_no_test_af (intersection 16,744, neither has any
+    exclusive entries), so group A's training structures are a proper
+    subset of group B's.
     """
     ups = set()
     for f in ("train_label_blend_seq_full.json",
@@ -59,13 +69,15 @@ def load_B():
 
 
 def load_B_blend_only():
-    """只有亲和力半 —— 用来把「亲和力标签」和「结构」两件事分开。"""
+    """The affinity half only -- used to separate "affinity labels" from
+    "structure"."""
     lab = json.load(open(f"{B}/data/raw/figshare/train_label_blend_seq_full.json"))
     return {a["uniprot"] for a in lab if a.get("uniprot")}
 
 
 def load_C():
-    """ConPLex 的 BindingDB 训练序列，mmseqs 反查到 T3 靶点上的结果。"""
+    """ConPLex's BindingDB training sequences, reverse-looked-up onto T3
+    targets with mmseqs."""
     p = f"{B}/results/export/T3_conplex_train_coverage.csv"
     if not os.path.exists(p):
         return None

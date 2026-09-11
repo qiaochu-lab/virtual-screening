@@ -1,16 +1,22 @@
-"""汇总 T3 评测结果：读各模型落盘的原始分数，用统一评测层算指标。
+"""Aggregate T3 evaluation results: read the raw scores each model wrote to
+disk, and compute metrics with the unified evaluation layer.
 
-输入布局（各模型 runner 统一产出）：
+Input layout (uniform across all model runners):
     results/t3/<model>/<layer>/<uniprot>/saved_preds.npy
                                         /saved_labels.npy
 
-为什么每个模型都要落原始分数：各家论文自带的指标实现不一致（同一个 DrugCLIP
-在自己论文和 BindCLIP 论文里差近 5%），只有统一重算才能保证横评表里的差异
-只来自模型本身。详见 eval/README.md。
+Why every model needs its raw scores written to disk: each paper's own
+metric implementation is inconsistent (the same DrugCLIP differs by nearly
+5% between its own paper and the BindCLIP paper) — only recomputing
+everything under one implementation guarantees that differences in the
+head-to-head table come from the models themselves. See eval/README.md for
+detail.
 
-跨层比较用 AUROC 而不是 EF —— EF 依赖库大小与活性比例，虽然这里各层都是
-1:50，但每层靶点数与活性配体数分布不同，AUROC 更稳。EF 仍然报，
-因为它是虚筛领域的通用语言。
+Cross-layer comparison uses AUROC rather than EF — EF depends on pool size
+and active fraction, and although every layer here is 1:50, the distribution
+of target count and active-ligand count differs across layers, so AUROC is
+more stable. EF is still reported, because it is the common language of the
+virtual-screening field.
 """
 import argparse
 import json
@@ -71,7 +77,7 @@ def main():
                 continue
             agg = {k: float(np.mean([r[k] for r in rows]))
                    for k in ["auroc", "bedroc", "ef1", "ef5", "ef01"]}
-            # 每靶点自成一个统计单元，用靶点间标准误做不确定度
+            # Each target is its own statistical unit; use the between-target standard error as the uncertainty
             agg["auroc_sem"] = float(np.std([r["auroc"] for r in rows], ddof=1)
                                      / np.sqrt(len(rows)))
             agg["n_targets"] = len(rows)
@@ -84,7 +90,7 @@ def main():
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     json.dump(summary, open(args.out, "w"), indent=1)
 
-    # L1→L4 的衰减：本 benchmark 的核心量
+    # L1->L4 decay: the core quantity of this benchmark
     print("\n泛化衰减（相对 L1 的 AUROC）:")
     for m, d in summary.items():
         if "L1" not in d:

@@ -1,19 +1,27 @@
-"""分层对照：口袋类模型的 L1 优势里，有多少来自「口袋按测试配体诱导」？
+"""Stratified control: how much of the pocket-family models' L1 advantage
+comes from "the pocket being induced by the test ligand itself"?
 
-问题
+The problem
 ----
-已知靶点（L1/L2）被研究得透，PDB 里的共晶配体常常就是我们要测的活性分子
-（中位 Tanimoto 0.748，235 个靶点 ≥0.8）；新靶点（L3/L4）只有 0.12–0.28。
-所以 L1/L2 的口袋是按测试配体「量身诱导」出来的构象。
+Well-studied targets (L1/L2) are so heavily characterised that the
+co-crystallised ligand in the PDB is often the very active molecule we're
+testing (median Tanimoto 0.748, 235 targets >= 0.8); novel targets (L3/L4)
+only reach 0.12-0.28. So the L1/L2 pockets are conformations induced
+specifically by the test ligand.
 
-对结构/口袋类模型，L1→L4 的衰减里因此掺了一部分「口袋契合度」差异，
-不纯是「靶点没见过」。序列类模型（ConPLex）不用口袋，不受影响，
-正好可以当**阴性对照**：如果这个效应是真的，它应该只出现在结构模型身上。
+For structure/pocket-family models, this means the L1->L4 decay is partly
+mixed with a "pocket fit" effect, not purely "target unseen during
+training". Sequence-family models (ConPLex) don't use a pocket and aren't
+affected by this, making them a natural **negative control**: if this effect
+is real, it should show up only in structure models.
 
-做法
+Approach
 ----
-把 L1 靶点按共晶配体与测试活性配体的 Tanimoto 切成低/高两组，
-比较同一模型在两组上的表现。再看结构模型与序列模型的差异是否一致。
+Split L1 targets into low/high groups by the Tanimoto between the
+co-crystallised ligand and the test active ligand, then compare the same
+model's performance across the two groups. Then check whether the
+structure-model / sequence-model difference is consistent with the
+hypothesis.
 """
 import argparse
 import json
@@ -27,7 +35,7 @@ B = "/data/work/vs-benchmark"
 
 
 def load_sim():
-    """uniprot -> 共晶配体与该靶点测试配体的 Tanimoto。"""
+    """uniprot -> Tanimoto between the co-crystallised ligand and this target's test ligand."""
     sim = {}
     e = lmdb.open(f"{B}/data/t3/pockets/pdb_pocket_6.0A.lmdb",
                   subdir=False, readonly=True, lock=False)
@@ -79,7 +87,7 @@ def main():
                    p, "  *" if p < 0.05 else ""))
             summary[(m, L)] = (a.mean(), b.mean(), p)
 
-    # 关键比较：把 L1 的低相似组当作「去掉诱导优势的 L1」，再与 L4 比
+    # Key comparison: treat L1's low-similarity group as "L1 with the induced-fit advantage removed", then compare against L4
     print("\n" + "=" * 76)
     print("关键检验：用 L1 的低相似组（口袋没有诱导优势）替代整个 L1，衰减还剩多少")
     print("=" * 76)

@@ -1,17 +1,22 @@
-"""对 A 组(DrugCLIP/BindCLIP)自己的训练配体算 T3 分子的新颖度。
+"""Compute T3 molecule novelty against group A's (DrugCLIP/BindCLIP) own
+training ligands.
 
-为什么需要
-----------
-现有的 `data/t3/ligand_novelty.json` 是对**亲和力半**的 428,767 个配体算的
-(`train_label_blend_seq_full.json`)。但 DrugCLIP / BindCLIP ×2 训练在
-`train_no_test_af` 上,配体是那 66,164 条 pair 里的分子——去重后 13,590 个,
-是另一批,而且小 31.6 倍。
+Why this is needed
+--------------------
+The existing `data/t3/ligand_novelty.json` was computed against the
+**affinity half**'s 428,767 ligands (`train_label_blend_seq_full.json`). But
+DrugCLIP / BindCLIP x2 trained on `train_no_test_af`, whose ligands are the
+molecules in those 66,164 pairs -- 13,590 after deduplication, a different
+batch and 31.6x smaller.
 
-所以凡是按新颖度分档的分析(T2 的 t2_novelty_tiers、T3 的 novelty_tiered_ef、
-纯配体学习基线、2×2),对 A 组三个模型都只是近似。这个脚本补上 A 组自己的缓存。
+So every analysis that bins by novelty (T2's t2_novelty_tiers, T3's
+novelty_tiered_ef, the pure-ligand learned baseline, the 2x2) is only an
+approximation for group A's three models. This script fills in group A's own
+cache.
 
-口径与 ligand_novelty.py 完全一致:ECFP4(Morgan r=2, fpSize=2048)、
-对训练配体取最大 Tanimoto,这样两份缓存可以并排读。
+The convention matches ligand_novelty.py exactly: ECFP4 (Morgan r=2,
+fpSize=2048), maximum Tanimoto to the training ligands, so the two caches
+can be read side by side.
 """
 import argparse, json, os, pickle
 from concurrent.futures import ProcessPoolExecutor

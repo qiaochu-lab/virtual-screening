@@ -1,29 +1,35 @@
-"""按配体新颖度分档，分别算富集——模型在「全新化学」上到底能富集多少。
+"""Bin by ligand novelty and compute enrichment per tier -- how much can a
+model actually enrich on "completely novel chemistry".
 
-`ligand_novelty.py` 回答了两件事：测试活性离训练集有多远，以及模型捞回的
-活性偏熟还是偏生。但它没回答最直接的那一问——**在全新分子这一档上，
-模型的富集是多少**。Mattsson & Walters (bioRxiv 2026.06.29.735309) 提的
-Novelty-Tiered Benchmark 要的就是这个数。
+`ligand_novelty.py` answers two things: how far the test actives are from
+the training set, and whether the actives a model retrieves skew familiar or
+novel. But it never answers the most direct question -- **what is the
+model's enrichment on the completely-novel tier**. That is exactly the
+number the Novelty-Tiered Benchmark proposed by Mattsson & Walters (bioRxiv
+2026.06.29.735309) calls for.
 
-指标定义
---------
-对某一新颖度档 t（按对训练集配体的最大 Tanimoto 划分）：
+Metric definition
+--------------------
+For a novelty tier t (binned by maximum Tanimoto to the training ligands):
 
-    recall_t = 该档活性落进 top-1% 的个数 / 该档活性总数
+    recall_t = number of that tier's actives landing in top-1% / total actives in that tier
     EF_t     = recall_t / 0.01
 
-EF_t = 1 表示这一档的活性被捞到的概率和随机一样。这样定义的好处是
-**各档之间直接可比**——不受该档活性数量多少的影响。
+EF_t = 1 means actives in that tier are retrieved with the same probability
+as random. The benefit of this definition is that **tiers are directly
+comparable to each other** -- unaffected by how many actives that tier has.
 
-逐靶点算再取均值（只算该档至少有 MIN_T 个活性的靶点），
-与主表的口径一致。
+Computed per target and then averaged (only over targets with at least
+MIN_T actives in that tier), consistent with the main table's convention.
 
-⚠️ 分子顺序必须硬校验
---------------------
-模型读 lmdb，游标是字典序（0, 1, 10, 100, …），和评测集 jsonl 顺序不同，
-而两者长度相同。只比长度会静默错配——这个坑在本项目里出现过三次。
-所以还原顺序后必须验「标签为 1 的位置上确实是该靶点的 active」，
-验不过就跳过该靶点并报出来。
+Warning: molecule order must be strictly validated
+-----------------------------------------------------
+The model reads an lmdb whose cursor order is lexicographic (0, 1, 10, 100,
+...), which differs from the eval-set jsonl order while having the same
+length. Comparing only the length silently produces mismatches -- this
+pitfall has bitten this project three times. So after reconstructing the
+order it must be validated that "the positions labeled 1 really are that
+target's actives"; skip and report the target if that check fails.
 """
 import argparse
 import collections
@@ -37,7 +43,7 @@ import numpy as np
 B = "/data/work/vs-benchmark"
 TIERS = [(0.0, 0.35, "全新 <0.35"), (0.35, 0.50, "远 0.35–0.5"),
          (0.50, 0.70, "近 0.5–0.7"), (0.70, 1.01, "极近 ≥0.7")]
-MIN_T = 3          # 该档至少这么多活性才算这个靶点
+MIN_T = 3          # a tier needs at least this many actives to count for that target
 FRAC = 0.01
 
 
@@ -49,7 +55,8 @@ def tier_of(v):
 
 
 def model_order(up, L, n, rec, labels):
-    """还原模型看到的分子顺序并硬校验；对不上返回 None。"""
+    """Reconstruct the molecule order the model actually saw and strictly
+    validate it; returns None if it doesn't check out."""
     act = {x["smiles"] for x in rec["actives"]}
 
     def ok(seq):
@@ -99,7 +106,8 @@ def main():
         keep = {(r["layer"], r["uniprot"]) for r in csv.DictReader(open(args.subset))}
         print(f"子集过滤：{len(keep)} 条")
 
-    # 分组：默认按层；给了 --target-groups 就按那一列（跨层合并同组靶点）
+    # Grouping: by layer by default; if --target-groups is given, group by
+    # that column instead (merging same-group targets across layers)
     groups = None
     if args.target_groups:
         groups = {r["uniprot"]: r["group"]
@@ -120,7 +128,7 @@ def main():
     for m in args.models:
         print("\n" + hdr)
         print("-" * 96)
-        # bucket: 组名 -> tier -> [每靶点的 EF_t]；按层跑但按组累加
+        # bucket: group name -> tier -> [per-target EF_t]; iterate by layer but accumulate by group
         bucket = collections.defaultdict(lambda: collections.defaultdict(list))
         count = collections.defaultdict(collections.Counter)
         n_bad = 0

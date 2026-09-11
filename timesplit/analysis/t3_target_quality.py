@@ -1,23 +1,31 @@
-"""按结构质量给 T3 靶点分级，并给出「高质量子集」。
+"""Grade T3 targets by structure quality, and produce a "high-quality subset".
 
-来源：项目要求——
-「最好保留的数据是有结构（rcsb 有蛋白晶体结构）或者结构预测比较精准的
-（iptm ptm plddt 比较高），以及多样性，要涉及到激酶、gpcr、表观等等」
+Source: from the project requirement —
+"The data best kept is data with a structure (an RCSB protein crystal
+structure) or with a reasonably accurate predicted structure (iptm/ptm/plddt
+reasonably high), together with diversity — needs to cover kinases, GPCRs,
+epigenetic targets, and so on."
 
-分三级
+Three grades
 ------
-A 级  有 RCSB 实验晶体结构（口袋直接从共晶复合物截出）
-B 级  Boltz-2 预测且置信度达标
-C 级  Boltz-2 预测但置信度不达标
+Grade A  has an experimental RCSB crystal structure (pocket cut directly
+          from the co-crystallised complex)
+Grade B  Boltz-2 prediction with confidence meeting the threshold
+Grade C  Boltz-2 prediction but confidence below the threshold
 
-置信度阈值参考 AlphaFold/Boltz 的通行口径：
-  · complex_plddt ≥ 0.70   —— 主链局部置信度，<0.5 基本不可信
-  · iptm         ≥ 0.60    —— 链间界面置信度，对「配体摆得对不对」最关键
-两者都要满足才算 B 级。注意这里的 iptm 是蛋白-配体界面，
-比单看 plddt 更贴近「口袋位置对不对」这个我们真正关心的问题。
+Confidence thresholds follow the AlphaFold/Boltz convention:
+  * complex_plddt >= 0.70  -- local backbone confidence; below 0.5 is
+    essentially untrustworthy
+  * iptm          >= 0.60  -- inter-chain interface confidence, the most
+    relevant to "is the ligand posed correctly"
+Both must be met to qualify as grade B. Note that iptm here is the
+protein-ligand interface, which is closer to the question we actually care
+about — "is the pocket in the right place" — than plddt alone.
 
-输出高质量子集（A+B）的名单，供后续做敏感性分析：
-若主结论在高质量子集上仍成立，说明结论不依赖低质量预测结构。
+Outputs the list of the high-quality subset (A+B), for a later sensitivity
+analysis: if the main conclusion still holds on the high-quality subset,
+that shows the conclusion doesn't depend on low-quality predicted
+structures.
 """
 import glob
 import json
@@ -33,7 +41,7 @@ PLDDT_MIN, IPTM_MIN = 0.70, 0.60
 
 
 def load_conf():
-    """uniprot -> Boltz-2 置信度。"""
+    """uniprot -> Boltz-2 confidence."""
     out = {}
     for d in ["boltz_batch_out", "boltz_retry_out", "boltz_gap_out", "boltz_r2_out"]:
         for p in glob.glob(f"{B}/{d}/**/confidence_*.json", recursive=True):
@@ -47,7 +55,7 @@ def load_conf():
 
 
 def pocket_source():
-    """uniprot -> 'pdb_holo' | 'boltz2_pred'（与组装 T3 数据时一致）。"""
+    """uniprot -> 'pdb_holo' | 'boltz2_pred' (consistent with how T3 data was assembled)."""
     src = {}
     for pref, tag in [("pocket", "boltz2_pred"), ("pdb_pocket", "pdb_holo")]:
         p = f"{B}/data/t3/pockets/{pref}_6.0A.lmdb"
@@ -56,7 +64,7 @@ def pocket_source():
         e = lmdb.open(p, subdir=False, readonly=True, lock=False)
         with e.begin() as t:
             for _, v in t.cursor():
-                src[pickle.loads(v)["pocket"]] = tag   # pdb 源后加载，自然覆盖
+                src[pickle.loads(v)["pocket"]] = tag   # pdb source loaded last, naturally overrides
         e.close()
     return src
 
@@ -105,14 +113,14 @@ def main():
         print(f"  complex_plddt  中位 {np.median(pls):.3f}   ≥{PLDDT_MIN} 的 {(pls>=PLDDT_MIN).mean()*100:.1f}%")
         print(f"  iptm           中位 {np.median(ips):.3f}   ≥{IPTM_MIN} 的 {(ips>=IPTM_MIN).mean()*100:.1f}%")
 
-    # 按层
+    # By layer
     print("\n" + "=" * 66)
     print("各层的质量构成")
     print("=" * 66)
     per_layer = defaultdict(Counter)
     for up, ls in eval_targets.items():
         for L in ls:
-            per_layer[L][grade[up][0]] += 1     # 取首字母 A/B/C
+            per_layer[L][grade[up][0]] += 1     # take the first letter A/B/C
     print("%-5s %8s %8s %8s %8s %10s" % ("层", "A实验", "B达标", "C不足", "合计", "高质量占比"))
     print("-" * 56)
     for L in ["L1", "L2", "L3", "L4"]:
@@ -122,7 +130,7 @@ def main():
         if n:
             print("%-5s %8d %8d %8d %8d %9.1f%%" % (L, c["A"], c["B"], c["C"], n, hq/n*100))
 
-    # 高质量子集的类别覆盖 —— 质量之外还要求类别多样性
+    # Class coverage of the high-quality subset — diversity is required in addition to quality
     print("\n" + "=" * 66)
     print("高质量子集（A+B）的靶点类别覆盖")
     print("=" * 66)

@@ -1,34 +1,43 @@
-"""T2 的第三种解释：排序能力的零，是不是被标签噪声压出来的？
+"""T2's third explanation: is the zero ranking ability an artefact of label noise?
 
-问题从哪来
-----------
-T2 现在有三套数据，结论对不上：
-  · FEP 基准（同一化学系列）        ρ ≈ 0.40
-  · CASF-2016（同靶点、跨骨架）     ρ = 0.42   ← 新测的
-  · 自建 T3（跨库抽取）             ρ ≈ 0
-原来的解释是「同系列内能排、跨系列归零」。**CASF 把这个解释推翻了**——
-CASF 一个簇里五个配体骨架各不相同，照样能排到 0.42。
+Where this question comes from
+------------
+T2 now has three datasets whose conclusions don't agree:
+  * FEP benchmark (same chemical series)        ρ ≈ 0.40
+  * CASF-2016 (same target, cross-scaffold)     ρ = 0.42   <- newly measured
+  * our own T3 (cross-source extraction)        ρ ≈ 0
+The earlier explanation was "ranking works within a series, collapses across
+series". **CASF overturns that explanation** — each CASF cluster has five
+ligands with different scaffolds, and it still reaches 0.42.
 
-那 T3 的零还剩什么解释？最大嫌疑是**标签本身**：
-T3 的 pAffinity 把 Ki / Kd / IC50 / EC50 跨实验室、跨测定格式混在一起，
-而 FEP 和 CASF 的数值是同一批测定、口径一致的。
-IC50 依赖底物浓度，和 Ki 之间差一个体系相关的常数——混在一起排序，
-噪声可能直接盖掉信号。
+So what's left to explain T3's zero? The prime suspect is the **labels
+themselves**: T3's pAffinity mixes Ki / Kd / IC50 / EC50 across labs and
+assay formats, while FEP's and CASF's numbers come from one consistent
+batch of measurements. IC50 depends on substrate concentration and differs
+from Ki by a system-dependent constant — mixing them together for ranking
+could let noise swamp the signal outright.
 
-怎么验（不用 GPU，打分都在盘上，只是换一批下标重算）
-----------------------------------------------------
-按标签洁净程度做三档，逐靶点算 Spearman 再对靶点平均：
-  ①  全部 active                      —— 现状
-  ②  只留该靶点占比最大的那种测定类型  —— 去掉类型混用
-  ③  只留该靶点最大的**单个 assay_id** —— 同一次实验、同一个实验室，最干净
-③ 是最接近 FEP/CASF 条件的一档。std_type 和 assay_id 只有 ChEMBL 那部分记录有，
-所以 ②③ 只在 ChEMBL 来源的 active 上做。
+How to test it (no GPU needed; scores are all on disk, this just recomputes
+over a different set of indices)
+------------
+Split into three tiers by label cleanliness, compute per-target Spearman,
+then average over targets:
+  (1) all actives                                  -- current state
+  (2) keep only the target's dominant assay type    -- removes type mixing
+  (3) keep only the target's largest **single assay_id** -- one experiment,
+      one lab, the cleanest possible
+Tier (3) is the closest to FEP/CASF conditions. std_type and assay_id are
+only present on ChEMBL-sourced records, so tiers (2) and (3) are computed
+only on ChEMBL-sourced actives.
 
-怎么判读
---------
-· ρ 随洁净度单调上升 → 「模型排不出强弱」要改写成「T3 的标签噪声掩盖了排序能力」
-· ρ 一直是零         → 现有结论反而更硬，最后一个数据端解释也排除了
-· ③ 的 n 会变小，Spearman 方差变大 —— 所以同时报每档的靶点数和配体数中位
+How to read it
+------------
+* ρ rising monotonically with cleanliness -> "the model can't rank" should be
+  rewritten as "T3's label noise was masking the ranking ability"
+* ρ stays at zero throughout -> the existing conclusion is even more solid,
+  and this last data-side explanation is also ruled out
+* tier (3)'s n shrinks and Spearman's variance grows -- so both the target
+  count and the median ligand count are reported for every tier
 """
 import argparse
 import json
@@ -44,11 +53,11 @@ from scipy import stats
 
 RDLogger.DisableLog("rdApp.*")
 B = "/data/work/vs-benchmark"
-MIN_LIG = 5          # 少于 5 个配体的靶点算不出有意义的 Spearman
+MIN_LIG = 5          # targets with fewer than 5 ligands can't produce a meaningful Spearman
 
 
 def chembl_index():
-    """(uniprot, inchikey) -> [(std_type, assay_id)]，只有 ChEMBL 记录有这些字段。"""
+    """(uniprot, inchikey) -> [(std_type, assay_id)]; only ChEMBL records carry these fields."""
     idx = defaultdict(list)
     p = f"{B}/data/t3/chembl37_2025plus.jsonl"
     for line in open(p):
@@ -66,10 +75,13 @@ def chembl_index():
 
 
 def mol_order(up, L, n_pred, eval_rec):
-    """还原模型看到的分子顺序 -> [(inchikey, paff or None)]，对不上返回 None。
+    """Reconstruct the molecule order the model saw -> [(inchikey, paff or None)];
+    returns None if it can't be matched.
 
-    两种布局：UniMol 系读 lmdb（缺构象的分子被跳过），其余直接遍历 jsonl。
-    对不上就返回 None，不猜——猜错会把配体和亲和力错配，比不做还糟。
+    Two layouts: the UniMol family reads lmdb (molecules with no conformer
+    are skipped); the rest iterate the jsonl directly. Returns None rather
+    than guessing when it doesn't match — a wrong guess would mismatch
+    ligands and affinities, which is worse than not doing it at all.
     """
     acts = eval_rec["actives"]
     jsonl = [(m["inchikey"], m["paff"]) for m in acts] + \
@@ -79,8 +91,9 @@ def mol_order(up, L, n_pred, eval_rec):
     p = f"{B}/data/T3_6A/{L}/{up}/{up}_lig.lmdb"
     if not os.path.exists(p):
         return None
-    # 必须按游标序读：key 是字符串，模型侧遍历得到的是字典序
-    # （0, 1, 10, 100, ...），不是数值序。按数值下标读会整体错位。
+    # Must read in cursor order: keys are strings, so the model's own iteration
+    # follows lexicographic order (0, 1, 10, 100, ...), not numeric order.
+    # Reading by numeric index would shift everything out of alignment.
     e = lmdb.open(p, subdir=False, readonly=True, lock=False)
     smis = []
     with e.begin() as t:
@@ -133,7 +146,7 @@ def main():
                 if order is None:
                     continue
 
-                # 所有有实测亲和力的 active
+                # All actives with a measured affinity
                 items = [(i, ik, float(a)) for i, (ik, a) in enumerate(order)
                          if a is not None and ik]
                 if len(items) < MIN_LIG:
@@ -153,7 +166,7 @@ def main():
                 if r1 is not None:
                     res["1"]["rho"].append(r1); res["1"]["n"].append(len(items))
 
-                # ② 该靶点占比最大的测定类型
+                # (2) This target's dominant assay type
                 types = Counter()
                 for _, ik, _ in items:
                     for t, _a in CH.get((up, ik), []):
@@ -167,7 +180,7 @@ def main():
                     if r2 is not None:
                         res["2"]["rho"].append(r2); res["2"]["n"].append(len(sub))
 
-                # ③ 该靶点最大的单个 assay
+                # (3) This target's largest single assay
                 assays = Counter()
                 for _, ik, _ in items:
                     for _t, a in CH.get((up, ik), []):

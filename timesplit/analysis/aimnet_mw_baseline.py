@@ -1,13 +1,17 @@
-"""代哥问的那个对照：分子量单独能不能复现 AIMNet2 的 L3/L4 信号。
+"""The control the collaborator asked about: can molecular weight alone
+reproduce AIMNet2's L3/L4 signal?
 
-为什么这是关键控制
-------------------
-物理打分天然与分子大小相关：分子越大，与口袋的接触越多，相互作用能越低
-（越"好"）。而 pAffinity 本身也和分子量正相关（大分子往往结合更强）。
-所以一个只看分子量的"模型"可能凭空得到正的 Spearman。
+Why this is a critical control
+-------------------------------
+Physics-based scoring is inherently correlated with molecule size: a bigger
+molecule makes more contacts with the pocket, so the interaction energy is
+lower (i.e. "better"). And pAffinity itself is also positively correlated
+with molecular weight (bigger molecules tend to bind more strongly). So a
+"model" that only looks at molecular weight could get a positive Spearman
+correlation out of nothing.
 
-如果分子量单独就能复现 AIMNet2 在 L3/L4 的 +0.22/+0.12，那它那个
-"信号"就是尺寸伪影，不是物理识别。
+If molecular weight alone reproduces AIMNet2's +0.22/+0.12 on L3/L4, then that
+"signal" is a size artifact, not physical recognition.
 """
 import csv, collections
 import numpy as np

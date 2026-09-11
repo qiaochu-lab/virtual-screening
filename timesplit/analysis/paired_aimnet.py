@@ -1,18 +1,23 @@
-"""严格配对：把检索模型限制到 AIMNet2 打过的那 10 个配体，逐靶点比。
+"""Strict pairing: restrict the retrieval models to the same 10 ligands
+AIMNet2 scored, and compare per target.
 
-为什么必须限制配体
-------------------
-AIMNet2 每个靶点只打了 10 个活性，我们 T2 用的是靶点内全部活性（中位 24–118）。
-直接比两边的 ρ 是拿 10 个点的相关系数比 100 个点的——噪声量级差一个数量级，
-而且两边的配体集合不同。要比就必须**同靶点、同配体**。
+Why the ligands must be restricted
+-------------------------------------
+AIMNet2 only scored 10 actives per target, while our T2 uses all actives
+within a target (median 24-118). Comparing the two sides' rho directly would
+be comparing a correlation over 10 points against one over 100 -- the noise
+level differs by an order of magnitude, and the two sides' ligand sets
+differ too. A fair comparison needs **the same target, the same ligands**.
 
-口径
-----
-· AIMNet2 复合分越低越好 → 与 pAff 相关时取负
-· 分子按 InChIKey 对齐，不靠 SMILES 字符串或下标
-· 模型分数的位置由 T3_model_order.csv 决定读 jsonl_pos 还是 lmdb_pos；
-  FAIL 的靶点直接丢（不猜）
-· 逐靶点配对 Wilcoxon
+Conventions
+-------------
+- AIMNet2's composite score is better when lower -> negated when correlating
+  with pAff
+- Molecules are aligned by InChIKey, not by SMILES string or index
+- The position of a model's score is decided by T3_model_order.csv, which
+  tells whether to read jsonl_pos or lmdb_pos; targets marked FAIL are
+  dropped outright (not guessed)
+- Per-target paired Wilcoxon test
 """
 import csv, gzip, json, os, collections
 import numpy as np
@@ -38,14 +43,14 @@ def ikey(smi, cache={}):
     return k
 
 
-# ---- AIMNet2 侧 ----
+# ---- AIMNet2 side ----
 ai = collections.defaultdict(list)          # (layer, up) -> [(ikey, paff, -composite, -smina)]
 for r in csv.DictReader(open("/tmp/aimnet_t3_ligands.csv")):
     k = ikey(r["smiles"])
     if not k:
         continue
     try:
-        comp = -float(r["composite"])       # 越低越好 → 取负
+        comp = -float(r["composite"])       # lower is better -> negate
         pa = float(r["paff"])
     except (ValueError, TypeError):
         continue
@@ -57,7 +62,7 @@ for r in csv.DictReader(open("/tmp/aimnet_t3_ligands.csv")):
     ai[(r["layer"], r["uniprot"])].append((k, pa, comp, sm))
 print(f"AIMNet2: {len(ai)} 个靶点")
 
-# ---- 分子表 & 顺序表 ----
+# ---- molecule table & order table ----
 mol = {}                                    # mol_id -> ikey
 with gzip.open(f"{FZ}/T3_molecules.csv.gz", "rt") as f:
     for r in csv.DictReader(f):
@@ -80,7 +85,7 @@ for L in ("L1", "L2", "L3", "L4"):
                 idx[k][ik] = (int(r["jsonl_pos"]), int(r["lmdb_pos"]))
 print(f"索引表覆盖 {len(idx)} 个靶点")
 
-# ---- 逐模型逐靶点 ----
+# ---- per model, per target ----
 res = collections.defaultdict(lambda: collections.defaultdict(list))
 n_skip = collections.Counter()
 for m in MODELS:

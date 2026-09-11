@@ -1,11 +1,16 @@
-"""导出官方 HypSeek 权重的评测结果，与我们原有的数字并排。
+"""Export evaluation results for the official HypSeek weights, side by side
+with our existing numbers.
 
-背景：此前所有 HypSeek 数字用的都是官方 _rk（当时只有它公开）。合作者
-2026-09-07 指出 _rk 是按 benchmark 选出的 checkpoint，用它测 DUD-E/PCBA 有泄漏，
-应当 _vs 跑虚筛、_rk 跑排序。issue #4 里作者同时给出两个权重。
-同时 alpha_prot（蛋白序列通路权重）训练默认 1、评测默认 0，两档都测。
+Background: every HypSeek number so far used the official `_rk` (the only
+one public at the time). On 2026-09-07 a collaborator pointed out that `_rk`
+is a checkpoint selected against the benchmark, so using it to score
+DUD-E/PCBA leaks; `_vs` should run screening and `_rk` should run ranking.
+Issue #4 has the author releasing both weights together. Also test both
+settings of `alpha_prot` (the protein-sequence pathway weight), which
+defaults to 1 in training and 0 in evaluation.
 
-只导数字，不下结论——结论要人看过再改。
+Only exports numbers, draws no conclusions -- conclusions get revised only
+after a human has looked at them.
 """
 import csv, json, os, sys
 import numpy as np
@@ -15,7 +20,7 @@ sys.path.insert(0, f"{B}/eval")
 from metrics import bedroc, enrichment_factor, roc_auc
 
 BENCH = ["DUDE", "DEKOIS", "PCBA"]
-# (标签, 结果目录) —— 目录名由 run_official_hypseek.sh 决定
+# (label, results dir) -- the directory name is decided by run_official_hypseek.sh
 CAND = [
     ("hypseek_rk (我们原用)",            f"{B}/results/hypseek_rk"),
     ("hypseek_official_vs a=0",          f"{B}/results/hypseek_official_vs"),

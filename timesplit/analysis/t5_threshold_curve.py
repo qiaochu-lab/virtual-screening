@@ -1,11 +1,13 @@
-"""T5：口袋阈值敏感性完整曲线（4Å / 6Å / 8Å）。
+"""T5: full pocket-threshold sensitivity curve (4Å / 6Å / 8Å).
 
-6Å 是模型训练时的口径。4Å 收紧到 0.58×、8Å 放宽到 1.85×，
-一收一放才能看出这是"越大越好"还是"必须匹配训练口径"——
-这两种情况的实践含义完全不同。
+6Å is the convention the models were trained under. Tightening to 4Å
+(0.58×) and loosening to 8Å (1.85×) together let us tell whether this is
+"bigger is better" or "must match the training convention" — the two have
+completely different practical implications.
 
-⚠️ 8Å 有 10.8% 的口袋超过 --max-pocket-atoms 511 会被截断，
-报结果时要注明，否则会把截断效应误读成口袋效应。
+⚠️ 10.8% of 8Å's pockets exceed --max-pocket-atoms 511 and get truncated;
+this must be noted when reporting results, otherwise the truncation effect
+gets misread as a pocket-size effect.
 """
 import argparse
 import json, os
@@ -22,7 +24,7 @@ KEEP = load_subset(_args.subset)
 
 
 def ef1(bucket, L):
-    """取某层的 EF1% 均值；给了子集就从 per_target 现算，不用整层的汇总值。"""
+    """Get the mean EF1% for a layer; if a subset is given, compute it on the fly from per_target instead of using the whole-layer summary value."""
     if not bucket:
         return None
     if KEEP is None:

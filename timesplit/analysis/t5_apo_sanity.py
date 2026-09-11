@@ -1,16 +1,22 @@
-"""apo 对照的前置自检：这些 apo 口袋到底和 holo 差多少？
+"""Sanity check before the apo control: how different are these apo pockets
+from holo, really?
 
-为什么必须做
+Why this had to be done
 ------------
-apo 组的 EF1 没降反升。这有两种可能：
-  (a) 模型确实对口袋构象不敏感 —— 有价值的发现
-  (b) 我们挑到的 apo 结构和 holo 几乎一样 —— 那这个检验是空的
-全局叠合 RMSD 中位 1.21Å 已经提示可能是 (b)，但全局 RMSD 由主链主导，
-**掩盖侧链**。真正该看的是口袋处：
-  · 两边口袋覆盖的残基是否相同
-  · 匹配残基的**侧链重原子** RMSD（诱导契合主要体现在侧链）
-如果侧链 RMSD 也很小，结论必须写成「在构象差异不大的 apo 上不敏感」，
-而不是「对 apo 不敏感」。
+The apo group's EF1 went up, not down. Two possibilities:
+  (a) the model really is insensitive to pocket conformation — a valuable
+      finding
+  (b) the apo structures we picked are nearly identical to holo — in which
+      case this test is vacuous
+A global alignment RMSD with a median of 1.21Å already hints at (b), but
+global RMSD is dominated by the backbone, which **masks the side chains**.
+What actually needs checking is at the pocket:
+  * whether the two sides' pockets cover the same residues
+  * the **side-chain heavy-atom** RMSD of the matched residues (induced fit
+    shows up mainly in the side chains)
+If the side-chain RMSD is also small, the conclusion has to be written as
+"insensitive on apo structures whose conformation doesn't differ much", not
+"insensitive to apo in general".
 """
 import json
 import pickle
@@ -46,14 +52,14 @@ def main():
         n_apo.append(len(a["pocket_atoms"]))
         n_holo.append(len(h["pocket_atoms"]))
         glob.append(man.get(up, {}).get("align_rmsd", np.nan))
-        # 口袋原子里的侧链重原子（去掉主链四原子）
+        # side-chain heavy atoms among the pocket atoms (backbone's four atoms excluded)
         ac = np.asarray(a["pocket_coordinates"], dtype=float)
         hc = np.asarray(h["pocket_coordinates"], dtype=float)
         asel = [i for i, t in enumerate(a["pocket_atoms"]) if t not in BACKBONE]
         hsel = [i for i, t in enumerate(h["pocket_atoms"]) if t not in BACKBONE]
         if not asel or not hsel:
             continue
-        # 没有原子级对应关系，用最近邻距离的中位数作侧链偏离的代理量
+        # No atom-level correspondence exists, so use the median nearest-neighbour distance as a proxy for side-chain deviation
         from scipy.spatial import cKDTree
         d, _ = cKDTree(hc[hsel]).query(ac[asel])
         sc_rmsd.append(float(np.median(d)))

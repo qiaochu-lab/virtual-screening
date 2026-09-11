@@ -1,4 +1,4 @@
-"""把各模型落在 t3_raw 下的原始打分归集到统一结果目录。"""
+"""Collect each model's raw scores under t3_raw into a unified results directory."""
 import argparse, os, shutil
 B = "/data/work/vs-benchmark"
 ap = argparse.ArgumentParser()

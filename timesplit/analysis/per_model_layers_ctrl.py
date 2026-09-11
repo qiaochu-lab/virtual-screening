@@ -1,14 +1,18 @@
-"""逐模型 seen/unseen 的难度对照。
+"""Per-model difficulty control for the seen/unseen comparison.
 
-「见过的靶点分更高」有个平凡解释：模型见过的多半是被研究得多的靶点，
-而被研究得多的靶点活性分子多、化学系列集中，本来就好做。要区分
-「这个模型训练过它」和「这个靶点谁来做都容易」，把难度除掉：
+"Higher score on seen targets" has a trivial explanation: the targets a
+model has seen are mostly well-studied ones, and well-studied targets have
+more actives and a more concentrated chemical series, which makes them easy
+regardless. To separate "this model was trained on it" from "this target is
+easy for anyone", divide out difficulty:
 
-    r_t = EF1%(模型, t) / median(EF1%(其余九个模型, t))
+    r_t = EF1%(model, t) / median(EF1%(other nine models, t))
 
-其余九个模型里有的也训练过 t，所以这个基准是保守的——它会**低估**
-真实的训练效应，不会高估。r 在 seen/unseen 两组的比值仍然显著大于 1，
-才说明是这个模型自己的训练带来的。
+Some of the other nine models were also trained on t, so this baseline is
+conservative — it can only **underestimate** the true training effect, never
+overestimate it. Only if the seen/unseen ratio of r is still significantly
+greater than 1 does that indicate the effect comes from this model's own
+training.
 """
 import csv
 import json
@@ -83,14 +87,15 @@ def main():
             if len(others) < 5:
                 continue
             base = float(np.median(others))
-            if base <= 0.01:            # 全员都做不了的靶点，比值没意义
+            if base <= 0.01:            # target where every model fails; ratio is meaningless
                 continue
             (rs if t in T else ru).append(EF[t][m] / base)
         if len(rs) < 5 or len(ru) < 5:
             print(f"{m}: 有一边样本太少（{len(rs)}/{len(ru)}），跳过"); continue
         ms, mu = float(np.median(rs)), float(np.median(ru))
-        # 中位数可能是 0（ConPLex 一半以上的 unseen 靶点 EF1=0），倍数就算不出来，
-        # 所以并排给一个均值口径。p 值不受影响，它只看秩。
+        # The median can be 0 (for ConPLex, more than half of the unseen targets
+        # have EF1=0), so the fold ratio can't be computed; report a mean-based
+        # version alongside it. The p-value is unaffected since it only looks at ranks.
         As, Au = float(np.mean(rs)), float(np.mean(ru))
         p = mannwhitneyu(rs, ru, alternative="greater").pvalue
         fm = ms / mu if mu > 0 else float("nan")

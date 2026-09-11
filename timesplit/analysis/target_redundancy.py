@@ -1,22 +1,30 @@
-"""选出的靶点子集内部，彼此的序列相似性有多高——要不要再删。
+"""How similar are the sequences within the chosen target subset to each
+other — should more be removed.
 
-背景
-----
-合作者 2026-09-05 的问题：「目前剩余的 200+ 彼此的序列相似性在多少？」
-测试集内部如果有高度同源的靶点，等于同一个东西数了两遍：指标被重复计数，
-配对检验的独立性假设也不成立。公开基准一般会做去冗余（DUD-E 用 UniProt
-层面去重，LIT-PCBA 明确排除同源靶点）。
-
-两种口径都给
+Background
 ------------
-1. cd-hit 在若干阈值下聚类 —— 直接回答「按 X% 去冗余会剩多少个靶点」
-2. 全对全的局部比对一致性 —— 给分布、每个靶点的最近邻、以及超阈值的具体配对
+A collaborator's question on 2026-09-05: "What's the sequence similarity
+among the remaining 200+ targets?" If the test set contains highly
+homologous targets internally, that's effectively counting the same thing
+twice: metrics get double-counted, and the independence assumption behind
+paired tests breaks down. Public benchmarks generally deduplicate
+(DUD-E deduplicates at the UniProt level, LIT-PCBA explicitly excludes
+homologous targets).
 
-一致性怎么算
+Both conventions are given
 ------------
-局部比对（BLOSUM62，gap -11/-1，与 BLAST 默认一致），
-identity = 完全匹配的残基数 / 较短序列长度。用较短序列作分母而不是比对长度，
-是为了不让「一个短结构域命中一个长蛋白」显示成低相似——那种情况恰恰是要抓的。
+1. cd-hit clustering at several thresholds — directly answers "how many
+   targets remain after deduplicating at X% identity"
+2. all-against-all local-alignment identity — gives the distribution, each
+   target's nearest neighbour, and the specific pairs above threshold
+
+How identity is computed
+------------
+Local alignment (BLOSUM62, gap -11/-1, matching BLAST's defaults),
+identity = number of exactly matching residues / length of the shorter
+sequence. Using the shorter sequence as the denominator rather than
+alignment length is so that "a short domain hitting a long protein" doesn't
+show up as low similarity — that's exactly the case we want to catch.
 """
 import argparse
 import csv
@@ -49,8 +57,9 @@ def _identity(pair):
     sa, sb = SEQS[a], SEQS[b]
     try:
         aln = al.align(sa, sb)[0]
-        # aln.aligned 给的是两条序列上互相对应的区间，比解析带 gap 的字符串稳，
-        # 不依赖 Biopython 版本对 aln[0] 的返回类型（1.80 前后改过）。
+        # aln.aligned gives the corresponding intervals on the two sequences, which
+        # is more robust than parsing a gapped string, and doesn't depend on how
+        # different Biopython versions return aln[0] (this changed around 1.80).
         same = 0
         for (i0, i1), (j0, j1) in zip(*aln.aligned, strict=True):
             same += sum(1 for k in range(i1 - i0) if sa[i0 + k] == sb[j0 + k])
@@ -60,7 +69,7 @@ def _identity(pair):
 
 
 def cdhit_curve(seqs, thresholds=(0.9, 0.8, 0.7, 0.6, 0.5, 0.4)):
-    """cd-hit 在各阈值下还剩多少个代表序列。word size 必须跟阈值匹配。"""
+    """How many representative sequences remain from cd-hit at each threshold. Word size must match the threshold."""
     out = {}
     with tempfile.TemporaryDirectory() as td:
         fa = f"{td}/in.fa"
@@ -98,9 +107,9 @@ def main():
     allseq = json.load(open(args.sequences))
     if args.sequences_extra and os.path.exists(args.sequences_extra):
         extra = json.load(open(args.sequences_extra))
-        allseq.update(extra)                      # UniProt REST 补的那批
+        allseq.update(extra)                      # the batch filled in from the UniProt REST API
         print(f"补充序列 {len(extra)} 条")
-    # sequences.json 是 {uniprot: {"seq":..., "length":..., "name":...}}
+    # sequences.json is {uniprot: {"seq":..., "length":..., "name":...}}
     seqs = {r["uniprot"]: allseq[r["uniprot"]]["seq"]
             for r in rows if r["uniprot"] in allseq and allseq[r["uniprot"]].get("seq")}
     meta = {r["uniprot"]: (r.get("layer", ""), r.get("protein_class", "")) for r in rows}
@@ -140,8 +149,9 @@ def main():
         n = sum(1 for v in vals if v >= t)
         print(f"  ≥{t:.0%}: {n:,} 对 ({100*n/len(vals):.2f}%)")
 
-    # 按类别拆开：激酶之间本来就同源，跨类别（激酶 vs GPCR）几乎为零，
-    # 混在一起算中位数只反映类别构成，不反映冗余。
+    # Split by class: kinases are inherently homologous to each other, while
+    # cross-class pairs (kinase vs GPCR) are nearly zero — pooling them and
+    # taking a median would just reflect class composition, not redundancy.
     cls = {u: meta[u][1] for u in ups}
     within = defaultdict(list)
     for a, b, v in res:

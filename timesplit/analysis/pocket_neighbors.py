@@ -1,18 +1,24 @@
-"""第二版：加零假设对照。
+"""Second version: with a null-hypothesis control.
 
-第一版直接报「L3/L4 有多少个靶点的最近训练口袋距离 <0.17」，结果四层全是 100%
-——不可读。两个原因：
+The first version directly reported "how many L3/L4 targets have a nearest
+training-pocket distance < 0.17", and all four layers came out at 100% —
+unreadable. Two reasons:
 
-1. 对 9,726 个参照口袋取最小值是**极值统计**，比较次数一多，任何查询都能
-   找到一个近的
-2. PocketVec 描述符是 1–128 的**排名向量**，两个随机排列的余弦距离期望约
-   0.247 而不是 1，所以绝对阈值 0.17 在「取最小」的语境下失去区分力
+1. Taking the minimum over 9,726 reference pockets is **extreme-value
+   statistics** — with enough comparisons, any query will find something close.
+2. The PocketVec descriptor is a **rank vector** over 1–128, and the expected
+   cosine distance between two random permutations is about 0.247, not 1, so
+   the absolute threshold of 0.17 loses its discriminative power once you're
+   taking a minimum.
 
-正确做法是配对对照：同一个查询，同时对
-  A = 训练集靶点的口袋
-  B = 同样数量的、既不在训练集也不在 T3 里的人类口袋
-取最小距离。**A 显著小于 B 才说明「离训练集特别近」**，否则只是「离任何一
-大堆口袋都不远」。
+The correct approach is a paired control: for the same query, take the
+minimum distance to both
+  A = pockets of training-set targets
+  B = the same number of human pockets that are neither in the training set
+      nor in T3
+**Only if A is significantly smaller than B does that mean "specifically
+close to the training set"** — otherwise it's just "not far from any large
+pile of pockets".
 """
 import collections, json, csv
 import numpy as np
@@ -44,7 +50,7 @@ ref_idx = np.array([i for u in ref_ups for i in by_up[u]])
 ref_owner = np.array([u for u in ref_ups for _ in by_up[u]])
 A = M[ref_idx]
 
-# 对照池：既不在训练集也不在 T3 的人类靶点
+# Control pool: human targets that are neither in the training set nor in T3
 ctrl_ups = sorted(set(by_up) - train - all_t3)
 ctrl_all = np.array([i for u in ctrl_ups for i in by_up[u]])
 ctrl_idx = rng.choice(ctrl_all, size=min(len(ref_idx), len(ctrl_all)), replace=False)
@@ -52,7 +58,7 @@ B = M[ctrl_idx]
 print(f"A 训练集口袋 {len(ref_idx)}（{len(ref_ups)} 靶点）")
 print(f"B 对照口袋   {len(ctrl_idx)}（从 {len(ctrl_ups)} 个非训练非测试靶点里抽）")
 
-# 随机排列基线：两个无关排名向量的距离期望
+# Random-permutation baseline: expected distance between two unrelated rank vectors
 rp = np.vstack([rng.permutation(128) for _ in range(2000)]).astype(np.float32)
 rp /= np.linalg.norm(rp, axis=1, keepdims=True)
 print(f"随机排名向量两两距离中位 {np.median(1 - rp[:1000] @ rp[1000:].T):.3f}")

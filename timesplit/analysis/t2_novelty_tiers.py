@@ -1,39 +1,53 @@
-"""T2 排序能力 × 配体新颖度——把「靶点变新」和「分子变新」拆开。
+"""T2 ranking ability × ligand novelty — separating "the target got novel"
+from "the molecule got novel".
 
-为什么要做
-----------
-T2 现在只报 L1–L4，也就是只按**靶点**新颖度分层。但 L1 的活性里有 53.9%
-是训练配体的近复制品（Tanimoto ≥ 0.7），L4 只有 6.4%——所以 ρ 从 L1 的
-+0.26 掉到 L4 的 +0.10，这条曲线里同时有两件事在变，我们却全算在靶点头上。
+Why this is needed
+------------
+T2 currently only reports L1-L4, i.e. stratified solely by **target**
+novelty. But 53.9% of L1's actives are near-duplicates of a training
+ligand (Tanimoto >= 0.7), while L4 has only 6.4% — so as ρ drops from L1's
++0.26 to L4's +0.10, two things are changing at once, and we've been
+attributing all of it to the target.
 
-T1/T3 那边拆过一次同样的混杂：主表 L4 富集 9.38，按配体新颖度分档之后是
-「见过的化学 27.1 / 全新化学 4.5」。T2 从来没拆过。这个脚本补上。
+The T1/T3 side already separated this same confound once: the main table's
+L4 enrichment of 9.38 splits into "27.1 on chemistry it has seen / 4.5 on
+completely novel chemistry" once tiered by ligand novelty. T2 has never done
+this split. This script fills that gap.
 
-口径
-----
-· 新颖度 = 该分子对训练集配体的最大 Tanimoto（ECFP4），四档与
-  `ligand_novelty.py` / `novelty_tiered_ef.py` 完全一致，直接复用它们的缓存。
-· 在**每个靶点内部**，只用落在同一档的活性算 Spearman(模型分数, 实测 pAff)，
-  该档少于 --min-tier 个活性就跳过这个靶点的这一档。
-· 再对靶点取平均。同时给出 pooled 列（同一批靶点、不分档），
-  这样「分档后」和「分档前」是在同一个靶点集合上比较的。
+Conventions
+------------
+* Novelty = this molecule's maximum Tanimoto (ECFP4) to a training-set
+  ligand, in the same four tiers as `ligand_novelty.py` /
+  `novelty_tiered_ef.py`, reusing their cache directly.
+* **Within each target**, Spearman(model score, measured pAff) is computed
+  using only the actives that fall in the same tier; if a tier has fewer
+  than --min-tier actives for that target, that target's tier is skipped.
+* Then average over targets. A pooled column is also given (same set of
+  targets, not tiered), so "after tiering" and "before tiering" are compared
+  on the same set of targets.
 
-⚠️ 两个必须硬做的检查
---------------------
-1. **分子顺序**。模型读 lmdb，游标是字典序（0,1,10,100,…），与评测集 jsonl
-   顺序不同而长度相同；只比长度会静默错配，这个坑在本项目里出现过三次
-   （PATCHES.md）。这里复用 `novelty_tiered_ef.py` 的硬校验：还原顺序后
-   必须验「标签为 1 的位置上确实是该靶点的 active」，验不过就跳过并报出来。
-2. **每档的 n 必须打出来**。Spearman 比 EF 对小样本敏感得多，T3 上 L1 的
-   「全新 <0.35」档只有 18 个靶点，是全表最薄的一格——只报 ρ 不报 n 会
-   让人把噪声当结论。
+⚠️ Two checks that must be enforced
+------------
+1. **Molecule order.** The model reads from lmdb, whose cursor order is
+   lexicographic (0,1,10,100,…), different from the eval-set jsonl order but
+   the same length; comparing only lengths silently mismatches them — this
+   pitfall has bitten this project three times already (see PATCHES.md).
+   This reuses `novelty_tiered_ef.py`'s hard check: after reconstructing the
+   order, it must verify "the positions labelled 1 really are this target's
+   actives"; if that fails, skip and report it.
+2. **Every tier's n must be printed.** Spearman is far more sensitive to
+   small samples than EF — on T3, L1's "novel <0.35" tier has only 18
+   targets, the thinnest cell in the whole table — reporting ρ without n
+   would let noise pass for a conclusion.
 
-已知局限
---------
-新颖度是相对 **PocketAffDB 的配体**算的（`train_label_blend_seq_full.json`），
-不是相对各模型自己的训练配体。所以对非 PocketAffDB 训练的模型（DrugCLIP 系、
-ConPLex、ConGLUDe、SPRINT），这一档划分只是个近似。要做逐模型版本需要各模型
-自己的训练配体清单，目前只有 SPRINT 和 ConPLex 拿得到。
+Known limitation
+------------
+Novelty is computed relative to **PocketAffDB's ligands**
+(`train_label_blend_seq_full.json`), not relative to each model's own
+training ligands. So for models not trained on PocketAffDB (the DrugCLIP
+family, ConPLex, ConGLUDe, SPRINT), this tiering is only an approximation.
+A per-model version would need each model's own training-ligand list, which
+is currently only available for SPRINT and ConPLex.
 """
 import argparse
 import collections
@@ -59,7 +73,7 @@ def tier_of(v):
 
 
 def model_order(up, L, n, rec, labels):
-    """还原模型看到的分子顺序并硬校验；对不上返回 None。"""
+    """Reconstruct the molecule order the model saw and hard-verify it; returns None if it doesn't match."""
     act = {x["smiles"] for x in rec["actives"]}
 
     def ok(seq):
@@ -89,7 +103,7 @@ def model_order(up, L, n, rec, labels):
 
 
 def rho(pairs):
-    """pairs = [(score, paff)]；方差为 0 或点太少返回 None。"""
+    """pairs = [(score, paff)]; returns None if variance is 0 or there are too few points."""
     s = np.array([p[0] for p in pairs], dtype=float)
     a = np.array([p[1] for p in pairs], dtype=float)
     if np.std(s) == 0 or np.std(a) == 0:
@@ -136,7 +150,7 @@ def main():
     print("=" * 108)
 
     for m in args.models:
-        # bucket[层][档] = [每靶点 ρ]；paired[层] = [(熟 ρ, 生 ρ)]
+        # bucket[layer][tier] = [per-target ρ]; paired[layer] = [(familiar ρ, novel ρ)]
         bucket = collections.defaultdict(lambda: collections.defaultdict(list))
         nact = collections.defaultdict(lambda: collections.defaultdict(list))
         pooled = collections.defaultdict(list)
@@ -167,7 +181,7 @@ def main():
                     continue
                 aff = {a["smiles"]: float(a["paff"]) for a in r["actives"]}
 
-                by_tier = collections.defaultdict(list)  # 档名 -> [(score, paff)]
+                by_tier = collections.defaultdict(list)  # tier name -> [(score, paff)]
                 allp = []
                 for i in range(len(y)):
                     if y[i] != 1:
@@ -181,8 +195,10 @@ def main():
                     by_tier[t].append((float(p[i]), aff[smi]))
                     allp.append((float(p[i]), aff[smi]))
 
-                # 两半：生 <0.5 / 熟 ≥0.5。极端两档在同一靶点内同时够 5 个的很少，
-                # 逐靶点配对会退化到 n=5~9；按两半分能让配对样本回到几十。
+                # Two halves: novel <0.5 / familiar >=0.5. Very few targets have both
+                # extreme tiers reach 5 actives at once, so per-target pairing on
+                # them alone would collapse to n=5-9; splitting into halves brings
+                # the paired sample back up to the tens.
                 half = {"生半 <0.5": by_tier[TIER_NAMES[0]] + by_tier[TIER_NAMES[1]],
                         "熟半 ≥0.5": by_tier[TIER_NAMES[2]] + by_tier[TIER_NAMES[3]]}
                 hgot = {}
@@ -208,7 +224,7 @@ def main():
                     v = rho(allp)
                     if v is not None:
                         pooled[L].append(v)
-                # 逐靶点配对：同一个靶点内，熟化学 vs 全新化学
+                # Per-target pairing: within the same target, familiar chemistry vs completely novel chemistry
                 if TIER_NAMES[3] in got and TIER_NAMES[0] in got:
                     paired[L].append((got[TIER_NAMES[3]], got[TIER_NAMES[0]]))
 
@@ -241,7 +257,7 @@ def main():
                              if len(pv) > 1 else "",
                              f"{(np.array(pv) > 0).mean():.3f}"])
 
-        # 配对检验：均值会骗人，必须逐靶点配
+        # Paired test: means can be misleading, must pair per target
         for L in args.layers:
             pr = paired[L]
             if len(pr) < 5:

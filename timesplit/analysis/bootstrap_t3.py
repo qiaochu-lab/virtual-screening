@@ -1,16 +1,18 @@
-"""给 T3 主表补 bootstrap 置信区间。
+"""Add bootstrap confidence intervals to the T3 main table.
 
-为什么需要
+Why this is needed
+-------------------
+The main table currently reports only means. L3 has only 43-49 targets and
+L4 only 176-234; whether a gap like "model A 8.83 vs model B 8.46" is a real
+difference cannot be judged without an interval. A mean with no interval is
+hard to cite when handing this off for review.
+
+Convention
 ----------
-主表现在只有均值。L3 只有 43–49 个靶点，L4 也就 176–234 个，
-「A 模型 8.83 vs B 模型 8.46」这种差距到底算不算差距，没有区间就判断不了。
-交给别人 review 时，没有区间的均值很难引用。
-
-口径
-----
-在**靶点层面**重采样（分析单位是靶点，不是分子）。
-把各靶点的分子拼起来再重采样会低估方差，而且改变了 EF 的定义——
-`eval/README.md` 里写过这一点，这里保持一致。
+Resample at the **target level** (the unit of analysis is the target, not
+the molecule). Pooling molecules across targets before resampling understates
+variance and changes what EF means — `eval/README.md` makes this point, and
+this script stays consistent with it.
 """
 import argparse
 import json

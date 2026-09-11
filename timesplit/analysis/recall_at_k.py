@@ -1,27 +1,33 @@
-"""Recall@K：前 K 名里捞回了这个靶点多少比例的活性。
+"""Recall@K: what fraction of a target's actives are recovered in the top K.
 
-为什么要它
+Why we need it
 ----------
-EF@1% 是**比例**指标——它回答「前 1% 里活性的浓度是随机的多少倍」，
-不回答「一次筛选能拿到多少个真阳性」。而实际做湿实验时买得起的化合物数
-是**绝对数**（几十到几百个），不是候选池的百分比。两者在候选池大小差异很大时
-会给出完全不同的排序：一个 1,784 分子的靶点，top-1% 只有 18 个位置；
-一个 16 万分子的靶点，top-1% 有 1,600 个位置。
+EF@1% is a **proportional** metric — it answers "how many times more
+concentrated are the actives in the top 1% than random", not "how many true
+positives does one screening campaign actually retrieve". In real wet-lab
+work, the number of compounds you can afford to buy is an **absolute count**
+(tens to a few hundred), not a percentage of the candidate pool. The two give
+completely different rankings when pool sizes vary widely: a target with
+1,784 molecules has only 18 slots in its top 1%, while a target with 160,000
+molecules has 1,600.
 
-Recall@100 = 前 100 名里的活性数 / 该靶点活性总数。
-Hit@100 = 前 100 名里的活性**个数**——就是订 100 个化合物能拿到几个真阳性，
-这是三个数里最接近湿实验决策的一个。
+Recall@100 = number of actives in the top 100 / total actives for that target.
+Hit@100 = the **count** of actives in the top 100 — i.e. how many true
+positives you get for ordering 100 compounds. Of the three numbers, this is
+the one closest to an actual wet-lab decision.
 
-⚠️ **固定 K 不是「跨靶点可比」的万能解。** 前 100 名占池子的比例，
-在 1,784 个分子的靶点上是 5.6%，在 16 万个分子的靶点上是 0.06%——
-池子小的靶点天然占便宜。各层的池子中位数本来就不同（L1 5,070、L4 7,743），
-所以 Recall@100 的层间差距里混了一部分池子大小效应。
-因此同时给出 **EF@100**：
+⚠️ **A fixed K is not a universal fix for cross-target comparability.** The
+top 100 is 5.6% of the pool for a 1,784-molecule target but only 0.06% for a
+160,000-molecule target — small-pool targets have a built-in advantage. The
+layers already have different median pool sizes (L1 5,070, L4 7,743), so
+some of the layer-to-layer gap in Recall@100 is really a pool-size effect.
+Hence also reporting **EF@100**:
 
-    EF@100 = Hit@100 / (100 × 活性占比)
+    EF@100 = Hit@100 / (100 × active fraction)
 
-它把基线除掉了，1.0 = 和随机一样，可以和 EF@1% 直接对照。
-Hit@100 回答「能拿到几个」，EF@100 回答「比瞎猜好多少倍」，两个都要看。
+This divides out the baseline, so 1.0 = same as random, and it can be
+compared directly against EF@1%. Hit@100 answers "how many can I get",
+EF@100 answers "how many times better than guessing" — both matter.
 """
 import argparse
 import collections
@@ -78,8 +84,9 @@ def main():
                     continue
                 if len(p) != len(y) or y.sum() == 0:
                     continue
-                # Recall@K 只依赖打分和标签的配对，不依赖分子身份，
-                # 所以不需要还原 SMILES 顺序——lmdb 游标序的坑在这里不存在。
+                # Recall@K depends only on the (score, label) pairing, not molecule
+                # identity, so there's no need to restore SMILES order — the lmdb
+                # cursor-order pitfall doesn't apply here.
                 order = np.argsort(-p)
                 ys = y[order]
                 na = int(y.sum())
@@ -91,7 +98,7 @@ def main():
                 kk = min(100, len(y))
                 h = float(ys[:kk].sum())
                 hits.append(h)
-                efs.append((h / kk) / (na / len(y)))     # EF@100，基线已除掉
+                efs.append((h / kk) / (na / len(y)))     # EF@100, baseline already divided out
             if len(pools) < 5:
                 continue
             vals = [float(np.mean(rec[k])) for k in KS]

@@ -1,12 +1,17 @@
-"""T3 数据集的描述性统计——论文 Part 1 要的那张表。
+"""Descriptive statistics for the T3 dataset -- the table the write-up's
+Part 1 needs.
 
-写清楚这个 benchmark 长什么样：多少靶点、多少分子、活性怎么分布、
-蛋白类别怎么构成、结构从哪来、各层的规模。所有数字都从数据本身数出来，
-不引用任何文档里的旧值。
+Spells out what this benchmark looks like: how many targets, how many
+molecules, how actives are distributed, how the protein classes are
+composed, where structures come from, and the size of each layer. Every
+number is counted from the data itself, none is quoted from a stale value in
+some document.
 
-两栏并排：全量（1,144 条）和实际用于报告的 350 配额子集（328 条）。
-子集是按「活性 ≥50 且类别构成对齐参照数据集」选出来的，两栏放一起
-能看出这个筛选把什么样的靶点筛掉了。
+Two columns side by side: the full set (1,144 entries) and the 350-quota
+subset actually used for reporting (328 entries). The subset was selected by
+"actives >=50 and class composition matched to the reference dataset";
+putting the two columns together shows what kind of targets that filtering
+removed.
 """
 import argparse
 import collections

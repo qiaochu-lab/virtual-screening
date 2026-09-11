@@ -1,14 +1,18 @@
-"""配对检验重做：同一批靶点上，FEP 数据的排序能力 vs T3 数据的排序能力。
+"""Redo of the paired test: ranking ability on FEP data vs. ranking ability
+on T3 data, on the same set of targets.
 
-为什么重做
-----------
-原版 fep_vs_t3_same_targets.py 的 T3 一侧写的是
+Why this needed redoing
+-------------------------
+The original fep_vs_t3_same_targets.py had, on the T3 side:
     act = np.nonzero(l2 == 1)[0]; spearman(p2[act], pa)
-把「模型顺序里的第 k 个 active」当成「评测集里的第 k 个 active」。
-对 UniMol 系模型不成立——它们读 lmdb，顺序是游标序（字典序），不是写入序。
-于是 T3 一列被压到零，得出「同一批靶点上 FEP 能排、T3 不能排」的结论。
+which treats "the k-th active in the model's output order" as "the k-th
+active in the eval-set order". That does not hold for the UniMol-family
+models -- they read an lmdb, whose order is the cursor (lexicographic) order,
+not the write order. As a result the T3 column was flattened to zero,
+producing the conclusion "on the same targets, FEP can rank and T3 cannot".
 
-这版按**分子身份**（InChIKey）对齐再算，重新检验那个结论还成不成立。
+This version aligns by **molecule identity** (InChIKey) before computing,
+to re-check whether that conclusion still holds.
 """
 import json
 import os
@@ -52,7 +56,8 @@ def model_smiles(up, L, n, rec):
 
 
 def t3_rho(m, up):
-    """按分子身份对齐后的 T3 排序相关；找不到返回 (None, 0)。"""
+    """T3 ranking correlation after aligning by molecule identity; returns
+    (None, 0) if not found."""
     for L in ["L1", "L2", "L3", "L4"]:
         rec = EV[L].get(up)
         if rec is None:

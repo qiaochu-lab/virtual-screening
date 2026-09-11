@@ -1,28 +1,32 @@
-"""LigUnity 序列版 vs 口袋版：逐靶点配对比较。
+"""LigUnity sequence branch vs pocket branch: per-target paired comparison.
 
-为什么这是个受控对照
---------------------
-LigUnity 一次发布里给了两条平行分支：
+Why this is a controlled comparison
+------------
+LigUnity's single release ships two parallel branches:
 
-    LigUnity_VS/pocket_ranking_vs/checkpoint_avg_41-50.pt    蛋白侧 = 3D 口袋
-    LigUnity_VS/protein_ranking_vs/checkpoint_avg_41-50.pt   蛋白侧 = 氨基酸序列
+    LigUnity_VS/pocket_ranking_vs/checkpoint_avg_41-50.pt    protein side = 3D pocket
+    LigUnity_VS/protein_ranking_vs/checkpoint_avg_41-50.pt   protein side = amino-acid sequence
 
-训练数据（PocketAffDB）、分子侧编码器（3D 构象）、存档点挑法（41–50 轮平均）
-都相同，只有蛋白侧的表示不同。两个权重在同一批靶点、同一批候选分子上评测，
-所以可以逐靶点配对。
+Training data (PocketAffDB), the molecule-side encoder (3D conformer), and
+checkpoint selection (41-50 epoch average) are all identical — only the
+protein-side representation differs. Both weights are evaluated on the same
+targets and the same candidate molecules, so they can be paired per target.
 
-为什么必须做配对检验而不是只比均值
-----------------------------------
-EF@1% 在每靶点上是个很粗的量（候选池中位约 1,200，前 1% 只有 12 个位置），
-大量靶点上两个模型取值完全相同。只看均值会被少数差异大的靶点主导，
-掩盖掉「多数靶点上其实没差别」。本脚本把胜/负/平分开报，并对去掉平局后的
-胜率和 Wilcoxon 配对检验都给出结果。
+Why a paired test is required rather than just comparing means
+------------
+EF@1% is a coarse quantity at the level of a single target (median pool size
+~1,200, so the top 1% is only 12 slots), and the two models produce
+identical values on a large number of targets. Looking only at the mean
+would let a small number of large-gap targets dominate, hiding the fact
+that "most targets actually show no difference". This script reports
+wins/losses/ties separately, and gives both the win rate after removing
+ties and the Wilcoxon paired test.
 
-用法
+Usage
 ----
-    python seq_vs_pocket.py [--raw 原始打分目录] [--out 输出CSV]
+    python seq_vs_pocket.py [--raw raw-score directory] [--out output CSV]
 
-需要 T3_ligunity_pocket_ranking.npz 和 T3_ligunity_protein_ranking.npz。
+Requires T3_ligunity_pocket_ranking.npz and T3_ligunity_protein_ranking.npz.
 """
 import argparse
 import collections
@@ -44,7 +48,7 @@ def load(raw_dir, name):
 
 
 def enrichment_factor(y, s, frac):
-    """EF@frac。截断用 math.ceil，与 RDKit 的 CalcEnrichment 一致。"""
+    """EF@frac. Truncation uses math.ceil, consistent with RDKit's CalcEnrichment."""
     n = len(y)
     k = math.ceil(n * frac)
     if k < 1 or y.sum() == 0:
@@ -85,7 +89,7 @@ def main():
         up = parts[-1]
         yp, ys = P[t][1], S[t][1]
         if not np.array_equal(yp, ys):
-            mismatch += 1        # 标签不一致说明不是同一批候选，不能配对
+            mismatch += 1        # mismatched labels mean these aren't the same candidate batch, so they can't be paired
             continue
         for nm, fn in METRICS:
             a, b = fn(yp, P[t][0]), fn(ys, S[t][0])

@@ -1,24 +1,30 @@
-"""每靶点 active 数对结论的影响：≥10 / ≥20 / ≥30 / ≥50 的梯度分析。
+"""Effect of per-target actives count on the conclusions: a gradient analysis
+at >=10 / >=20 / >=30 / >=50.
 
-问题
-----
-EF@fraction 卡在一个截断位置上，命中数只能取整数，所以它的取值被 active 数
-量化成台阶：步长约 100/A。每靶点只有 10 个 active 时步长约 8.5，而各层 EF1%
-均值才 8–39——一个分子的位置变化就能让 EF 跳掉整个均值的量级。跨靶点平均时，
-这种粗糙测量和 665 个 active 那种精细测量（步长 0.15）被等权对待。
+Problem
+-------
+EF@fraction is pinned at a cutoff position, and the hit count can only take
+integer values, so its value is quantized by the actives count into steps of
+roughly 100/A. At only 10 actives per target the step is about 8.5, while the
+per-layer EF1% means are only 8-39 — one molecule changing rank can move EF by
+an amount comparable to the whole mean. When averaging across targets, this
+coarse measurement is given equal weight to a target with 665 actives, whose
+step is 0.15.
 
-做法
-----
-逐步抬高 active 数门槛，看两件事变不变：
-  1. 各层的绝对水平和 L1→L4 衰减
-  2. 模型之间的排名
-同时报 PR-AUC——它用整个排序、不卡截断，没有 EF 的量化问题，且对 1:50
-这种不平衡比 ROC-AUC 敏感。如果 EF 的结论随门槛漂移而 PR-AUC 不漂，
-那说明漂移来自指标的粗糙度而不是模型。
+Approach
+--------
+Progressively raise the actives-count floor and check whether two things
+change:
+  1. The absolute level per layer and the L1->L4 decay
+  2. The ranking among models
+Also report PR-AUC — it uses the whole ranking, has no cutoff, carries none of
+EF's quantization issue, and is more sensitive than ROC-AUC to the 1:50 class
+imbalance here. If EF's conclusion drifts with the floor while PR-AUC does
+not, the drift comes from the metric's coarseness, not from the models.
 
-用法
-----
-    python actives_gradient.py [--raw 原始打分目录] [--out 输出CSV前缀]
+Usage
+-----
+    python actives_gradient.py [--raw raw-scores dir] [--out output CSV prefix]
 """
 import argparse
 import collections
@@ -71,7 +77,8 @@ def main():
     models = [m for m in NICE if os.path.exists(os.path.join(args.raw, f"T3_{m}.npz"))]
     print(f"模型 {len(models)} 个: {', '.join(models)}\n")
 
-    # 逐模型逐靶点算一次，之后按门槛过滤，避免重复计算
+    # Compute once per model per target, then filter by floor afterward, to
+    # avoid recomputing
     per = {}
     counts = collections.Counter()
     for m in models:
@@ -111,7 +118,8 @@ def main():
     with open(f"{args.out}.csv", "w", newline="") as f:
         csv.writer(f).writerows(rows)
 
-    # --- 表一：各层水平随门槛怎么变（拿最好的模型举例）
+    # --- Table 1: how the per-layer level changes with the floor (using the
+    # best model as an example)
     ref = "ligunity_protein_ranking" if "ligunity_protein_ranking" in models else models[0]
     print(f"== 门槛对绝对水平的影响（{NICE.get(ref, ref)}）==")
     for nm, _ in METRICS:
@@ -126,7 +134,7 @@ def main():
                 cells.append(f"{v:.3f}({n})" if v == v else "  —")
             print("%-4s %10s %10s %10s %10s" % (L, *cells))
 
-    # --- 表二：L1→L4 衰减随门槛怎么变
+    # --- Table 2: how the L1->L4 decay changes with the floor
     print("\n\n== L1→L4 衰减随门槛的变化（所有模型）==")
     print("衰减按超出随机的部分算：(L1−base)−(L4−base) 相对 (L1−base)")
     for nm, base in (("EF1%", 1.0), ("BEDROC", 0.0), ("PR-AUC", None), ("AUROC", 0.5)):
@@ -141,13 +149,13 @@ def main():
                 if a is None or b is None or a != a or b != b:
                     cells.append("    —"); continue
                 bb = base
-                if bb is None:            # PR-AUC 的随机基线是 active 占比，逐层不同
+                if bb is None:            # PR-AUC's random baseline is the actives fraction, which differs per layer
                     bb = 0.0
                 num, den = (a - bb) - (b - bb), (a - bb)
                 cells.append(f"{100*num/den:+8.0f}%" if den > 1e-9 else "    —")
             print("%-20s %9s %9s %9s %9s" % (NICE.get(m, m), *cells))
 
-    # --- 表三：模型排名随门槛变不变
+    # --- Table 3: whether the model ranking changes with the floor
     print("\n\n== 模型排名随门槛的变化 ==")
     for nm, _ in METRICS:
         for L in ("L1", "L4"):

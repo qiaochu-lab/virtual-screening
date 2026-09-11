@@ -1,26 +1,33 @@
-"""把 8Å 的结果按「口袋是否超过 511 原子上限」分层。
+"""Stratify the 8Å results by "whether the pocket exceeds the 511-atom cap".
 
-为什么需要
-----------
-模型对口袋原子数有上限（DrugCLIP/BindCLIP 是 511）。超限时代码会按
-到口袋几何中心的距离加权**随机抽样**保留 511 个——也就是说，超限的靶点
-模型看到的不是完整口袋，而是随机采样过的一部分。
+Why this is needed
+------------
+Models cap the number of pocket atoms (511 for DrugCLIP/BindCLIP). When a
+pocket exceeds the cap, the code keeps 511 atoms by **random sampling**
+weighted by distance to the pocket's geometric centre — meaning the model
+sees, for over-cap targets, not the full pocket but a randomly sampled
+subset of it.
 
-我们测出 8Å 比 6Å 差 39–75%。但 8Å 有 10.8% 的口袋超过 511 被截断了，
-所以这个退化里可能掺了「截断伪影」，不纯是「口袋太大」。
+We measured 8Å performing 39-75% worse than 6Å. But 10.8% of 8Å's pockets
+exceed 511 atoms and get truncated, so this degradation might be mixed with
+a "truncation artefact", not purely "the pocket is too large".
 
-这里把 8Å 的靶点分成两组直接比：
-  · 触顶组（>511 原子，被随机截断过）
-  · 未触顶组（≤511 原子，完整口袋）
+Here, 8Å targets are split into two groups and compared directly:
+  * capped group (>511 atoms, randomly truncated)
+  * uncapped group (<=511 atoms, full pocket)
 
-判读
+How to read it
 ----
-· 只有触顶组掉得厉害  → 8Å 的退化主要是截断造成的，结论要改写
-· 两组都掉            → 是真的口袋尺度效应，结论成立
-· 未触顶组也明显掉    → 更强的证据，因为这组完全没有截断因素
+* only the capped group drops sharply -> 8Å's degradation is mainly caused
+  by truncation, and the conclusion needs to be rewritten
+* both groups drop -> it's a genuine pocket-scale effect, the conclusion
+  holds
+* the uncapped group also drops noticeably -> even stronger evidence, since
+  this group has no truncation factor at all
 
-对照：4Å 触顶率为 0%，它的退化（31–62%）本来就不含截断因素，
-可以作为「纯口袋效应」的参照。
+Control: 4Å has a 0% cap rate, so its 31-62% degradation contains no
+truncation factor to begin with, and can serve as the reference for the
+"pure pocket effect".
 """
 import json
 import os
@@ -35,9 +42,9 @@ CAP = 511
 
 
 def pocket_sizes(threshold):
-    """uniprot -> 该阈值下的口袋原子数。PDB 源优先（与组装时一致）。"""
+    """uniprot -> pocket atom count at this threshold. PDB source takes priority (consistent with how it was assembled)."""
     out = {}
-    for pref in ["pocket", "pdb_pocket"]:      # pdb 源后加载，覆盖 boltz 源
+    for pref in ["pocket", "pdb_pocket"]:      # pdb source loaded last, overrides the boltz source
         p = f"{B}/data/t3/pockets/{pref}_{threshold:.1f}A.lmdb"
         if not os.path.exists(p):
             continue
@@ -103,7 +110,7 @@ def main():
         if len(x) < 10:
             continue
         drop = (y.mean() - x.mean()) / x.mean() * 100
-        # 同一批靶点的配对检验
+        # Paired test on the same set of targets
         p = stats.wilcoxon(x, y).pvalue if len(x) > 10 else float("nan")
         print(f"  {label}")
         print(f"    n={len(x):4d}   6Å {x.mean():6.2f} → 8Å {y.mean():6.2f}"

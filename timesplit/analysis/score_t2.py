@@ -1,19 +1,24 @@
-"""T2 亲和力排序：模型能不能排出**结合强弱**，而不只是分开活性/非活性。
+"""T2 affinity ranking: can a model rank **relative binding strength**, not
+just separate actives from inactives.
 
-为什么这个任务几乎零成本
+Why this task is nearly free
 ------------------------
-T3 评测集里每个活性配体都带实测 pAffinity，而各模型对每个分子的打分
-我们已经全存下来了。把两者对上算相关性，就是 T2——不用再跑任何模型。
+Every active ligand in the T3 eval set carries a measured pAffinity, and
+we've already stored every model's score for every molecule. Line the two up
+and compute correlation — that's T2, no model needs to be re-run.
 
-为什么它测的是**质的不同**的能力
+Why it tests a **qualitatively different** ability
 --------------------------------
-T1/T3 问的是「能不能把活性分子挑出来」，T2 问的是「能不能排出谁强谁弱」。
-这类模型的训练目标是对比学习（把结合对拉近、非结合对推远），
-**目标函数里根本没有约束亲和力的顺序**。所以完全可能出现
-「富集很好但排序接近随机」——这本身就是个值得报告的结论。
+T1/T3 ask "can you pick out the actives", T2 asks "can you rank which one
+binds stronger". This class of model is trained with contrastive learning
+(pull binding pairs together, push non-binding pairs apart), and **the
+objective function places no constraint at all on affinity order**. So it is
+entirely possible to see "good enrichment but near-random ranking" — which
+is itself a reportable finding.
 
-只用 active 算（decoy 没有实测值）。每个靶点至少要 10 个 active
-才算，少于这个数 Spearman 方差太大。
+Computed using only actives (decoys have no measured value). Each target
+needs at least 10 actives to be counted; below that, the Spearman estimate
+is too noisy.
 """
 import argparse
 import json
@@ -27,11 +32,11 @@ MIN_ACT = 10
 
 
 def load_truth(layer):
-    """uniprot -> {smiles/inchikey 顺序对应的 pAff 列表}。
+    """uniprot -> pAff list, in the same order as the smiles/inchikey list.
 
-    评测集写入时的顺序是：先所有 actives 再所有 decoys，
-    各模型的 runner 也按同样顺序打分，所以前 n_actives 个分数
-    就对应 actives 的 pAff。
+    The eval set is written with all actives first, then all decoys, and
+    each model's runner scores in that same order, so the first n_actives
+    scores correspond to the actives' pAff.
     """
     out = {}
     p = f"{B}/data/t3/eval/{layer}.jsonl"
@@ -74,7 +79,8 @@ def main():
                 except Exception:
                     continue
                 act = np.nonzero(lab == 1)[0]
-                # 长度必须对得上，否则说明顺序假设不成立，宁可跳过
+                # Lengths must match; otherwise the ordering assumption doesn't
+                # hold, so skip rather than risk a mismatch
                 if len(act) != len(pa):
                     continue
                 sc = s[act]

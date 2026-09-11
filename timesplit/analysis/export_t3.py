@@ -1,7 +1,8 @@
-"""从 results/t3/summary.json 导出完整的 T3_main.csv（全部模型）。
+"""Export the complete T3_main.csv (all models) from results/t3/summary.json.
 
-历史：08 月某次导出把 T3_main.csv 覆盖成只含 sprint 一个模型；完整数据一直
-在 T3_main_clean.csv 里。这个脚本让主表可以随时重建。
+History: an export back in August overwrote T3_main.csv with only the sprint
+model; the complete data had been sitting in T3_main_clean.csv all along.
+This script lets the main table be rebuilt at any time.
 """
 import csv, json, os
 B = "/data/work/vs"

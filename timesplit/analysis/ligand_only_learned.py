@@ -1,28 +1,36 @@
-"""**真正的**纯配体基线：模型完全不知道靶点是谁，只看分子。
+"""The **real** pure-ligand baseline: the model has no idea which target it
+is, and sees only the molecule.
 
-（对照 `ligand_only_baseline.py`——那个文件名有误导性，它其实是
-**化学系列 oracle 上界**，读了该靶点的已知活性。本文件才是名副其实的
-ligand-only：靶点身份从未进入模型。）
+(Compare `ligand_only_baseline.py` -- that file's name is misleading; it is
+actually the **chemical-series oracle ceiling**, which reads that target's
+known actives. This file is the one that is genuinely ligand-only: target
+identity never enters the model.)
 
-和 `ligand_only_baseline.py` 的区别
-----------------------------------
-那个算的是「候选分子对**该靶点已知活性**的最大 Tanimoto」——它用到了靶点身份
-（通过该靶点的活性集合），所以是一个 target-conditioned oracle，衡量的是
-「这批活性在化学空间里有多聚集」。
+Difference from `ligand_only_baseline.py`
+---------------------------------------------
+That one computes "the candidate molecule's maximum Tanimoto to **that
+target's known actives**" -- it uses target identity (via that target's
+active set), so it is a target-conditioned oracle, measuring "how clustered
+this batch of actives is in chemical space".
 
-这里要的是另一件事：一个**根本不输入靶点**的分类器，f(配体) → P(活性)。
-如果它也能富集，说明数据集里存在与靶点无关的「像不像活性分子」的信号。
+What is wanted here is a different thing: a classifier that **never receives
+the target as input at all**, f(ligand) -> P(active). If it can still enrich,
+that means the dataset contains a target-independent "does this look like an
+active" signal.
 
-    诱饵是别的靶点的真实活性分子，所以「像不像药」这条捷径按构造应当被堵死，
-    预期结果接近随机。若确实如此，是对诱饵设计的一个正面证据；
-    若显著高于随机，那是必须报告的偏差。
+    Decoys are real active molecules from other targets, so the "does it
+    look drug-like" shortcut should be blocked by construction, and the
+    expected result is close to random. If that holds, it is positive
+    evidence for the decoy design; if it is significantly above random,
+    that is a bias that must be reported.
 
-训练/测试的切分
---------------
-按**靶点**切，不是按分子切：同一个靶点的活性高度同系列，按分子切会让
-训练集和测试集共享化学系列，测出来的是记忆不是泛化。
-用 GroupKFold 以 uniprot 为 group，逐折预测，最后按靶点算 EF/AUROC——
-与主表口径一致。
+Train/test split
+-------------------
+Split by **target**, not by molecule: one target's actives are highly
+same-series, so splitting by molecule would let the training and test sets
+share a chemical series, measuring memorization rather than generalization.
+Use GroupKFold with uniprot as the group, predict fold by fold, then compute
+EF/AUROC per target -- consistent with the main table's convention.
 """
 import argparse, collections, csv, json, os, sys
 import numpy as np
@@ -82,12 +90,13 @@ def main():
                 recs.append((L, r))
     print(f"读到 {len(recs)} 个靶点")
 
-    # 指纹：整个子集的唯一分子各算一次
+    # Fingerprints: computed once per unique molecule across the whole subset
     smis = sorted({x["smiles"] for _, r in recs for g in ("actives", "decoys") for x in r[g]})
     print(f"唯一分子 {len(smis):,}，建指纹…", flush=True)
     with ProcessPoolExecutor(args.workers) as ex:
         fps = list(ex.map(fp, smis, chunksize=500))
-    # strict=True：长度不等立刻抛，不静默截断。见 PATCHES「并行列表」那条。
+    # strict=True: raises immediately on unequal length, no silent
+    # truncation. See the "parallel lists" entry in PATCHES.
     F = {s: f for s, f in zip(smis, fps, strict=True) if f is not None}
     print(f"  可用 {len(F):,}")
 
@@ -99,7 +108,7 @@ def main():
         dec = [x["smiles"] for x in r["decoys"] if x["smiles"] in F]
         if len(act) < 5 or len(dec) < 20:
             continue
-        # 训练用采样诱饵（控内存），评测阶段仍用全量
+        # Sample decoys for training (to control memory); evaluation still uses the full set
         keep_d = dec if len(dec) <= args.max_decoys else \
             list(rng.choice(dec, args.max_decoys, replace=False))
         for s in act:
@@ -109,13 +118,16 @@ def main():
     X = np.array(X, dtype=np.uint8); y = np.array(y); grp = np.array(grp)
     print(f"训练矩阵 {X.shape}，活性 {y.sum():,}，分类器 {args.clf}")
 
-    # 按靶点分折：同一靶点的活性同系列，按分子分折会泄漏化学系列
+    # Split folds by target: one target's actives are same-series, so
+    # splitting by molecule would leak the chemical series
     pred = np.zeros(len(y))
     gkf = GroupKFold(n_splits=args.folds)
     def make_clf():
         if args.clf == "mlp":
-            # 2 层 MLP，隐层 (512, 128)。early_stopping 用训练集内部再切 10%，
-            # 不碰测试折——否则等于用测试数据调停止点。
+            # 2-layer MLP, hidden layers (512, 128). early_stopping carves
+            # another 10% out of the training set internally, never touching
+            # the test fold -- otherwise it would be tuning the stopping
+            # point on test data.
             from sklearn.neural_network import MLPClassifier
             return MLPClassifier(hidden_layer_sizes=(512, 128), activation="relu",
                                  alpha=1e-4, batch_size=256, learning_rate_init=1e-3,

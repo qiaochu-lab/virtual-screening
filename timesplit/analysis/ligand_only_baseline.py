@@ -1,34 +1,49 @@
-"""化学系列 oracle 上界（target-conditioned ligand-similarity oracle）。
+"""Chemical-series oracle ceiling (a target-conditioned ligand-similarity
+oracle).
 
-⚠️ **文件名是历史遗留，这个量不是「纯配体基线」。** 它虽然不看蛋白结构，
-却读了**该靶点的已知活性分子**——任何被评测的模型都拿不到这个信息。
-所以它量的不是「不看蛋白能做多好」，而是「**已经知道什么能结合这个靶点时，
-纯化学相似度能走多远**」，是个**上界**。
+Warning: **the file name is a historical leftover -- this quantity is not a
+"pure-ligand baseline".** Although it never looks at the protein structure,
+it reads **that target's known active molecules** -- information no model
+under evaluation ever gets. So it does not measure "how well can you do
+without looking at the protein"; it measures "**given you already know what
+binds this target, how far can pure chemical similarity get you**" -- it is
+a **ceiling**.
 
-真正的纯配体基线在 `ligand_only_learned.py`：它连靶点是谁都不知道，
-结果低于随机。两者差两个数量级，名字混用会把结论讲反。
+The real pure-ligand baseline is in `ligand_only_learned.py`: it does not
+even know which target it is, and its result is below random. The two differ
+by two orders of magnitude, and mixing up the names would reverse the
+conclusion.
 
-原始描述：只用 2D 指纹相似度，能把 T3 的诱饵分开吗。
+Original description: using only 2D fingerprint similarity, can T3's decoys
+be separated at all?
 
-为什么要做
-----------
-Mattsson & Walters (bioRxiv 2026.06.29.735309) 指出，蛋白–配体亲和力基准普遍
-被数据泄漏撑着，一个**不看蛋白的纯配体模型**在 FEP+ 上就能拿到 r=0.66。
-如果一个虚筛基准能被纯配体信号解决，那它测的就不是「口袋–配体匹配」。
+Why this is needed
+--------------------
+Mattsson & Walters (bioRxiv 2026.06.29.735309) point out that protein-ligand
+affinity benchmarks are commonly propped up by data leakage -- a **pure
+ligand model that never sees the protein** reaches r=0.66 on FEP+. If a
+virtual-screening benchmark can be solved by a pure-ligand signal, then what
+it measures is not "pocket-ligand matching".
 
-这个脚本给 T3 做同样的检查：把每个候选分子按「与该靶点已知活性的最大 Tanimoto」
-打分（活性分子留一，不许拿自己），然后照常算 EF/BEDROC/AUROC。
+This script runs the same check on T3: score each candidate molecule by "the
+maximum Tanimoto to that target's known actives" (leave-one-out for actives,
+never against itself), then compute EF/BEDROC/AUROC as usual.
 
-注意这个基线比模型多拿了信息——它看得到该靶点的真实活性分子，而模型看不到。
-所以它是**上界**：它测的是「这批活性分子在化学空间里有多聚集」，
-也就是 analogous-series bias 有多严重，不是模型能达到什么。
+Note this baseline has access to more information than any model -- it can
+see that target's real active molecules, while a model cannot. So it is a
+**ceiling**: what it measures is "how clustered this batch of actives is in
+chemical space", i.e. how severe the analogous-series bias is, not what a
+model can achieve.
 
-怎么读结果
-----------
-· 接近随机（EF≈1、AUROC≈0.5）→ 诱饵设计成功，跨靶点真实活性确实不能靠
-  「像不像药」区分，T3 的富集只能来自靶点特异性信息。
-· 明显高于随机 → 这一层的活性分子自己就抱团，模型可能靠记化学系列就能得分，
-  报 EF 时必须减掉这个底。
+How to read the result
+-------------------------
+- Close to random (EF~=1, AUROC~=0.5) -> the decoy design succeeded;
+  cross-target real actives genuinely cannot be separated by "how
+  drug-like it looks", so T3's enrichment can only come from
+  target-specific information.
+- Clearly above random -> this layer's actives cluster among themselves,
+  a model could score well simply by memorizing the chemical series, and
+  this floor must be subtracted when reporting EF.
 """
 import argparse
 import csv
@@ -52,7 +67,8 @@ def fp(smi):
 
 
 def one_target(rec):
-    """返回 (uniprot, layer, scores, labels)；活性分子对自己留一。"""
+    """Returns (uniprot, layer, scores, labels); leave-one-out for active
+    molecules against themselves."""
     af = [fp(a["smiles"]) for a in rec["actives"]]
     df = [fp(d["smiles"]) for d in rec["decoys"]]
     keep_a = [i for i, x in enumerate(af) if x is not None]
@@ -62,7 +78,7 @@ def one_target(rec):
     if len(A) < 2 or not D:
         return None
     s_a = []
-    for i, x in enumerate(A):                       # 留一：排除自己
+    for i, x in enumerate(A):                       # leave-one-out: exclude itself
         others = A[:i] + A[i + 1:]
         s_a.append(max(DataStructs.BulkTanimotoSimilarity(x, others)))
     s_d = [max(DataStructs.BulkTanimotoSimilarity(x, A)) for x in D]

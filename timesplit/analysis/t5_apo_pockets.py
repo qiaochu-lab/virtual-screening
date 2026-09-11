@@ -1,22 +1,32 @@
-"""T5 的第三项对照：apo（未结合）构象的口袋。
+"""T5's third control: apo (unbound) conformation pockets.
 
-要测什么
---------
-现有两项对照测的都是 holo 结构——口袋是被配体撑开过的构象。
-真实虚筛拿到的往往是 apo：侧链没有为配体让位，口袋可能是塌的。
-这是这类模型在实践中最可能吃亏、而我们一直没测的地方。
+What this is testing
+------------
+The existing two controls both test holo structures — pockets in a
+conformation that's been opened up by the ligand. Real screening campaigns
+often only have an apo structure: side chains haven't made room for a
+ligand, and the pocket may be collapsed. This is the place these models are
+most likely to suffer in practice, and one we had never tested.
 
-怎么保证只测「构象」这一个变量
-------------------------------
-apo 结构里没有配体，没法直接划口袋。做法是：
-  1. 把 apo 按主链 CA 叠合到同一靶点的 holo 结构上
-  2. 用 **holo 配体的坐标**在叠合后的 apo 里划 6Å 口袋
-这样两边口袋的**位置完全一致**，差别只来自侧链构象——正是要测的东西。
-如果换成「在 apo 里另找一个口袋」，测的就变成了口袋检测，不是构象敏感性。
+How to make sure only "conformation" varies
+------------
+An apo structure has no ligand, so a pocket can't be carved out directly.
+The approach:
+  1. Align the apo structure to the holo structure of the same target by
+     backbone CA
+  2. Carve a 6Å pocket in the aligned apo structure using the **holo
+     ligand's coordinates**
+This keeps the pocket **position identical** on both sides, so the only
+difference comes from side-chain conformation — exactly what we want to
+measure. Finding "a different pocket in the apo structure" instead would
+turn this into a pocket-detection test, not a conformational-sensitivity
+test.
 
-叠合用共同残基编号的 CA 配对（同一 UniProt，编号体系一致），
-Kabsch 求最优旋转平移。RMSD 太大（>5Å）说明不是同一构象态或编号对不上，
-这类靶点直接跳过并记录，不硬叠。
+Alignment uses CA pairs matched by shared residue numbering (same UniProt,
+consistent numbering scheme), with Kabsch to find the optimal rotation and
+translation. An RMSD that's too large (>5Å) means it isn't the same
+conformational state, or the numbering doesn't match — such targets are
+simply skipped and logged rather than force-aligned.
 """
 import argparse
 import gzip
@@ -33,17 +43,18 @@ from scipy.spatial import cKDTree
 
 B = "/data/work/vs-benchmark"
 sys.path.insert(0, B)
-from extract_pocket_pdb import fetch, parse_cif   # noqa: E402  复用同一套解析
+from extract_pocket_pdb import fetch, parse_cif   # noqa: E402  reuse the same parsing
 
 MAX_RMSD = 5.0
 
 
 def ca_by_resid(prot):
-    """{residue_id: CA 坐标}，用于叠合配对。
+    """{residue_id: CA coordinates}, used for alignment pairing.
 
-    parse_cif 返回的是列式字典（coord/atom_type/residue_id/...），不是原子列表。
-    residue_id 已经是 "链+序号" 的组合，同一 UniProt 的不同条目编号体系一致，
-    可直接作配对键。
+    parse_cif returns a columnar dict (coord/atom_type/residue_id/...), not a
+    list of atoms. residue_id is already a "chain+number" composite, and the
+    numbering scheme is consistent across different entries of the same
+    UniProt, so it can be used directly as the pairing key.
     """
     out = {}
     for i, at in enumerate(prot["atom_type"]):
@@ -53,7 +64,7 @@ def ca_by_resid(prot):
 
 
 def kabsch(P, Q):
-    """求把 P 叠到 Q 的旋转平移（都是 N×3）。"""
+    """Find the rotation and translation that aligns P onto Q (both N×3)."""
     pc, qc = P.mean(0), Q.mean(0)
     H = (P - pc).T @ (Q - qc)
     U, _, Vt = np.linalg.svd(H)
@@ -72,7 +83,7 @@ def main():
     args = ap.parse_args()
 
     apo_map = json.load(open(args.targets))
-    # 已有的 holo 口袋，用来锚定「同一个位点」
+    # Existing holo pockets, used to anchor "the same site"
     holo_pockets = {}
     _e = lmdb.open(f"{B}/data/t3/pockets/pdb_pocket_6.0A.lmdb", subdir=False,
                    readonly=True, lock=False)
@@ -106,11 +117,13 @@ def main():
             if not holo_ligs:
                 stat["holo 里找不到该配体"] += 1
                 continue
-            copies = next(iter(holo_ligs.values()))          # comp_id -> {拷贝: 坐标}
-            # 必须选**与已有 holo 口袋同一处**的那个拷贝：
-            # 同源多聚体里不同链的位点可能相距几十埃，随便取第一个拷贝
-            # 会把 apo 口袋划到另一个亚基上（实测 17/52 个靶点质心偏了 5-62Å）。
-            # 以 holo 口袋质心为锚，取最近的拷贝。
+            copies = next(iter(holo_ligs.values()))          # comp_id -> {copy: coordinates}
+            # Must pick the copy that is **at the same site as the existing holo
+            # pocket**: in a homo-oligomer, sites on different chains can be tens
+            # of angstroms apart, and just taking the first copy would carve the
+            # apo pocket on the wrong subunit (empirically, 17/52 targets had
+            # centroids off by 5-62A). Anchor on the holo pocket's centroid and
+            # take the nearest copy.
             ref = holo_pockets.get(up)
             if ref is None:
                 stat["无 holo 口袋可对齐"] += 1
@@ -129,7 +142,7 @@ def main():
                 apo_prot, _ = parse_cif(apo_path, set())
                 apo_ca = ca_by_resid(apo_prot)
                 common = [k for k in apo_ca if k in holo_ca]
-                if len(common) < 30:            # 配对残基太少，叠合不可信
+                if len(common) < 30:            # too few paired residues, alignment isn't trustworthy
                     continue
                 P = np.array([apo_ca[k] for k in common])
                 Q = np.array([holo_ca[k] for k in common])
@@ -144,7 +157,7 @@ def main():
                                             tree.query_ball_point(lig_coord, args.threshold)])})
                 if len(idx) < 20:
                     continue
-                # 整残基入选，与 6Å 主口径一致
+                # Whole residues included, consistent with the main 6Å convention
                 keep_res = {apo_prot["residue_id"][j] for j in idx}
                 sel = [j for j, rid in enumerate(apo_prot["residue_id"]) if rid in keep_res]
                 rec = {"pocket": up,

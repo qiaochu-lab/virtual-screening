@@ -1,22 +1,29 @@
-"""把 T3 的指标重算到某个靶点子集上——不重新推理，只换一批靶点做汇总。
+"""Recompute T3's metrics on a given target subset — no re-inference, just
+re-aggregating over a different set of targets.
 
-用途
+Purpose
 ----
-导师 2026-09-04 定的新口径（活性 ≥50、类别构成对齐 VSDS-vd）产出了一个
-子集（最终配额 350 → **328 条 / 293 个唯一靶点**；早先 250 配额那版是
-242 条 / 222 靶点，已不再使用）。每个靶点的 EF/AUROC 都是在它**自己的**
-候选池里算的，靶点之间互不影响，所以换子集只是换一批数求平均，
-不需要重跑任何模型。
+The new convention set by the advisor on 2026-09-04 (actives >= 50, class
+composition matched to VSDS-vd) produced a subset (final quota 350 →
+**328 entries / 293 unique targets**; the earlier 250-quota version, 242
+entries / 222 targets, is no longer used). Each target's EF/AUROC is
+computed within its **own** candidate pool, targets don't affect each
+other, so switching subsets is just averaging over a different set of
+numbers — no model needs to be re-run.
 
-同时输出两种分层
+Also outputs two stratifications
 ----------------
-build_t3.py 判 L3/L4 时用 `fam.get(up)`，靶点不在 uniport40.clstr 里就
-返回 None，直接落到 L4——「没查到家族」被当成了「没有同源家族」。
-254 个 L4 里有 61 个（24%）根本不在那个文件里，其中 30 个用 mmseqs 对
-训练集一查就有 ≥40% 的同源物（含 100% 全长一致的跨物种直系同源）。
-所以这里并排给出原分层和修正分层，差多少一眼可见。
+build_t3.py decides L3/L4 with `fam.get(up)`; if a target isn't in
+uniport40.clstr, it returns None and falls straight through to L4 —
+"family not found" was treated as "no homologous family". 61 of 254 L4
+targets (24%) aren't in that file at all, and an mmseqs search against the
+training set finds >=40% homologues for 30 of them (including cross-species
+orthologs at 100% full-length identity). So this script reports both the
+original and the corrected stratification side by side, so the difference
+is visible at a glance.
 
-衰减一律按「超出随机」算：((L1-1)-(L4-1))/(L1-1)，因为 EF 的随机底是 1.0。
+Decay is always computed as "excess over random": ((L1-1)-(L4-1))/(L1-1),
+since EF's random floor is 1.0.
 """
 import argparse
 import collections
@@ -32,7 +39,7 @@ LAYERS = ["L1", "L2", "L3", "L4"]
 
 
 def decay(l1, l4, floor):
-    """超出随机基线的损失比例。floor 是该指标的随机值。"""
+    """Fraction of loss relative to the random baseline. floor is the metric's random-chance value."""
     base = l1 - floor
     return float("nan") if base <= 0 else (base - (l4 - floor)) / base
 

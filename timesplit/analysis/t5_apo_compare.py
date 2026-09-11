@@ -1,17 +1,22 @@
-"""T5 apo 对照的配对比较：同一批靶点，holo 口袋 vs apo 口袋。
+"""T5 apo control, paired comparison: the same set of targets, holo pocket
+vs apo pocket.
 
-为什么这个对照重要
-------------------
-所有公开虚筛基准（DUD-E、DEKOIS、LIT-PCBA）和我们的 T3，用的都是
-**holo 口袋**——从共晶复合物截出来的，侧链已经为配体让好了位。
-真实虚筛拿到的常常是 apo 构象。如果模型在 apo 上明显变差，
-说明现有基准（包括我们自己的）系统性高估了这类方法的实用表现。
+Why this control matters
+------------
+Every public virtual-screening benchmark (DUD-E, DEKOIS, LIT-PCBA) and our
+own T3 use **holo pockets** — cut from a co-crystallised complex, where the
+side chains have already made room for the ligand. Real screening campaigns
+often only have an apo conformation. If a model degrades noticeably on apo,
+that shows existing benchmarks (ours included) systematically overstate
+these methods' real-world performance.
 
-口径
+Conventions
 ----
-· 同一批靶点、同一批分子、同一套推理参数，**只有口袋构象不同**
-· 按靶点配对做 Wilcoxon，分析单位是靶点
-· 同时报叠合 RMSD 与 apo/holo 口袋原子数之比，用来看「差异是否随构象偏离增大」
+* Same targets, same molecules, same inference parameters — **only the
+  pocket conformation differs**
+* Paired Wilcoxon by target; the unit of analysis is the target
+* Also reports the alignment RMSD and the apo/holo pocket atom-count ratio,
+  to check "does the difference grow with conformational deviation"
 """
 import json
 import os
@@ -91,7 +96,7 @@ def main():
             for k in ("ef1", "auroc"):
                 rows.append(f"{holo_m},{L},{up},{mm.get('apo_pdb','')},{mm.get('holo_pdb','')},"
                             f"{mm.get('align_rmsd','')},{k},{h[c][k]:.4f},{a[c][k]:.4f}")
-        # 差异是否随构象偏离增大
+        # whether the difference grows with conformational deviation
         rmsd = np.array([man.get(c.split("/")[1], {}).get("align_rmsd", np.nan) for c in common])
         ok = ~np.isnan(rmsd)
         if ok.sum() >= 8:

@@ -1,24 +1,33 @@
-"""CASF-2016 上的打分能力与排序能力（T2 的第三套数据）。
+"""Scoring power and ranking power on CASF-2016 (T2's third dataset).
 
-为什么要这套
+Why this dataset
 ------------
-T2 现在有两套数据，结论相反：FEP 基准（同一化学系列）ρ≈0.4，
-自建 T3（跨系列）ρ≈0。CASF-2016 落在中间——**同一靶点、但配体骨架不同**，
-而且是打分函数领域用了十年的标准集，物理/经验打分函数的数字文献里可查。
+T2 currently has two datasets with opposite conclusions: the FEP benchmark
+(same chemical series) gets ρ≈0.4, while our own T3 (cross-series) gets
+ρ≈0. CASF-2016 sits in between — **same target, but different ligand
+scaffolds** — and it is the standard set the scoring-function field has used
+for a decade, with physics/empirical scoring-function numbers available in
+the literature for comparison.
 
-两个官方口径，分开报
---------------------
-· scoring power  285 个复合物一起算相关（跨靶点，考绝对亲和力）
-· ranking power  每个靶点内部 5 个配体排序，再对靶点取平均（靶点内，考排序）
-两者测的不是一回事，混着报会得出互相矛盾的结论——T2 前面吃过这个亏。
+Two official conventions, reported separately
+------------
+* scoring power: correlation computed jointly over all 285 complexes
+  (cross-target, tests absolute affinity)
+* ranking power: rank the 5 ligands within each target, then average over
+  targets (within-target, tests ranking)
+These measure different things, and reporting them mixed together produces
+contradictory conclusions — T2 already learned this the hard way earlier.
 
-打分怎么来
+Where the score comes from
 ----------
-模型只落盘了 embedding。分数 = 配对的口袋向量与分子向量的内积，
-与官方 ensemble_result.py 的做法一致（同一复合物一一对应，不做交叉）。
+The model only writes embeddings to disk. score = dot product of the paired
+pocket vector and molecule vector, consistent with the official
+ensemble_result.py (one-to-one correspondence within the same complex, no
+cross-pairing).
 
-靶点分组用 casf_label_seq.json 里的 uniprot——CASF 的 57 个簇本来就是
-「同一蛋白 5 个配体」，按 uniprot 分组能复原这个结构。
+Targets are grouped by the uniprot field in casf_label_seq.json — CASF's 57
+clusters are already structured as "5 ligands for the same protein", and
+grouping by uniprot recovers that structure.
 """
 import json
 import os
@@ -59,7 +68,7 @@ def main(models):
         if not (len(ids) == len(mol) == len(poc)):
             print(f"{m}: 长度对不上 ids={len(ids)} mol={len(mol)} poc={len(poc)}，跳过")
             continue
-        score = np.einsum("ij,ij->i", poc, mol)          # 配对内积
+        score = np.einsum("ij,ij->i", poc, mol)          # paired dot product
         y, grp = [], []
         for pdb in ids:
             a, up = truth.get(pdb, (np.nan, "?"))
@@ -70,8 +79,9 @@ def main(models):
         pr = stats.pearsonr(score[ok], y[ok]).statistic
 
         per = defaultdict(list)
-        # score 是加载来的数组，y/grp 是循环里建的——长度不等必须炸，
-        # 静默截断会让每个靶点配上别人的分数。
+        # score is a loaded array, while y/grp are built in the loop — a length
+        # mismatch must raise, since a silent truncation would pair each target
+        # with someone else's score.
         for s, a, g in zip(score, y, grp, strict=True):
             if not np.isnan(a):
                 per[g].append((s, a))

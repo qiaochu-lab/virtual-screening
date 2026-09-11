@@ -1,19 +1,24 @@
-"""分类别报表：新靶点层（L3+L4 合并）按靶点类别拆开报指标。
+"""Class-stratified report: metrics for the novel-target layer (L3+L4
+pooled), broken out by target class.
 
-为什么合并 L3+L4
+Why pool L3+L4
 ----------------
-L3 只有 53 个靶点，任何单一类别都凑不到能报的样本量。而 L3（新靶点·同家族）
-和 L4（新靶点·新家族）都属于「训练时没见过的靶点」，合并在科学上也说得通——
-要区分同家族/新家族时，另有 L3 vs L4 的对比表。
+L3 has only 53 targets, so no single class ever reaches a reportable sample
+size on its own. L3 (novel target, same family) and L4 (novel target, novel
+family) both fall under "target unseen during training", so pooling them is
+scientifically defensible too — a separate L3 vs L4 comparison table exists
+for when the same-family/novel-family distinction matters.
 
-为什么按类别拆
+Why break out by class
 --------------
-不同类别靶点难度差异极大。自家数据实证：ConPLex 在 L1 上
-GPCR AUROC 0.777、表观 0.518，同模型同口径差 0.26。
-只报总平均会把这种分化完全掩盖。
+Difficulty varies enormously by target class. From our own data: ConPLex at
+L1 scores AUROC 0.777 on GPCR and 0.518 on epigenetic targets — a 0.26 gap
+for the same model under the same convention. Reporting only the overall
+mean would completely mask this split.
 
-样本量不足的类别照样列出来并标注 n，不藏起来——读者需要知道
-哪些类别是「测了但不够」，哪些是「压根没有」。
+Classes with too few samples are still listed with their n rather than
+hidden — readers need to know which classes were "tested but underpowered"
+versus "not tested at all".
 """
 import argparse
 import json
@@ -22,7 +27,7 @@ import numpy as np
 from scipy import stats
 
 B = "/data/work/vs-benchmark"
-MIN_REPORT = 8          # 低于此只列 n，不报指标
+MIN_REPORT = 8          # below this, list n only, don't report the metric
 
 
 def main():
@@ -34,7 +39,7 @@ def main():
     s = json.load(open(f"{B}/results/t3/summary.json"))
     cls = json.load(open(f"{B}/data/t3/target_class.json"))["class"]
 
-    # 收集：模型 -> 类别 -> [每靶点指标]
+    # Collect: model -> class -> [per-target metrics]
     data = {}
     for m in args.models:
         if m not in s:
@@ -80,7 +85,7 @@ def main():
         allv = [x[args.metric] for v in data[m].values() for x in v]
         print(f"  {m} 全体: {np.mean(allv):.2f}  (n={len(allv)})")
 
-    # 两模型时给配对检验
+    # When there are two models, also run a paired test
     if len(models) == 2:
         ma, mb = models
         print(f"\n{ma} vs {mb} 分类别配对检验（Wilcoxon，只对 n≥{MIN_REPORT} 的类）:")

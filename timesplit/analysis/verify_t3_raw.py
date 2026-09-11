@@ -1,10 +1,14 @@
-"""检查 t3_raw 下的原始打分文件是否完整可用，剔除坏的。
+"""Check whether the raw score files under t3_raw are complete and usable, and remove the bad ones.
 
-为什么需要：中途 kill 过重复启动的进程，可能有 .npy 正写到一半。
-坏文件在后面算指标时才暴露就晚了，这里提前扫一遍。
+Why this is needed: duplicate-started processes have been killed mid-run
+before, and a .npy file may have been left half-written. A bad file
+surfacing only when metrics are computed later would be too late to catch —
+this scans ahead of time instead.
 
-判定：能加载、长度一致、标签既有正也有负、分数无 NaN/Inf。
-不合格的整个靶点目录删掉——宁可少一个靶点，也不要脏数据进结果表。
+Criteria: must load successfully, lengths must match, labels must have both
+positives and negatives, and scores must have no NaN/Inf. A target whose
+directory fails any check is removed entirely — better to lose one target
+than let dirty data into the results table.
 """
 import argparse, os, shutil
 import numpy as np
