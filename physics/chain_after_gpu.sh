@@ -1,5 +1,5 @@
 #!/bin/bash
-# 三条链，按顺序等：对接汇总 → Boltz 重排汇总 → NEW-8 蛋白置空。
+# 两条链，按顺序等：对接汇总 → Boltz 重排汇总。（NEW-8 蛋白置空已决定不做，见 §5c）
 #
 # ⚠️ 不用进程名匹配来判「跑完了没」。
 # 今天这个坑出现了三次：grep 的模式匹配到了创建脚本的那个 bash -c 自己的命令行，
@@ -41,4 +41,4 @@ say "Boltz-2 汇总（出分 $(find "$B/boltz_rerank_sub_out" -name 'affinity_*.
 $P "$B/export_rerank_sub.py" > "$B/results/export/T6_rerank_subset.txt" 2>&1
 say "  exit=$? → results/export/T6_rerank_subset.txt"
 
-say "✅ 两条汇总完成。NEW-8 需要人工确认口径后再起，不自动启动。"
+say "✅ 两条汇总完成。NEW-8（蛋白置空）已决定不做——理由见 tasks/T5-target-swap.md §5c，不是遗漏。"
