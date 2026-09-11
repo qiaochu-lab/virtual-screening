@@ -1,56 +1,63 @@
-# T3 泄漏诊断
+# T3 Leakage Diagnostics
 
-起因是 Mattsson & Walters, *Identifying and Addressing Systematic Data Leakage
+This started from Mattsson & Walters, *Identifying and Addressing Systematic Data Leakage
 in Protein-Ligand Affinity Benchmarks*, bioRxiv 2026-06-30,
-DOI `10.64898/2026.06.29.735309`。它的三条主张，我们逐条在自己的数据上验了：
+DOI `10.64898/2026.06.29.735309`. We checked its three claims against our own data, one by one:
 
-1. **按序列一致性切分不足以防泄漏**（"target mirroring"：同源蛋白即使整体
-   一致性很低，结合谱依然相关；ChEMBL 36 上 6,000+ 组，泄漏持续到 0.2）
-2. **化学系列 oracle**（不看蛋白，但读该靶点的已知活性）在 FEP+ 上就能拿到 r = 0.66
-3. 应当**按配体新颖度分档**报告（最难档 Tanimoto < 0.35）
+1. **Splitting by sequence identity is not enough to prevent leakage** ("target mirroring":
+   homologous proteins remain correlated in binding profile even when overall identity is
+   very low; on 6,000+ pairs from ChEMBL 36, leakage persists down to 0.2)
+2. **A chemical-series oracle** (blind to the protein, but reading that target's known
+   actives) reaches r = 0.66 on FEP+
+3. Results should be **reported stratified by ligand novelty** (the hardest tier being
+   Tanimoto < 0.35)
 
-结论先说：**对训练在亲和力半上的四个模型，L1 基本是一个记忆测试，L3/L4 是干净的**（这个主语是必需的，见 §3c）；
-同时查出我们自己分层逻辑的一个 bug。
+The conclusion up front: **for the four models trained on the affinity half, L1 is
+essentially a memorisation test, and L3/L4 are clean** (this subject is necessary — see
+§3c); along the way we also found a bug in our own layer-assignment logic.
 
 ---
 
-## 1. 靶点同源性：L4 里混进了模型见过的靶点
+## 1. Target homology: targets the model has seen leaked into L4
 
 `timesplit/analysis/target_mirroring.py` → `results/T3_target_mirroring.csv`
 
-用 mmseqs2 敏感搜索（`-s 7.5`），把 T3 的 866 个靶点对训练集比了一遍，
-**要求比对覆盖两条序列各 ≥50%、E ≤ 1e-3**。
+Using a sensitive mmseqs2 search (`-s 7.5`), we compared all 866 T3 targets against the
+training set, **requiring the alignment to cover ≥50% of each sequence, with E ≤ 1e-3**.
 
-> ⚠️ 不卡覆盖度会返回一堆 `fident=1.00` 而 `qcov=1%` 的碎片命中——
-> 首轮结果全是这种噪声，「100% 一致」其实只是几个残基对上了。
+> ⚠️ Without gating on coverage, the search returns a pile of fragment hits with
+> `fident=1.00` but `qcov=1%` — the first-round results were all this kind of noise;
+> "100% identity" turned out to be just a handful of residues lining up.
 
-⚠️ **参照集改过一次。** 早先只比了亲和力半的 **2,196** 个靶点，
-但 LigUnity 系训练时读**两个**标签文件（见 §6），实际训练靶点是并集 **4,847** 个。
-所以早先的同源命中率是**系统性低估**的。两版并排：
+⚠️ **The reference set was changed once.** Originally we only compared against the
+affinity half's **2,196** targets, but LigUnity-family training reads **two** label files
+(see §6), so the actual training targets are the union of **4,847**. So the earlier
+homology hit rate was **systematically underestimated**. The two versions side by side:
 
-| L3/L4 的 307 个「新靶点」 | 旧（比 2,196） | **新（比并集 4,847）** |
+| 307 "novel targets" in L3/L4 | Old (vs. 2,196) | **New (vs. union of 4,847)** |
 |---|---|---|
-| ≥70% 有同源 | 30（10%） | **45（15%）** |
-| ≥50% | 61（20%） | **80（26%）** |
-| ≥40% | 80（26%） | **106（35%）** |
-| ≥30% | — | 146（48%） |
-| ≥20%（Walters 说泄漏到这） | 153（50%） | **180（59%）** |
-| 中位一致性 | — | 28.8% |
+| ≥70% has a homologue | 30 (10%) | **45 (15%)** |
+| ≥50% | 61 (20%) | **80 (26%)** |
+| ≥40% | 80 (26%) | **106 (35%)** |
+| ≥30% | — | 146 (48%) |
+| ≥20% (Walters reports leakage down to this level) | 153 (50%) | **180 (59%)** |
+| Median identity | — | 28.8% |
 
-**而且 307 个「新靶点」里有 35 个（11.4%）在训练集里有 100% 的自身命中**
-——它们根本就在训练集里，不是「有个同源物」。
-其中包括 O00443、P05067（APP）、P08519、P09391、P10636（tau）等。
+**And 35 of the 307 "novel targets" (11.4%) have a 100% self-match in the training
+set** — they are simply *in* the training set, not "have a homologue". These include
+O00443, P05067 (APP), P08519, P09391, P10636 (tau), among others.
 
-对照 L1/L2 的 559 个：中位一致性 76.7%，≥70% 有 313 个——这一层本来就该在
-训练集里，符合预期。
+As a comparison, for the 559 targets in L1/L2: median identity 76.7%, 313 at ≥70% — this
+layer is supposed to be in the training set, as expected.
 
-**方向和当年那个 fall-through bug 一样：L4 混进了见过的靶点 → 衰减被低估 →
-修完主结论只会更强。**
-（[`results/T3_target_mirroring_union.csv`](../results/T3_target_mirroring_union.csv)）
+**The direction is the same as that earlier fall-through bug: seen targets leaked into
+L4 → the decay is underestimated → fixing it can only make the headline conclusion
+stronger.**
+([`results/T3_target_mirroring_union.csv`](../results/T3_target_mirroring_union.csv))
 
-同源最高的几个基本是**跨物种直系同源**：
+The highest-homology cases are mostly **cross-species orthologs**:
 
-| 一致性 | T3「新靶点」 | 训练集里的 | qcov / tcov |
+| Identity | T3 "novel target" | Training-set match | qcov / tcov |
 |---|---|---|---|
 | **100.0%** | I6WXK4 | P96830 | 100% / 100% |
 | 99.6% | P38158 | P07265 | 100% / 100% |
@@ -58,73 +65,84 @@ DOI `10.64898/2026.06.29.735309`。它的三条主张，我们逐条在自己的
 | 96.6% | P05622 (PDGFRB) | Q05030 | 100% / 100% |
 | 90.7% | P43220 (GLP1R) | P32301 | 100% / 100% |
 
-### 根因：一个 fall-through bug
+### Root cause: a fall-through bug
 
-`timesplit/build/build_t3.py`：
+`timesplit/build/build_t3.py`:
 
 ```python
 f = fam.get(up)
 layer = "L3" if (f is not None and f in train_fams) else "L4"
 ```
 
-`fam` 来自 LigUnity 提供的 `uniport40.clstr`（CD-HIT 40% 聚类）。
-**靶点不在这个文件里，`fam.get()` 返回 None，就直接落到 L4**——
-「没查到家族」被当成了「没有同源家族」。
+`fam` comes from `uniport40.clstr` (CD-HIT 40% clustering) provided by LigUnity.
+**If a target is not in this file, `fam.get()` returns None, and it falls straight
+through to L4** — "family not found" was treated as "has no homologous family".
 
-**254 个 L4 里，61 个（24%）根本不在那个文件里**，
-其中 10 个对训练集有 ≥70% 同源。
+**Of the 254 targets in L4, 61 (24%) are simply absent from that file**, and 10 of them
+have ≥70% homology to the training set.
 
-**按 40% 口径修正：L4 254 → 224，30 个应改判 L3。**
-修正后主表衰减从 −69% 回到 −78%（见 [T3 数据集 v2](T3-dataset-v2.md)）。
+**Correcting under the 40% criterion: L4 254 → 224, 30 targets should be relabelled L3.**
+After the fix, the main-table decay moves from −69% to −78% (see
+[T3 dataset v2](T3-dataset-v2.md)).
 
 ---
 
-## 2. 化学系列 oracle 上界：打到理论上限的 98.7%
+## 2. Chemical-series oracle ceiling: reaches 98.7% of the theoretical limit
 
 `timesplit/analysis/ligand_only_baseline.py` → `results/T3_ligand_only.csv`
-（脚本文件名是历史遗留，**这个量不是「纯配体基线」**，见下）
+(the script's filename is a historical holdover — **this quantity is not a "ligand-only
+baseline"**, see below)
 
-只用 ECFP4 算「候选分子对该靶点已知活性的最大 Tanimoto」
-（活性分子留一，不许拿自己），然后照常算指标：
+Using only ECFP4 to compute "each candidate molecule's maximum Tanimoto to that target's
+known actives" (leave-one-out for actives — a molecule is never allowed to match itself),
+then computing the metrics as usual:
 
-⚠️ **名字要改，而且这不是文字游戏。** 它虽然不看蛋白结构，却**读了该靶点的
-已知活性分子**——这是任何被评测的模型都拿不到的信息。叫它「纯配体基线」会让
-读者以为「不看蛋白也能做到这么好」，而正确的读法是「**如果你已经知道什么能结合
-这个靶点，纯化学相似度能走多远**」。
+⚠️ **The name needs to change, and this is not wordplay.** Although it never looks at
+protein structure, it **reads that target's known active molecules** — information no
+evaluated model is given. Calling it a "ligand-only baseline" would lead a reader to
+think "you can do this well without looking at the protein at all", when the correct
+reading is "**if you already know what binds this target, how far can pure chemical
+similarity go**".
 
-准确的名字是 **target-conditioned ligand-similarity oracle**，简称
-**化学系列 oracle 上界（chemical-series oracle ceiling）**。真正的
-「纯配体基线」是 §2b 那个——它连靶点是谁都不知道，结果**低于随机**。
-两者差了两个数量级，混用一个名字会把结论讲反。
+The accurate name is a **target-conditioned ligand-similarity oracle**, or for short a
+**chemical-series oracle ceiling**. The real "ligand-only baseline" is the one in §2b —
+it doesn't even know which target it's scoring, and it comes out **below random**. The
+two differ by two orders of magnitude, and conflating them under one name would flip the
+conclusion.
 
-| 层 | EF1% | BEDROC | AUROC | PR-AUC |
+| Layer | EF1% | BEDROC | AUROC | PR-AUC |
 |---|---|---|---|---|
 | L1 | 48.04 | 0.889 | 0.940 | 0.836 |
 | L2 | 50.47 | 0.981 | 0.988 | 0.968 |
 | L3 | 50.07 | 0.962 | 0.978 | 0.946 |
 | L4 | **50.36** | 0.973 | 0.987 | 0.962 |
-| *随机* | *1.08 ± 1.44* | | *0.500* | *~0.020* |
-| **理论上限** | **51.00** | | | |
+| *Random* | *1.08 ± 1.44* | | *0.500* | *~0.020* |
+| **Theoretical ceiling** | **51.00** | | | |
 
-**四层都打到满分的 98.7%。**原因是同一靶点的活性分子多半是同一个化学系列
-（congeneric series），而诱饵是别的靶点的活性分子，化学上离得远。
+**All four layers reach 98.7% of the maximum score.** The reason is that a given target's
+actives are mostly one congeneric series, while decoys are actives of other targets and
+sit far away in chemical space.
 
-### 怎么读这个数
+### How to read this number
 
-这个 oracle **比模型多拿了信息**——它看得到该靶点的真实活性分子，
-而模型在 L3/L4 上一个都看不到。所以它是**上界**，量化的是
-「这批活性分子在化学空间里有多聚集」，不是模型能达到什么。
+This oracle **has more information than the models do** — it can see that target's true
+actives, while the models see none of them at L3/L4. So it is a **ceiling**: it
+quantifies how tightly clustered this set of actives is in chemical space, not what a
+model can achieve.
 
-但它给 T3 的衰减一个更锋利的解释：
+But it gives a sharper explanation for T3's decay:
 
-> 化学系列 oracle 四层都是 ~50 几乎不变，模型却从 38 掉到 9。
-> **衰减不是模型"变笨了"，是它失去了可以记忆的化学系列。**
+> The chemical-series oracle stays at ~50 across all four layers, almost unchanged, while
+> the models fall from 38 to 9.
+> **The decay is not the model "getting dumber" — it's the model losing the memorisable
+> chemical series.**
 
-### 归一化指标
+### Normalised metric
 
-`results/T3_normalized_by_ceiling.csv`。模型 EF1% ÷ 同一批靶点的化学系列 oracle 上界：
+`results/T3_normalized_by_ceiling.csv`. Model EF1% ÷ the chemical-series oracle ceiling
+on the same set of targets:
 
-| 模型 | L1 | L2 | L3 | L4 |
+| Model | L1 | L2 | L3 | L4 |
 |---|---|---|---|---|
 | LigUnity-protein | **76%** | 63% | 39% | **19%** |
 | LigUnity-pocket | 68% | 55% | 29% | 18% |
@@ -135,88 +153,100 @@ layer = "L3" if (f is not None and f in train_fams) else "L4"
 | ConPLex | 11% | 6% | 7% | 4% |
 | SPRINT | 5% | 4% | 3% | 4% |
 
-**一句话讲清整个 T3**：最好的模型在熟悉靶点上榨出了 76% 的可用信号，
-到全新靶点只剩 19%。
+**One sentence for the whole of T3**: the best model extracts 76% of the available
+signal on familiar targets, and only 19% on entirely novel ones.
 
 ---
 
-## 2b. 真正的纯配体基线：低于随机
+## 2b. The real ligand-only baseline: below random
 
-§2 那个 50.36 是 **oracle 上界**，不是模型：它读了该靶点的真实活性分子。
-把这个信息拿掉——训一个只吃 ECFP4、**完全不知道靶点是谁**的分类器，
-这才是名副其实的「纯配体基线」——结果反过来
-（[`timesplit/analysis/ligand_only_learned.py`](../timesplit/analysis/ligand_only_learned.py)
-→ [`results/T3_ligand_only_learned.csv`](../results/T3_ligand_only_learned.csv)）：
+The 50.36 figure in §2 is an **oracle ceiling**, not a model: it reads that target's true
+actives. Take that information away — train a classifier that only sees ECFP4 and **has
+no idea which target it's scoring at all** — and *that* is what deserves the name
+"ligand-only baseline" — the result flips
+([`timesplit/analysis/ligand_only_learned.py`](../timesplit/analysis/ligand_only_learned.py)
+→ [`results/T3_ligand_only_learned.csv`](../results/T3_ligand_only_learned.csv)):
 
-`HistGradientBoostingClassifier` + ECFP4，**按 uniprot 做 GroupKFold**。
-分组必须按靶点而不是按分子：同一靶点的活性多半是一个化学系列，按分子切会把
-系列的两半分到训练和验证两边，等于自己给自己漏答案。
+`HistGradientBoostingClassifier` + ECFP4, with **GroupKFold grouped by uniprot**. Grouping
+must be by target rather than by molecule: a given target's actives are mostly one
+chemical series, and splitting by molecule would put the two halves of a series on either
+side of the train/validation boundary — leaking the answer to yourself.
 
-任务清单 4.2 要求**两个实现**——GBDT 和 2 层 MLP——理由是「确认不是某模型的
-特例」。树模型和神经网络在稀疏二值指纹上的归纳偏置很不一样，两边一致才算数：
+Task-list item 4.2 called for **two implementations** — a GBDT and a 2-layer MLP — on the
+grounds of "confirming this isn't an artefact of one particular model". Tree models and
+neural nets have very different inductive biases on sparse binary fingerprints, so
+agreement between the two is what counts:
 
-| 层 | 靶点 | GBDT EF1% | GBDT AUROC | AUROC&lt;0.5 | MLP EF1% | MLP AUROC | AUROC&lt;0.5 |
+| Layer | Targets | GBDT EF1% | GBDT AUROC | AUROC&lt;0.5 | MLP EF1% | MLP AUROC | AUROC&lt;0.5 |
 |---|---|---|---|---|---|---|---|
 | L1 | 56 | 0.50 | 0.513 | 52% | 0.70 | 0.511 | 50% |
 | L2 | 178 | 0.33 | 0.428 | 68% | 0.28 | 0.422 | 68% |
 | L3 | 19 | 0.18 | 0.442 | 68% | 0.21 | 0.414 | 74% |
 | L4 | 75 | 0.21 | 0.379 | 76% | 0.16 | 0.374 | 75% |
-| *随机* | | *1.00* | *0.500* | | *1.00* | *0.500* | |
+| *Random* | | *1.00* | *0.500* | | *1.00* | *0.500* | |
 
-**四层全部低于随机，两个模型族给出的数几乎一样**——加权平均 AUROC
-GBDT 0.4321、MLP 0.4256，差 0.0065。GBDT 那版 328 个靶点里 259 个（79%）
-的 EF1% 是 0。
+**All four layers come out below random, and the two model families give almost
+identical numbers** — weighted-average AUROC is 0.4321 for GBDT and 0.4256 for MLP, a
+difference of 0.0065. In the GBDT run, 259 of 328 targets (79%) have an EF1% of 0.
 
-MLP 是 `(512, 128)` 两层 ReLU，`early_stopping` 用**训练折内部**再切 10%
-做验证，不碰测试折（否则等于用测试数据调停止点）。
-`--clf {gbdt,mlp}` 切换，输出文件按此自动命名。
+The MLP is a two-layer ReLU `(512, 128)`; `early_stopping` carves off a further 10%
+**inside the training fold** for validation, never touching the test fold (otherwise it
+would amount to tuning the stopping point on test data). `--clf {gbdt,mlp}` switches
+between them, and output filenames follow automatically.
 
-### 为什么这是好消息
+### Why this is good news
 
-这正是跨靶点真实活性诱饵应该有的样子。诱饵是别的靶点的真实活性分子，所以
-「像药」这件事在活性和诱饵之间没有区分度——一个只看化学的模型不但学不到东西，
-还会被训练集里的类别不平衡带偏到随机以下。
+This is exactly what cross-target real-active decoys should look like. Decoys are real
+actives of other targets, so "drug-likeness" carries no discriminative power between
+actives and decoys — a model that looks only at chemistry not only fails to learn
+anything, it gets biased below random by the class imbalance in the training set.
 
-**两个基线合起来才是完整的话**：
+**Put together, the two baselines are what makes the complete statement**:
 
-> 知道该靶点已知活性长什么样 → 打到上限的 98.7%（§2）
-> 不知道，只看化学本身 → 低于随机（本节）
+> Knowing what that target's known actives look like → reaches 98.7% of the ceiling (§2)
+> Not knowing, and looking only at the chemistry itself → below random (this section)
 >
-> 所以 T3 上的信号**全部**来自「这个分子和这个靶点的已知配体像不像」，
-> 没有任何一部分来自「这个分子本身像不像药」。诱饵设计是干净的。
+> So **all** of T3's signal comes from "how similar is this molecule to this target's
+> known ligands", and none of it comes from "how drug-like the molecule itself looks".
+> The decoy design is clean.
 
-它也把 L1→L4 衰减的解释钉死了：模型不是在 L4 变笨，是 L4 没有可供匹配的
-已知配体，而单靠化学本身一点信号都没有。
+It also pins down the explanation for the L1→L4 decay: the model is not getting dumber
+at L4 — L4 simply has no known ligand to match against, and chemistry alone carries no
+signal at all.
 
-## 2c. 化学记忆偏好 CMP：拆开之后只剩一点点
+## 2c. Chemical memorisation preference (CMP): once decomposed, only a small residue remains
 
 [`chemical_memory_pref.py`](../timesplit/analysis/chemical_memory_pref.py)
 → [`results/T3_chemical_memory_pref.csv`](../results/T3_chemical_memory_pref.csv)
 
-设 S 为分子对训练配体的最大 ECFP4 Tanimoto，S ≥ 0.7 算「熟悉」：
+Let S be a molecule's maximum ECFP4 Tanimoto to the training ligands; S ≥ 0.7 counts as
+"familiar":
 
 ```
-CMP = P(熟 | 排进 top-1%) − P(熟 | 候选池全体)
+CMP = P(familiar | ranked into top 1%) − P(familiar | whole candidate pool)
 ```
 
-### ⚠️ 这个数不能直接读成「偏好」
+### ⚠️ This number cannot be read directly as "preference"
 
-**活性和诱饵的新颖度分布本来就不同**——§3 的表里，L1 的活性有 53.9% 落在
-≥0.7 档，诱饵只有 8.7%。所以一个**准**的模型，光是因为把活性排上去，
-CMP 就会是正的，哪怕它对熟悉化学毫无偏好。本脚本的第一版 docstring 就把这个
-读反了，写着「看 top-1% 里的全部分子就与准不准无关」——正好说反。
+**The novelty distributions of actives and decoys are simply different to begin
+with** — in the §3 table, 53.9% of L1 actives fall in the ≥0.7 tier, against only 8.7%
+of decoys. So an **accurate** model will get a positive CMP purely from ranking actives
+up, even with zero preference for familiar chemistry. The first version of this script's
+docstring got this backwards, stating "looking at all molecules in the top 1% is
+independent of accuracy" — which is exactly the wrong way round.
 
-把准确率能解释的部分先算掉。设 top-1% 里活性占 π，该靶点活性中熟悉化学占
-a、诱饵中占 d，池内熟悉比例为 q：
+Subtract out the part accuracy alone can explain. Let π be the fraction of actives in the
+top 1%, a the fraction of that target's actives that are familiar chemistry, d the
+corresponding fraction among decoys, and q the familiar fraction in the whole pool:
 
 ```
-CMP_pred = [π·a + (1−π)·d] − q        纯靠「把活性排上去」应得的
-CMP_exc  = CMP − CMP_pred             残差，这个才是偏好
+CMP_pred = [π·a + (1−π)·d] − q        what "ranking actives up" alone would earn
+CMP_exc  = CMP − CMP_pred             the residual — this is the actual preference
 ```
 
-### 拆开之后
+### After decomposition
 
-| 模型 | 层 | CMP | CMP_pred | **CMP_exc** | 活性内对照 |
+| Model | Layer | CMP | CMP_pred | **CMP_exc** | Within-actives control |
 |---|---|---|---|---|---|
 | HypSeek `_rk` | L1 | +0.460 | +0.322 | **+0.138** | +0.185 |
 | | L4 | +0.083 | +0.017 | **+0.066** | +0.055 |
@@ -229,44 +259,51 @@ CMP_exc  = CMP − CMP_pred             残差，这个才是偏好
 | BindCLIP-hardneg | L1 | +0.198 | +0.153 | **+0.044** | +0.103 |
 | SPRINT | L1 | +0.067 | +0.012 | **+0.055** | +0.135 |
 
-**L1 那个 +0.46 里，+0.32 纯粹是「模型准」。** 真正的偏好残差只有
-+0.02 ~ +0.14，比原始数小一个量级。
+**Of that +0.46 at L1, +0.32 is purely "the model is accurate".** The true preference
+residual is only +0.02 to +0.14 — an order of magnitude smaller than the raw number.
 
-### 三条读法
+### Three readings
 
-**一、偏好是真的，但很小。** 八个模型的 CMP_exc 全为正（L3 上 LigUnity-protein
-的 −0.004 是唯一例外，那一格只有 16 个靶点）。独立旁证也同向：只在该靶点的
-**活性内部**比较（捞回的活性 vs 全部活性，天然不受活性/诱饵分布差异影响），
-给出 +0.02 ~ +0.19，量级和排序都与 CMP_exc 一致。
+**One: the preference is real, but small.** All eight models' CMP_exc are positive (the
+−0.004 for LigUnity-protein at L3 is the sole exception, and that cell has only 16
+targets). An independent corroborating check points the same way: comparing **within a
+target's actives** only (retrieved actives vs. all actives, naturally immune to the
+active/decoy distribution difference) gives +0.02 to +0.19, matching CMP_exc in both
+magnitude and ranking.
 
-**二、偏好几乎不随层变化，原始 CMP 却塌了一个量级。** 以 HypSeek 为例，
-原始 CMP 从 L1 的 +0.460 掉到 L4 的 +0.083（掉 82%），而 CMP_exc 从 +0.138
-只掉到 +0.066。DrugCLIP 系三个模型的 CMP_exc 跨四层极差只有 0.009~0.019，
-基本是条直线。**所以「模型在新靶点上不再偏好熟悉化学」这个印象是假的——
-它一直有同样的偏好，只是在新靶点上不再准了。**
+**Two: the preference barely changes across layers, even though the raw CMP collapses by
+an order of magnitude.** Take HypSeek: raw CMP falls from +0.460 at L1 to +0.083 at L4
+(an 82% drop), while CMP_exc only falls from +0.138 to +0.066. The three DrugCLIP-family
+models' CMP_exc has a range of only 0.009–0.019 across all four layers — essentially a
+flat line. **So the impression that "the model stops preferring familiar chemistry on
+novel targets" is false — it has the same preference throughout, it simply stops being
+accurate on novel targets.**
 
-**三、最强的模型偏好最重。** HypSeek 的 CMP_exc 在每一层都是最高
-（+0.138 / +0.088 / +0.075 / +0.066），DrugCLIP 系最低（+0.014~+0.022）。
-这和它在 §6 里「自己训练集上名次改善最多」的方向一致，但两处的样本和口径
-不同，不足以串成一条结论。
+**Three: the strongest model has the heaviest preference.** HypSeek's CMP_exc is highest
+at every layer (+0.138 / +0.088 / +0.075 / +0.066), and the DrugCLIP family is lowest
+(+0.014–0.022). That agrees in direction with §6's finding that it "improves rank the
+most on its own training set", but the samples and criteria differ between the two, so
+this is not enough to chain into one conclusion.
 
-### ⚠️ 上面这张表对 DrugCLIP 系三个模型用错了参照系
+### ⚠️ The table above uses the wrong reference set for the three DrugCLIP-family models
 
-新颖度是对**亲和力半的 428,767 个配体**算的。而 DrugCLIP、BindCLIP ×2 的训练
-配体是 `train_no_test_af` 那 66,164 条 pair 里的分子，去重后只有 **13,590 个**
-（§6 那条 31.6 倍差距的另一面）。用 A 组自己的配体重算
-（`--novelty data/t3/ligand_novelty_drugclip.json`
-→ [`results/T3_chemical_memory_pref_Aref.csv`](../results/T3_chemical_memory_pref_Aref.csv)）：
+Novelty was computed against **the affinity half's 428,767 ligands**. But the training
+ligands for DrugCLIP and the two BindCLIPs are the molecules in the 66,164
+`train_no_test_af` pairs, only **13,590** after deduplication (the other side of §6's
+31.6× gap). Recomputing with group A's own ligands
+(`--novelty data/t3/ligand_novelty_drugclip.json`
+→ [`results/T3_chemical_memory_pref_Aref.csv`](../results/T3_chemical_memory_pref_Aref.csv)):
 
-| 参照系 | T3 分子中位相似度 | ≥0.7 | ≥0.5 | **<0.35** |
+| Reference set | Median T3-molecule similarity | ≥0.7 | ≥0.5 | **<0.35** |
 |---|---|---|---|---|
-| 亲和力半 428,767 个配体 | 0.419 | 8.8% | 31.2% | 23.6% |
-| **A 组 13,590 个配体** | **0.303** | **0.9%** | **5.3%** | **72.6%** |
+| Affinity half, 428,767 ligands | 0.419 | 8.8% | 31.2% | 23.6% |
+| **Group A, 13,590 ligands** | **0.303** | **0.9%** | **5.3%** | **72.6%** |
 
-**按 DrugCLIP 自己的训练配体衡量，T3 有 72.6% 的分子是全新化学，
-只有 0.9% 够得上「极近」。** 于是它的 CMP 基本归零：
+**Measured against DrugCLIP's own training ligands, 72.6% of T3's molecules are novel
+chemistry, and only 0.9% qualify as "very close".** Its CMP is accordingly close to
+zero:
 
-| 模型 | 层 | 池内熟% | CMP | CMP_exc | 活性内对照 |
+| Model | Layer | Pool familiar% | CMP | CMP_exc | Within-actives control |
 |---|---|---|---|---|---|
 | DrugCLIP | L1 | 1.0% | +0.043 | **+0.012** | +0.178 |
 | | L2 | 0.8% | −0.000 | **+0.001** | −0.000 |
@@ -274,213 +311,255 @@ CMP_exc  = CMP − CMP_pred             残差，这个才是偏好
 | BindCLIP-randneg | L1 | 1.0% | +0.050 | **+0.019** | +0.194 |
 | BindCLIP-hardneg | L1 | 1.0% | +0.041 | **+0.011** | +0.128 |
 
-（对照上面用错参照系时的 +0.022 / +0.025 / +0.044。）
+(Compare against +0.022 / +0.025 / +0.044 above, computed with the wrong reference set.)
 
-### ⚠️ 我据此下过一个结论，是错的，已撤回
+### ⚠️ A conclusion drawn from this was wrong and has been retracted
 
-看到「池子里 72.6% 对 A 组是全新」之后，本文档一度写过：
+After seeing "72.6% of the pool is novel to group A", this document once stated:
 
-> DrugCLIP 在 L1 拿到的富集是在几乎纯新的化学上拿到的，所以「靠记忆熟悉化学」
-> 对 A 组不适用，它只是四个模型的性质。
+> DrugCLIP's enrichment at L1 was achieved on almost entirely novel chemistry, so
+> "relying on memorised familiar chemistry" does not apply to group A — it's simply a
+> property of the four [affinity-trained] models.
 
-**这个推论是错的。**「池子里新分子占多数」不等于「分档没有区分力」——恰恰相反，
-换成正确参照系之后新颖度的动态范围更大了。用 A 组自己的配体重跑分档富集
-（[`results/T3_novelty_tiered_ef_Aref.csv`](../results/T3_novelty_tiered_ef_Aref.csv)）：
+**That inference was wrong.** "Most of the pool is novel" does not imply "the tiers carry
+no discriminative power" — quite the opposite: switching to the correct reference set
+actually widens the dynamic range of novelty. Re-running the tiered enrichment with group
+A's own ligands
+([`results/T3_novelty_tiered_ef_Aref.csv`](../results/T3_novelty_tiered_ef_Aref.csv)):
 
-| 模型 | 层 | 全新 <0.35 | 远 .35–.5 | 近 .5–.7 | 极近 ≥0.7 | 极近/全新 |
+| Model | Layer | Novel <0.35 | Distant .35–.5 | Close .5–.7 | Very close ≥0.7 | Very-close/novel |
 |---|---|---|---|---|---|---|
 | DrugCLIP | L1 | 9.7 (42) | 18.6 (43) | 29.6 (36) | **25.4 (26)** | **2.6×** |
 | BindCLIP-randneg | L1 | 11.5 (42) | 20.9 (43) | 26.5 (36) | **30.9 (26)** | **2.7×** |
 | BindCLIP-hardneg | L1 | 11.9 (42) | 20.3 (43) | 26.2 (36) | **26.8 (26)** | **2.3×** |
 
-**L1 上单调上升，效应确实存在**，只是比用错参照系时小（DrugCLIP 5.2× → 2.6×）。
-所以「模型对熟悉化学富集得更好」是**七个口袋模型的共性**，不是四个模型的性质。
+**At L1 it rises monotonically, so the effect is real** — just smaller than under the
+wrong reference set (DrugCLIP 5.2× → 2.6×). So "models enrich better on familiar
+chemistry" is **a shared property of all seven pocket models**, not a property specific
+to the four [affinity-trained] models.
 
-⚠️ **只有 L1 读得出来。** L2/L3/L4 的「极近」档在正确参照系下只剩 1~8 个靶点
-（0.9% 的池子占比撑不起来），那几行非单调、不可引用。
+⚠️ **Only L1 is legible.** Under the correct reference set the "very close" tier at
+L2/L3/L4 shrinks to just 1–8 targets (a 0.9% pool share can't support more), so those
+rows are non-monotonic and not citable.
 
-### 两条方法学教训
+### Two methodological lessons
 
-**一、先看分布就下结论，和先看均值就下结论是同一类错误。** 上面那个错误推论是
-看完池子构成（72.6% 全新）直接下的，没等分档富集跑出来。
+**One: drawing a conclusion from the distribution alone is the same class of mistake as
+drawing one from the mean alone.** The wrong inference above was made straight from the
+pool composition (72.6% novel) without waiting for the tiered enrichment to come out.
 
-**二、两组的可用统计量不同，不能并排比。** 对 428,767 那套参照系，极端两档
-（≥0.7 vs <0.35）在 L2 以后只剩 5~9 个靶点够样本，只能用「两半 ≥0.5 vs <0.5」；
-对 13,590 那套，两半被稀释到 5.3% 而失去功效，反倒是极端两档有 26~42 个靶点。
-**同一张表里并排放 A 组和 B 组的档位数字，读者会直接对比两个不可比的量。**
+**Two: the two groups have different usable statistics and cannot be placed side by
+side.** Under the 428,767 reference set, the two extreme tiers (≥0.7 vs <0.35) drop to
+only 5–9 targets with enough sample past L2, so only the "halves, ≥0.5 vs <0.5" split can
+be used; under the 13,590 set, the halves are diluted to 5.3% and lose power, while the
+two extreme tiers instead have 26–42 targets. **Placing group A's and group B's tier
+numbers side by side in the same table invites the reader to directly compare two
+incomparable quantities.**
 
-（原始 CMP 那个「A 组残差归零」的观察仍然成立，但它量的是 top-1% 的**成分**，
-和这里的分档富集不是一回事：池子里熟悉分子只占 0.9%，成分自然稀；
-而分档富集问的是「落在熟悉档的那些活性有没有更容易被捞回」，答案是有。
-A 组的活性内对照 L1 +0.13~+0.19 与这里同向，但 0.9% 基线上方差大，不单独引用。）
+(The original CMP observation that "group A's residual is near zero" still holds, but it
+measures the **composition** of the top 1%, which is a different thing from the tiered
+enrichment here: familiar molecules are only 0.9% of the pool, so the composition is
+naturally thin; the tiered enrichment instead asks "are actives that fall in the familiar
+tier more easily retrieved" — and the answer is yes. Group A's within-actives control of
++0.13 to +0.19 at L1 points the same way, but variance is high on a 0.9% baseline, so it
+should not be cited on its own.)
 
-### 另一个已知缺陷（已修，数字不受影响）
+### Another known defect (fixed; the numbers are unaffected)
 
-`ligand_novelty.py` 的 B 段（§3 的第二张表）曾经用 `actives + decoys` 直接当
-分子顺序，**只校验长度不校验标签**——正是本文档反复提到的那个坑。已由另一个
-agent 补上硬校验并逐格复核：六格数字与已发布的完全一致（HypSeek L1 0.969 /
-74.1%、LigUnity-protein 0.814 / 66.4%、DrugCLIP 0.818 / 65.2%，L4 三行全中），
-跳过靶点数 46/31/47/32 也落在文档写的区间内。**所以那张表本来就是加了校验跑
-出来的，数字不用动，丢的是可复现性**——仓库里的版本没有校验，照它重跑会静默
-拿到未校验的数。已修（`97e0f06`）。
+Section B of `ligand_novelty.py` (the second table in §3) used to treat
+`actives + decoys` directly as the molecule order, **validating only the length, not the
+labels** — exactly the pitfall this document keeps coming back to. A different agent has
+since added a hard validation check and re-verified cell by cell: all six cells match
+what was already published exactly (HypSeek L1 0.969 / 74.1%, LigUnity-protein 0.814 /
+66.4%, DrugCLIP 0.818 / 65.2%, all three L4 rows match too), and the skipped-target counts
+of 46/31/47/32 also fall within the range the document states. **So that table was in
+fact produced with validation already applied; the numbers don't need to change — what
+was missing was reproducibility** — the version in the repository has no validation, and
+re-running it as-is would silently produce unvalidated numbers. Fixed (`97e0f06`).
 
 ---
 
-## 3. 配体新颖度：泄漏全部集中在 L1
+## 3. Ligand novelty: leakage is entirely confined to L1
 
-### 3a. 精确重叠（InChIKey）
+### 3a. Exact overlap (InChIKey)
 
-| 层 | 活性分子在训练集里出现过 | 诱饵（背景） |
+| Layer | Actives that appear in the training set | Decoys (background) |
 |---|---|---|
 | **L1** | **32.1%** (5,479/17,066) | 3.7% |
 | L2 | 0.0% (19/102,005) | 3.7% |
 | L3 | 2.5% (110/4,358) | 3.8% |
 | **L4** | **3.2%** (1,042/32,774) | 3.7% |
 
-L1 有三分之一的活性就是训练集里的**原分子**（比诱饵背景高 8.7 倍）。
-**L4 的 3.2% 和诱饵背景 3.7% 持平——L3/L4 没有精确泄漏。**
+At L1, a third of the actives are literally the **same molecules** as ones in the
+training set (8.7× the decoy background). **L4's 3.2% is level with the decoy background
+of 3.7% — L3/L4 have no exact leakage.**
 
-（时间切分保证的是「记录」是新的；一个分子在训练集里对靶点 A 测过、
-在 T3 里对靶点 B 测，分子本身模型仍然认识。）
+(What the time split guarantees is that the *record* is new; a molecule that was tested
+against target A in the training set and tested against target B in T3 is still a
+molecule the model already knows.)
 
-#### 换成结构半自己的配体：绝对量小两个量级，相对偏更大
+#### Switching to the structure half's own ligands: absolute magnitude two orders smaller, relative bias larger
 
-上表按亲和力半的 428,767 个配体算。换成结构半那 13,590 个（→ 12,555 个
-InChIKey）：
+The table above is computed against the affinity half's 428,767 ligands. Switching to
+the structure half's 13,590 (→ 12,555 InChIKeys):
 
-| | 亲和力半 428,767 | **结构半 13,590** |
+| | Affinity half, 428,767 | **Structure half, 13,590** |
 |---|---|---|
-| L1 活性 | **32.1%** (5,479/17,066) | **3.2%** (542/17,066) |
-| L1 诱饵（背景） | 3.70% (31,566/853,300) | **0.25%** (2,144/853,300) |
-| **L1 活性/诱饵** | **8.7×** | **12.6×** |
-| L4 活性 | 3.2% | 0.2% (64/32,774) |
-| L4 诱饵 | 3.7% | 0.25% |
-| **L4 活性/诱饵** | **0.86×** | **0.8×** |
+| L1 actives | **32.1%** (5,479/17,066) | **3.2%** (542/17,066) |
+| L1 decoys (background) | 3.70% (31,566/853,300) | **0.25%** (2,144/853,300) |
+| **L1 actives/decoys** | **8.7×** | **12.6×** |
+| L4 actives | 3.2% | 0.2% (64/32,774) |
+| L4 decoys | 3.7% | 0.25% |
+| **L4 actives/decoys** | **0.86×** | **0.8×** |
 
-⚠️ **「3.2% 对 32.1%」不能读成「结构半没有精确泄漏」。** 要和**它自己的诱饵
-背景**比——训练配体池小 31.6 倍，诱饵背景也跟着从 3.70% 掉到 0.25%。
-**相对富集两边一样，甚至结构半还更高**（12.6× vs 8.7×）。
+⚠️ **"3.2% against 32.1%" cannot be read as "the structure half has no exact leakage".**
+It must be compared against **its own decoy background** — the training ligand pool is
+31.6× smaller, and the decoy background falls correspondingly from 3.70% to 0.25%. **The
+relative enrichment is the same on both sides, and if anything higher for the structure
+half** (12.6× vs 8.7×).
 
-所以准确的说法是两句，缺一不可：
+So the accurate statement takes two sentences, and neither can be dropped:
 
-> **相对而言**，两组的 L1 活性都比诱饵背景更容易是训练集原分子（8.7× / 12.6×），
-> 这是时间切分的固有性质，不因用哪套训练集而异；L4 两组都在 1 附近（0.86× /
-> 0.8×），确实没有精确泄漏。
+> **In relative terms**, L1 actives in both groups are more likely to be training-set
+> molecules than the decoy background is (8.7× / 12.6×) — an inherent property of the
+> time split, regardless of which training set is used; at L4 both groups sit near 1
+> (0.86× / 0.8×), i.e. genuinely no exact leakage.
 >
-> **绝对而言**，亲和力半那组 L1 有三分之一的活性是原分子，结构半那组只有 3%。
-> **所以「L1 基本是一个记忆测试」只对前者成立**，对后者是「相对有偏，绝对量小」。
+> **In absolute terms**, a third of L1 actives are the same molecules for the
+> affinity-half group, versus only 3% for the structure-half group. **So "L1 is
+> essentially a memorisation test" holds only for the former** — for the latter it is
+> "relatively biased, small in absolute magnitude".
 
-这和 §3c（结构半 L1 捞回极近档 16.1% vs 池子 9.0%，1.8×）、§4（分档富集
-L1 极近/全新 2.6×）、§2c（CMP 残差 +0.012）四处指向同一个形状：
-**相对有偏、绝对量小。**
+This, together with §3c (structure-half L1 retrieved-into-very-close tier 16.1% vs. pool
+9.0%, 1.8×), §4 (tiered enrichment, L1 very-close/novel 2.6×), and §2c (CMP residual
++0.012), points to the same shape in all four places: **relatively biased, small in
+absolute magnitude.**
 
-### 3b. 连续新颖度分档
+### 3b. Continuous novelty tiers
 
 `timesplit/analysis/ligand_novelty.py` → `results/T3_ligand_novelty.csv`
 
-对训练集 428,767 个去重配体算最大 Tanimoto（T3 的 146,919 个唯一分子各算一次）：
+Computing the maximum Tanimoto against the training set's 428,767 deduplicated ligands
+(once per each of T3's 146,919 unique molecules):
 
-| 层 | 活性中位 | 全新 <0.35 | 远 .35–.5 | 近 .5–.7 | 极近 ≥0.7 |
+| Layer | Active median | Novel <0.35 | Distant .35–.5 | Close .5–.7 | Very close ≥0.7 |
 |---|---|---|---|---|---|
 | **L1** | **0.727** | 2.1% | 14.9% | 29.1% | **53.9%** |
 | L2 | 0.417 | 24.1% | 47.4% | 25.4% | 3.1% |
 | L3 | 0.372 | 37.8% | 39.9% | 16.8% | 5.5% |
 | L4 | 0.380 | 35.5% | 46.4% | 11.8% | 6.4% |
-| *诱饵（各层一致）* | *0.419* | *23.6%* | *45.3%* | *22.3%* | *8.8%* |
+| *Decoys (identical across layers)* | *0.419* | *23.6%* | *45.3%* | *22.3%* | *8.8%* |
 
-**L1 超过一半的活性是训练分子的近复制品。
-L2/L3/L4 的活性比诱饵还新**——这是对跨靶点真实活性诱饵设计的强力背书。
+**At L1, more than half the actives are near-copies of training molecules. L2/L3/L4
+actives are even more novel than the decoys** — a strong endorsement of the cross-target
+real-active decoy design.
 
-⚠️ **上面整张表的参照系是亲和力半的 428,767 个配体，只对那四个模型成立。**
-同一批 L1 活性，换成结构半自己的 13,590 个配体来量：
+⚠️ **The reference set for this entire table is the affinity half's 428,767 ligands, and
+it only holds for those four models.** Measuring the same L1 actives against the
+structure half's own 13,590 ligands:
 
-| L1 活性 | 亲和力半参照 | **结构半自己的参照** |
+| L1 actives | Affinity-half reference | **Structure half's own reference** |
 |---|---|---|
-| 中位相似度 | 0.727 | **0.371** |
-| 全新 <0.35 | 2.1% | **42.2%** |
-| 极近 ≥0.7 | **53.9%** | **9.0%** |
+| Median similarity | 0.727 | **0.371** |
+| Novel <0.35 | 2.1% | **42.2%** |
+| Very close ≥0.7 | **53.9%** | **9.0%** |
 
-L4 反过来更极端：结构半参照下 **80.1%** 的 L4 活性是全新化学（亲和力半参照
-下是 35.5%）。
+L4 goes the other way even more extremely: under the structure-half reference, **80.1%**
+of L4 actives are novel chemistry (versus 35.5% under the affinity-half reference).
 
-**所以「L1 是记忆测试」这句话必须带主语。** 对 DrugCLIP 系三个模型，L1 的活性
-有 42.2% 是全新化学、近复制品只有 9%——它们的 L1 不是记忆测试。
+**So the statement "L1 is a memorisation test" must carry a subject.** For the three
+DrugCLIP-family models, 42.2% of L1's actives are novel chemistry, and only 9% are
+near-copies — their L1 is not a memorisation test.
 
-这顺带解释了**为什么两组模型的 L1 成绩差近一倍**（32–39 vs 17–19）：
-L1 有一半是亲和力半见过的分子，结构半没见过。差距的一部分不是能力差异，
-是这一层的构成对一组有利。
+This incidentally explains **why the two groups' L1 scores differ by nearly twofold**
+(32–39 vs. 17–19): half of L1 is molecules the affinity half has seen and the structure
+half has not. Part of the gap is not a difference in ability — it's this layer's
+composition favouring one group.
 
-### 3c. 模型偏好：系统性捞回见过的化学
+### 3c. Model preference: systematically retrieving chemistry it has seen
 
-模型排进 top-1% 的活性，各新颖度档占比。**下表的参照系同样是亲和力半，
-DrugCLIP 那两行见本节末尾的更正。**
+The novelty-tier composition of actives models rank into the top 1%. **The reference set
+for the table below is again the affinity half; see the correction at the end of this
+section for the two DrugCLIP rows.**
 
-| 模型 | 层 | 捞回中位 | 全新 <0.35 | 极近 ≥0.7 |
+| Model | Layer | Retrieved median | Novel <0.35 | Very close ≥0.7 |
 |---|---|---|---|---|
 | HypSeek | **L1** | **0.969** | 1.1% | **74.1%** |
 | LigUnity-protein | L1 | 0.814 | 1.1% | 66.4% |
 | DrugCLIP | L1 | 0.818 | 2.0% | 65.2% |
-| *（L1 池子构成）* | | *0.727* | *2.1%* | *53.9%* |
+| *(L1 pool composition)* | | *0.727* | *2.1%* | *53.9%* |
 | HypSeek | L4 | 0.448 | 22.1% | 12.9% |
 | LigUnity-protein | L4 | 0.452 | 25.5% | 14.9% |
 | DrugCLIP | L4 | 0.415 | 22.8% | 7.5% |
-| *（L4 池子构成）* | | *0.380* | *35.5%* | *6.4%* |
+| *(L4 pool composition)* | | *0.380* | *35.5%* | *6.4%* |
 
-**模型系统性偏向捞回见过的化学。**HypSeek 在 L1 上捞回的活性中位相似度
-**0.969**——几乎是训练配体的复制品，而池子中位才 0.727。
-L4 上池子里 35.5% 是全新分子，模型只捞回 22%。
+**Models systematically favour retrieving chemistry they've seen.** HypSeek's retrieved
+actives at L1 have a median similarity of **0.969** — near-copies of training ligands —
+against a pool median of only 0.727. At L4, 35.5% of the pool is novel molecules, but the
+model retrieves only 22%.
 
-### ⚠️ DrugCLIP 那两行的参照系是错的，重算之后偏好弱得多
+### ⚠️ The reference set for the two DrugCLIP rows is wrong; the preference is much weaker after recomputing
 
-上表的新颖度按亲和力半的 428,767 个配体算，而 DrugCLIP 系的训练配体只有
-13,590 个。用它们自己的配体重算（→ `results/T3_ligand_novelty_Agroup.csv`）：
+The novelty in the table above is computed against the affinity half's 428,767 ligands,
+while the DrugCLIP family's training ligands number only 13,590. Recomputing with their
+own ligands (→ `results/T3_ligand_novelty_Agroup.csv`):
 
-| DrugCLIP | 捞回中位 | 全新 <0.35 | 极近 ≥0.7 |
+| DrugCLIP | Retrieved median | Novel <0.35 | Very close ≥0.7 |
 |---|---|---|---|
-| **L1 捞回** | 0.442 | 25.6% | **16.1%** |
-| *L1 池子* | *0.371* | *42.2%* | *9.0%* |
-| **L4 捞回** | 0.305 | 65.9% | 0.6% |
-| *L4 池子* | *0.291* | *80.1%* | *0.6%* |
+| **L1 retrieved** | 0.442 | 25.6% | **16.1%** |
+| *L1 pool* | *0.371* | *42.2%* | *9.0%* |
+| **L4 retrieved** | 0.305 | 65.9% | 0.6% |
+| *L4 pool* | *0.291* | *80.1%* | *0.6%* |
 
-**L1 上偏好确实存在但弱得多**：极近档 16.1% 对池子的 9.0%，**1.8 倍**；
-全新档 25.6% 对 42.2%，系统性少捞。对比上表里那个「捞回中位 0.818、
-极近 65.2%」——那是拿别人的训练集量出来的。
+**At L1 the preference is real but much weaker**: the very-close tier is 16.1% against
+the pool's 9.0%, a **1.8×** lift; the novel tier is 25.6% against 42.2% — systematically
+under-retrieved. Compare against the "retrieved median 0.818, very-close 65.2%" figures
+in the table above — those were measured against someone else's training set.
 
-**L4 上偏好基本消失**：极近档 16.1% → 0.6%，和池子的 0.6% 持平，
-只剩「全新档少捞」这一点（65.9% vs 80.1%）。
+**At L4 the preference is essentially gone**: the very-close tier goes from 16.1% →
+0.6%, level with the pool's 0.6%, leaving only the "under-retrieving the novel tier"
+effect (65.9% vs. 80.1%).
 
-这和 §2c 的 CMP 残差、§4 用 A 参照系重跑的分档富集（L1 极近/全新 2.6×）
-三处同向：**偏好是七个口袋模型的共性，但对结构半那三个模型只在 L1 读得出来，
-且幅度约为亲和力半四个模型的一半。**
+This points the same way as §2c's CMP residual and §4's tiered enrichment re-run under
+the A reference set (L1 very-close/novel 2.6×) in all three places: **the preference is
+a shared property of all seven pocket models, but for the three structure-half models it
+is only legible at L1, and its magnitude is about half that of the four affinity-half
+models.**
 
-> ⚠️ **第一版这段是错的**，必须记录：我假设模型看到的分子顺序是
-> 「活性 + 诱饵」（jsonl 序），结果算出来的分布和池子背景几乎一样。
-> 那正是**分子顺序错位**的特征——模型读 lmdb，游标是字典序
-> （`0, 1, 10, 100, …`），不是 jsonl 序。**长度相同不代表顺序相同。**
-> 加了硬校验（标签为 1 的位置上必须真的是 active，不过就跳过该靶点）
-> 之后才得到上表。31–47 个靶点两种顺序都验不过，已跳过。
-> 这是同一个坑第三次出现，见 [PATCHES.md](../PATCHES.md)。
+> ⚠️ **The first version of this section was wrong**, and it must be recorded: I assumed
+> the molecule order the model saw was "actives + decoys" (jsonl order), and the
+> distribution that came out of that was almost identical to the pool background. That
+> is exactly the signature of **misaligned molecule order** — the model reads from lmdb,
+> whose cursor order is lexicographic (`0, 1, 10, 100, …`), not jsonl order. **Equal
+> length does not mean equal order.** The table above was only obtained after adding a
+> hard validation check (the position labelled 1 must genuinely be an active, otherwise
+> the target is skipped). 31–47 targets fail validation under both orderings and were
+> skipped. This is the third occurrence of the same pitfall — see
+> [PATCHES.md](../PATCHES.md).
 
 ---
 
-## 4. 按新颖度档分别算富集 —— 真实场景的数字
+## 4. Enrichment computed separately per novelty tier — the realistic-scenario numbers
 
 `timesplit/analysis/novelty_tiered_ef.py` → `results/T3_novelty_tiered_ef.csv`
 
-第 3 节回答了「测试配体有多新」和「模型捞回的偏熟还是偏生」，但没回答最直接的
-一问：**在全新化学这一档上，模型的富集是多少**。Walters 那篇提的
-Novelty-Tiered Benchmark 要的就是这个数。
+Section 3 answered "how novel are the test ligands" and "does the model retrieve toward
+the familiar or the novel side", but not the most direct question: **what is the model's
+enrichment specifically on the novel-chemistry tier**. This is exactly the number the
+Novelty-Tiered Benchmark in the Walters paper calls for.
 
-指标定义（各档之间直接可比，不受该档活性数量影响）：
+Metric definition (comparable directly across tiers, unaffected by how many actives a
+tier holds):
 
 ```
-recall_t = 该档活性落进 top-1% 的个数 / 该档活性总数
-EF_t     = recall_t / 0.01          # EF_t = 1 表示和随机一样
+recall_t = number of that tier's actives that land in the top 1% / total actives in that tier
+EF_t     = recall_t / 0.01          # EF_t = 1 means the same as random
 ```
 
-逐靶点算再取均值，只统计该档至少有 3 个活性的靶点。
+Computed per target and then averaged; only targets with at least 3 actives in that tier
+are counted.
 
-| 模型 | 层 | 全新 <0.35 | 远 .35–.5 | 近 .5–.7 | 极近 ≥0.7 |
+| Model | Layer | Novel <0.35 | Distant .35–.5 | Close .5–.7 | Very close ≥0.7 |
 |---|---|---|---|---|---|
 | **LigUnity-protein** | L1 | 26.7 (n=18) | 19.1 (106) | 33.7 (184) | **52.4** (245) |
 | | L2 | 18.6 (234) | 26.5 (373) | 44.2 (330) | 55.7 (152) |
@@ -492,179 +571,213 @@ EF_t     = recall_t / 0.01          # EF_t = 1 表示和随机一样
 | DrugCLIP | L3 | **0.6** | 6.3 | 6.2 | 17.5 |
 | DrugCLIP | L4 | 5.3 | 6.8 | 11.0 | 11.9 |
 
-（括号里是参与统计的靶点数。）
+(Numbers in parentheses are the target counts included in the statistic.)
 
-⚠️ **DrugCLIP 那两行的参照系是错的。** 新颖度按亲和力半的 428,767 个配体算，
-而 DrugCLIP 的训练配体只有 13,590 个（见 §2c）。按它自己的配体衡量，T3 有
-**72.6%** 的分子落在「全新 <0.35」、只有 **0.9%** 够得上「极近 ≥0.7」——
-表里 DrugCLIP L1 那个「极近档 17.5」根本不是它眼中的「极近」。
-**这一整套分档对 DrugCLIP 系三个模型不成立**，正确参照系下「熟悉」那一档
-每靶点凑不够 3 个活性。表里保留 DrugCLIP 两行只是为了和其他模型并排看形状，
-不要单独引用它的档位。
+⚠️ **The reference set for the two DrugCLIP rows is wrong.** Novelty is computed against
+the affinity half's 428,767 ligands, while DrugCLIP's training ligands number only
+13,590 (see §2c). Measured against its own ligands, **72.6%** of T3's molecules fall
+into "novel <0.35" and only **0.9%** reach "very close ≥0.7" — the "very close tier
+17.5" shown for DrugCLIP L1 in the table isn't "very close" by its own standard at all.
+**This entire tiering scheme does not hold for the three DrugCLIP-family models** —
+under the correct reference set, the "familiar" tier can't even muster 3 actives per
+target. The two DrugCLIP rows are kept in the table only so the shape can be compared
+side by side with the other models; do not cite its tier values on their own.
 
-### 两条结论
+### Two conclusions
 
-**一、真实场景的数字比主表小一个数量级。**主表报的 L4 EF1% 是 9.38，那是全部
-活性混在一起的均值。拆开看——**新靶点 + 全新化学，也就是真正的药物发现场景，
-只有 4.5**；而新靶点 + 见过的化学有 27.1。（这两个数来自 LigUnity-protein，
-它训在亲和力半上，所以档位的参照系是对的。）
+**One: the realistic-scenario number is an order of magnitude smaller than the main
+table's.** The main table reports L4 EF1% of 9.38, which is the mean over all actives
+pooled together. Split apart — **novel target + novel chemistry, i.e. the genuine
+drug-discovery scenario, is only 4.5**; novel target + familiar chemistry is 27.1. (Both
+numbers are from LigUnity-protein, which is trained on the affinity half, so the tier
+reference set is correct for it.)
 
-⚠️ **本文档早先在这里还写过「DrugCLIP 在 L3 的全新档是 0.6，低于随机」。
-那句已删。** 那个档位是按亲和力半的 428,767 个配体划的，而 DrugCLIP 的训练
-配体只有 13,590 个——按它自己的参照系，它的「全新」档是 **9.7**，不是 0.6。
-DrugCLIP 系三个模型的正确分档见本节末尾的更正表。
+⚠️ **This document previously also stated here that "DrugCLIP's novel tier at L3 is 0.6,
+below random." That sentence has been deleted.** That tier was cut against the affinity
+half's 428,767 ligands, while DrugCLIP's training ligands number only 13,590 — by its
+own reference set, its "novel" tier is **9.7**, not 0.6. The correct tiers for the three
+DrugCLIP-family models are in the correction table at the end of this section.
 
-**二、配体新颖度和靶点新颖度都在起作用，但两者不放大彼此。**
+**Two: both ligand novelty and target novelty are at work, but they do not amplify each
+other.**
 
-先看 LigUnity-protein 一家：
+First looking at LigUnity-protein alone:
 
-| | 极近 ≥0.7 | 全新 <0.35 | 新/熟比 |
+| | Very close ≥0.7 | Novel <0.35 | Novel/familiar ratio |
 |---|---|---|---|
 | L1 | 52.4 | 26.7 | 0.51 |
 | L4 | 27.1 | **4.5** | **0.17** |
 
-- 只换靶点（L1 → L4，化学都熟）：52.4 → 27.1，掉 **1.9 倍**
-- 只换化学（L4 层内）：27.1 → 4.5，掉 **6.0 倍**
-- 同样换化学，在 L1 只掉 2.0 倍，在 L4 掉 6.0 倍 —— 放大 **3.1 倍**
+- Changing only the target (L1 → L4, familiar chemistry both times): 52.4 → 27.1, a
+  **1.9×** drop
+- Changing only the chemistry (within L4): 27.1 → 4.5, a **6.0×** drop
+- The same change in chemistry costs 2.0× at L1 but 6.0× at L4 — amplified **3.1×**
 
-⚠️ **这个放大只在这一个模型上成立。** 本文档早先版本据此写了「靶点是新的时候，
-配体新颖度的代价被急剧放大」，那是从单个模型推广的，**其余四个模型不支持**：
+⚠️ **This amplification only holds for this one model.** An earlier version of this
+document wrote, on this basis, "when the target is novel, the cost of ligand novelty is
+sharply amplified" — that was generalised from a single model, and **the other four
+models do not support it**:
 
-| 模型 | L1 新/熟 | L4 新/熟 | 放大倍数 |
+| Model | L1 novel/familiar | L4 novel/familiar | Amplification factor |
 |---|---|---|---|
 | LigUnity-protein | 0.51 | 0.17 | **3.09** |
 | HypSeek `_rk` | 0.20 | 0.19 | 1.03 |
 | LiTENCLIP | 0.22 | 0.27 | 0.81 |
 | LigUnity-pocket | 0.30 | 0.47 | 0.65 |
 | DrugCLIP | 0.19 | 0.44 | 0.43 |
-| **中位数** | **0.22** | **0.27** | **0.81** |
+| **Median** | **0.22** | **0.27** | **0.81** |
 
-五个模型里三个方向相反（在 L4 上换化学的代价反而**更小**）。而且
-LigUnity-protein 那个 L1 全新档只有 **18 个靶点**，是整张表里最薄的一格。
+Three of the five models go the opposite direction (the cost of changing chemistry at L4
+is actually **smaller**). And LigUnity-protein's L1 novel tier has only **18 targets** —
+the thinnest cell in the entire table.
 
-第 6 节按各模型自己的训练集重做了同一件事，结论一致：新/熟比在
-seen 组和 unseen 组的中位数都是 **0.26**，没有放大。
+Section 6 redid the same thing against each model's own training set, with the same
+conclusion: the novel/familiar ratio's median is **0.26** in both the seen and unseen
+groups — no amplification.
 
-**所以正确的说法是**：L1→L4 的衰减确实是「靶点新」和「配体新」两件事叠加，
-但两者**近似独立**（乘性、无交互项），不是后者被前者放大。配体新颖度的权重
-确实更大——换化学掉 4–5 倍，换靶点掉约 2 倍——这一半的结论站得住。
+**So the correct statement is**: the L1→L4 decay is indeed "novel target" and "novel
+ligand" stacking together, but the two are **approximately independent** (multiplicative,
+no interaction term) — the latter is not amplified by the former. Ligand novelty does
+carry more weight — changing chemistry costs 4–5×, changing the target costs about 2× —
+and that half of the conclusion holds up.
 
-### 数据留痕
+### Data trail
 
-46 / 30 / 9 / 31 个靶点（L1/L2/L3/L4）在分子顺序校验中不通过，已跳过。
-各模型跳过的是同一批靶点，说明这是那些靶点的性质（jsonl 与 lmdb 两种顺序都对
-不上标签），不是某个模型的问题。
+46 / 30 / 9 / 31 targets (L1/L2/L3/L4) fail the molecule-order validation and were
+skipped. The same set of targets is skipped across every model, which shows this is a
+property of those targets (neither the jsonl nor the lmdb ordering lines up with the
+labels), not an issue with any one model.
 
 ---
 
-## 5. 分层标签是按谁的训练集画的
+## 5. Which training set the layer labels are drawn from
 
-L1–L4 的定义是「PocketAffDB 见没见过这个靶点」，而 PocketAffDB 只是十个模型里
-四个的训练集。用这套标签去比较「用 PocketAffDB 训的模型」和「用别的集训的
-模型」，再得出「训练数据比架构更重要」，是循环论证——标签本身就是按其中一组的
-训练集画的。
+The L1–L4 definition is "whether PocketAffDB has seen this target", and PocketAffDB is
+the training set for only four of the ten models. Using this labelling to compare "models
+trained on PocketAffDB" against "models trained on other sets", and then concluding
+"training data matters more than architecture", is circular — the labels themselves were
+drawn from one group's own training set.
 
-先把三套训练集对各层的覆盖率摆出来
-（[`timesplit/analysis/per_model_audit.py`](../timesplit/analysis/per_model_audit.py)，
-350 配额子集，328 条 / 293 个靶点）：
+First laying out the coverage of the three training sets against each layer
+([`timesplit/analysis/per_model_audit.py`](../timesplit/analysis/per_model_audit.py),
+350-quota subset, 328 entries / 293 targets):
 
-| 层 | 靶点 | A 见过 | B 见过 | C 见过 | 三套都没见过 |
+| Layer | Targets | A seen | B seen | C seen | Seen by none of the three |
 |---|---|---|---|---|---|
 | L1 | 56 | 43 (77%) | 56 (**100%**) | 28 (50%) | 0 (0%) |
 | L2 | 178 | 124 (70%) | 178 (**100%**) | 90 (51%) | 0 (0%) |
 | L3 | 19 | 4 (21%) | 0 (**0%**) | 5 (26%) | 12 (63%) |
 | L4 | 75 | 17 (23%) | 0 (**0%**) | 9 (12%) | 52 (69%) |
 
-- **A** `train_no_test_af`（16,744 个 PDB → 4,098 UniProt）—— DrugCLIP、BindCLIP ×2
-- **B** LigUnity 系的训练集 —— LigUnity ×2、LiTENCLIP、HypSeek
-- **C** ConPLex 的 BindingDB 训练序列（mmseqs 反查，同一性 ≥95%、双向覆盖 ≥50%）
-- **D** SPRINT 的 MERGED（336 个 UniProt）
-- ConGLUDe 的清单仍未获得
+- **A** `train_no_test_af` (16,744 PDB → 4,098 UniProt) — DrugCLIP, BindCLIP ×2
+- **B** the LigUnity family's training set — LigUnity ×2, LiTENCLIP, HypSeek
+- **C** ConPLex's BindingDB training sequences (reverse-looked-up via mmseqs, identity
+  ≥95%, bidirectional coverage ≥50%)
+- **D** SPRINT's MERGED (336 UniProt)
+- ConGLUDe's list is still unobtained
 
-⚠️ **上表的 B 列是按亲和力半（2,196 UniProt）算的，那是分层定义本身。**
-B 组模型实际训练的是**并集 4,847**（亲和力半 + 结构半，而结构半就是 A）。
-按并集重算，L3 的 B 覆盖率是 21%、L4 是 11%，不是 0——见 §6。
-这张表保留成这个样子，是因为它要展示的正是「分层定义按谁画的」这件事。
+⚠️ **The B column above is computed against the affinity half (2,196 UniProt), which is
+the layer definition itself.** Group B models actually train on the **union of 4,847**
+(affinity half + structure half, and the structure half is exactly A). Recomputed against
+the union, B's coverage is 21% at L3 and 11% at L4, not 0 — see §6. This table is kept
+as-is because what it is meant to show is precisely "whose training set the layer
+definition was drawn from".
 
-B 那一列 100/100/0/0 就是分层定义本身，不是测量结果。真正要看的是另外两列跟它
-差多少：**A 在 L1 只有 77%，在 L3/L4 却有 21–23%。** 也就是说，对 DrugCLIP 系
-的三个模型，我们叫「L1」的那批靶点有四分之一它没见过，叫「L4」的那批有五分之一
-它见过。它们的 L1→L4 衰减因此同时混进了「标签错配」这一项。
+The B column's 100/100/0/0 is the layer definition itself, not a measurement. What
+actually matters is how much the other two columns deviate from it: **A is only 77% at
+L1, but 21–23% at L3/L4.** In other words, for the three DrugCLIP-family models, a
+quarter of what we call "L1" targets is something they haven't seen, and a fifth of what
+we call "L4" targets is something they have. Their L1→L4 decay therefore also has a
+"label mismatch" component mixed in.
 
-C 的形状（50/51/26/12）反倒和分层意图一致，所以 ConPLex 的衰减读数不受这个问题
-影响。
+C's shape (50/51/26/12), by contrast, is consistent with the layering intent, so
+ConPLex's decay reading is unaffected by this issue.
 
-**这不推翻任何已有结论**——L1→L4 的衰减在每个模型内部都成立。至于错配把衰减
-推高还是压低，下一节直接量了：**不是单向的**，DrugCLIP 的自身衰减比 L1→L4 高
-13.5 个百分点，BindCLIP-hardneg 却低 13.4 个百分点。所以这是噪声不是偏置，
-但跨模型比较绝对的 L4 数值时仍然得记着这些标签不是为它们画的。
+**This does not overturn any existing conclusion** — the L1→L4 decay holds within every
+model. As for whether the mismatch pushes decay up or down, the next section measures it
+directly: **it is not one-directional** — DrugCLIP's own decay is 13.5 percentage points
+higher than L1→L4, while BindCLIP-hardneg's is 13.4 points lower. So this is noise, not
+bias — but when comparing absolute L4 values across models, it still needs to be kept in
+mind that these labels were not drawn for them.
 
-`T3_per_model_audit.csv` 留了逐层的原始计数。
+`T3_per_model_audit.csv` retains the raw per-layer counts.
 
 ---
 
-## 6. 逐模型分层：起作用的是带亲和力标签的那一半
+## 6. Per-model layering: what does the work is the affinity-labelled half
 
-⚠️ **本节 2026-09-09 重写过一次。** 第一版把 A（`train_no_test_af`）和
-B（PocketAffDB）当成两套互斥的训练集，结论是「PocketAffDB 的成员身份值约
-2.4 个名次，`train_no_test_af` 的成员身份带不来任何可测的优势」。
-**那个前提是错的**，见下面「训练集其实是嵌套的」。测量是真的，归因不对。
+⚠️ **This section was rewritten once on 2026-09-09.** The first version treated A
+(`train_no_test_af`) and B (PocketAffDB) as two mutually exclusive training sets, and
+concluded "PocketAffDB membership is worth about 2.4 rank places; `train_no_test_af`
+membership brings no measurable advantage." **That premise was wrong** — see "the
+training sets are actually nested" below. The measurement was real; the attribution was
+not.
 
-把上一节的问题正面做掉：每个模型按**它自己的**训练集判 seen/unseen
-（[`timesplit/analysis/per_model_layers.py`](../timesplit/analysis/per_model_layers.py)）。
+Taking the previous section's problem head-on: judging seen/unseen for each model against
+**its own** training set
+([`timesplit/analysis/per_model_layers.py`](../timesplit/analysis/per_model_layers.py)).
 
-### 训练集其实是嵌套的，不是并列的
+### The training sets are actually nested, not parallel
 
-`unimol/tasks/train_task.py:523-524` 同时读**两个**标签文件：
+`unimol/tasks/train_task.py:523-524` reads **two** label files at once:
 
 ```python
-pair_label_1 = json.load(open(".../train_label_pdbbind_seq.json"))     # 结构半
-pair_label_2 = json.load(open(".../train_label_blend_seq_full.json"))  # 亲和力半
+pair_label_1 = json.load(open(".../train_label_pdbbind_seq.json"))     # structure half
+pair_label_2 = json.load(open(".../train_label_blend_seq_full.json"))  # affinity half
 ```
 
-我们此前只算了后者。而前者不是别的东西——它覆盖 **16,744 个 PDB ID**，
-和 DrugCLIP 的 `train_no_test_af` **完全相同**：
+We had previously only counted the latter. The former is not some separate thing — it
+covers **16,744 PDB IDs**, and is **exactly the same** as DrugCLIP's `train_no_test_af`:
 
-| | PDB ID 数 | 交集 | 各自独有 |
+| | PDB ID count | Intersection | Each exclusively |
 |---|---|---|---|
 | `train_label_pdbbind_seq.json` | 16,744 | **16,744** | **0** |
 | `train_no_test_af` | 16,744 | | **0** |
 
-所以七个口袋系模型不是「用了两套不同的数据」：
+So the seven pocket-family models did not "use two different datasets":
 
-- **A 组**（DrugCLIP、BindCLIP ×2）训了那 16,744 个结构
-- **B 组**（LigUnity ×2、LiTENCLIP、HypSeek）训了**同样这 16,744 个**，
-  外加亲和力半的 2,196 个靶点
+- **Group A** (DrugCLIP, BindCLIP ×2) trained on those 16,744 structures
+- **Group B** (LigUnity ×2, LiTENCLIP, HypSeek) trained on **the same 16,744**, plus the
+  affinity half's 2,196 targets
 
-⚠️ **嵌套的是「每组模型见过的靶点」，不是「两个文件」。** 两个文件在 UniProt
-层面只交 817 个，亲和力半独有 1,379 个、结构半独有 2,651 个，谁也不包含谁。
-所以下面四格里「仅 L」不是空的——350 子集里 36 个、全量 135 个，分析成立。
+⚠️ **What is nested is "the targets each group of models has seen", not "the two
+files".** The two files intersect in only 817 UniProt at the UniProt level, with 1,379
+exclusive to the affinity half and 2,651 exclusive to the structure half — neither
+contains the other. So the "L-only" cell below is not empty — 36 in the 350 subset, 135
+in the full set — and the analysis holds.
 
-这也让发现 13 的说法收窄了一圈：不是「训练数据比架构重要」这种笼统说法，
-而是**同一批结构，加上亲和力半之后，L1 的 EF@1% 从 17–19 涨到 32–39**。
+This also narrows finding 13's statement by one turn: not the broad claim "training data
+matters more than architecture", but **the same batch of structures, once the affinity
+half is added, takes L1 EF@1% from 17–19 up to 32–39**.
 
-⚠️ **但「亲和力半」带来的不只是标签。** 它的 428,767 个唯一配体，对上结构半的
-**13,590 个**——**31.6 倍**的化学空间，是和 pAff 值一起来的。涨幅里有多少来自
-标签、多少来自配体多样性，光靠这两套训练集分不开，要分得固定一个变量重训。
-所以这条说的是「那**一半**」，不是「标签本身」。
+⚠️ **But what the "affinity half" brings is not only labels.** Its 428,767 unique
+ligands, against the structure half's **13,590** — a **31.6×** larger chemical space —
+arrive together with the pAff values. How much of the gain comes from the labels and how
+much from ligand diversity cannot be separated using these two training sets alone;
+separating them would require retraining with one variable held fixed. So this point is
+about "that **half**", not "the labels themselves".
 
-四套训练集在本节里是：**A** 结构半、**B** 两个文件的并集（4,847 UniProt）、
-**C** ConPLex 的 BindingDB（mmseqs 反查）、**D** SPRINT 的 MERGED（336 个）。
-ConGLUDe 的清单仍未获得。
+The four training sets in this section are: **A** the structure half, **B** the union of
+the two files (4,847 UniProt), **C** ConPLex's BindingDB (reverse-looked-up via mmseqs),
+**D** SPRINT's MERGED (336). ConGLUDe's list remains unobtained.
 
-### 只做靶点级，不做四层
+### Only done at the target level, not across all four layers
 
-L1/L2 的分界是配体骨架见没见过，L3/L4 是家族见没见过。前者要每个模型的
-**训练配体**清单，后者要按每个模型的训练集重跑一次聚类——配体清单十个模型里
-只有两三个拿得到。所以逐模型版只做「靶点在不在它训练集里」这一刀。
+The L1/L2 boundary is whether the ligand scaffold has been seen; L3/L4 is whether the
+family has been seen. The former needs each model's **training-ligand** list; the latter
+needs re-running the clustering against each model's own training set — of the ten
+models, only two or three have an obtainable ligand list. So the per-model version only
+makes the one cut of "is the target in its training set or not".
 
-⚠️ **本表 2026-09-09 修正过一次子集过滤的 bug。** 早先按 **uniprot** 过滤
-350 子集，但子集是 **(层, 靶点) 对**——328 条 / 293 个唯一 uniprot，
-35 个 uniprot 出现在多个层。只按 uniprot 过滤会把「该靶点在别的层的记录」
-也算进来，实测 seen+unseen 报到 **417**，比子集本身的 328 条还多 89 条。
-下表是按 (层, 靶点) 过滤后的正确值。**结论不变，数字小幅移动。**
+⚠️ **This table's subset filter had a bug that was fixed once on 2026-09-09.** The 350
+subset was originally filtered by **uniprot**, but the subset is actually **(layer,
+target) pairs** — 328 entries / 293 unique uniprot, with 35 uniprot appearing in multiple
+layers. Filtering by uniprot alone pulls in "that target's record in another layer" too —
+seen+unseen was measured coming out to **417**, 89 more than the subset's own 328
+entries. The table below uses the correct values after filtering by (layer, target).
+**The conclusion is unchanged; the numbers shift slightly.**
 
-| 模型 | 集 | seen | unseen | EF1 seen | EF1 unseen | 自身衰减 | L1→L4 衰减 |
+| Model | Set | seen | unseen | EF1 seen | EF1 unseen | Own decay | L1→L4 decay |
 |---|---|---|---|---|---|---|---|
 | DrugCLIP | A | 187 | 128 | 15.53 | 7.07 | 58% | 45% |
 | BindCLIP-hardneg | A | 187 | 128 | 14.64 | 7.49 | 52% | 69% |
@@ -676,21 +789,24 @@ L1/L2 的分界是配体骨架见没见过，L3/L4 是家族见没见过。前�
 | ConPLex | C | 128 | 170 | 5.34 | 2.32 | 70% | 67% |
 | SPRINT | D | 22 | 241 | 2.11 | 2.02 | 8% *(p=0.85)* | 29% |
 
-**换标签之后 A 组和 B 组分得更开。** 现行 L1→L4 标签下 A 组 45–69%、
-B 组 69–72% 两组重叠；按各自训练集算 **A 组 49–58%、B 组 66–71%**，不重叠。
-**衰减这个结论不是分层标签造出来的。**
+**After switching labels, groups A and B separate further apart.** Under the current
+L1→L4 labels, group A sits at 45–69% and group B at 69–72%, overlapping; computed against
+each group's own training set, **group A is 49–58% and group B is 66–71%**, not
+overlapping. **The decay conclusion is not an artefact of the layer labels.**
 
-### 靶点难度必须消掉，而且不能用比值
+### Target difficulty must be divided out, and it cannot be a ratio
 
-模型见过的多半是被研究得透的靶点，本来就好做。第一版用比值
-`EF(模型,t) ÷ median(EF(其余模型,t))` 归一化，**这个口径不能报**：
-分母接近 0 时比值会爆，DrugCLIP 的倍数中位是 1.85、均值却是 0.57，方向相反。
+Targets a model has seen are mostly well-studied ones, which are easy to begin with. The
+first version normalised using the ratio `EF(model,t) ÷ median(EF(other models,t))`, and
+**that criterion cannot be reported**: the ratio blows up when the denominator
+approaches zero — DrugCLIP's median fold is 1.85 but its mean fold is 0.57, opposite
+directions.
 
-换成**靶点内名次**——每个靶点上把十个模型按 EF1 排名，名次是靶点内部的相对量，
-靶点难不难自动消掉
-（[`per_model_seen_effect.py`](../timesplit/analysis/per_model_seen_effect.py)）：
+Switching to **within-target rank** — ranking the ten models by EF1 within each target;
+rank is a within-target relative quantity, so target difficulty is automatically divided
+out ([`per_model_seen_effect.py`](../timesplit/analysis/per_model_seen_effect.py)):
 
-| 模型 | 集 | P(seen&gt;unseen) | 名次 seen | 名次 unseen | 名次改善 |
+| Model | Set | P(seen&gt;unseen) | Rank seen | Rank unseen | Rank improvement |
 |---|---|---|---|---|---|
 | DrugCLIP | A | 0.690 | 5.78 | 5.73 | **−0.05** |
 | BindCLIP-randneg | A | 0.661 | 6.06 | 5.87 | **−0.19** |
@@ -702,27 +818,30 @@ B 组 69–72% 两组重叠；按各自训练集算 **A 组 49–58%、B 组 66�
 | ConPLex | C | 0.621 | 7.57 | 7.29 | **−0.28** |
 | SPRINT | D | 0.450 | 7.08 | 7.95 | +0.87 *(p=0.78)* |
 
-**两个口径打架，而打架本身是答案。** 绝对 EF 说 A 组在自己见过的靶点上明显
-更高（P=0.67~0.69，p&lt;1e-4）；靶点内名次说 A 组的相对位置根本没动。
-**A 组的「见过更高」是靶点本身好做，所有模型在那儿都更高。**
+**The two criteria conflict, and the conflict itself is the answer.** Absolute EF says
+group A is clearly higher on targets it has seen (P=0.67~0.69, p&lt;1e-4); within-target
+rank says group A's relative position hasn't moved at all. **Group A's "higher when
+seen" is because those targets are simply easier — every model scores higher there.**
 
-⚠️ **但 A 组这个零结果是弱证据。** 既然 A ⊂ B，A 组见过的靶点**七个口袋模型
-全都见过**，谁也不可能在那儿脱颖而出。这个零更可能是检测失败，不是「结构数据
-没用」。要分开必须看只有一半覆盖到的靶点——下一小节。
+⚠️ **But this null result for group A is weak evidence.** Since A ⊂ B, the targets group
+A has seen are ones **all seven pocket models have seen**, so none of them can possibly
+stand out there. This null is more likely a failure to detect than "structure data is
+useless". Separating the two requires looking at targets covered by only one half — the
+next subsection.
 
-### 按两个标签文件切格
+### Cutting cells by the two label files
 
-（[`train_set_crossover.py`](../timesplit/analysis/train_set_crossover.py)，
-十个模型都有结果的 **237** 个 (层, 靶点) 记录）
+([`train_set_crossover.py`](../timesplit/analysis/train_set_crossover.py), **237**
+(layer, target) records where all ten models have a result)
 
-| 格 | 含义 | 记录数 |
+| Cell | Meaning | Record count |
 |---|---|---|
-| P∩L | 两半都有 | 128 |
-| **仅 P** | 只有结构半 —— **A、B 都训过** | **7** |
-| **仅 L** | 只有亲和力半 —— **只有 B 训过** | 42 |
-| 都没有 | | 60 |
+| P∩L | Both halves | 128 |
+| **P-only** | Structure half only — **both A and B trained on it** | **7** |
+| **L-only** | Affinity half only — **only B trained on it** | 42 |
+| Neither | | 60 |
 
-| 模型 | 组 | 仅 P | 仅 L | 仅L−仅P | p |
+| Model | Group | P-only | L-only | L-only minus P-only | p |
 |---|---|---|---|---|---|
 | LiTENCLIP | B | 6.07 | 4.19 | **−1.88** | 0.036 |
 | LigUnity-pocket | B | 3.93 | 2.68 | **−1.25** | 0.048 |
@@ -735,68 +854,79 @@ B 组 69–72% 两组重叠；按各自训练集算 **A 组 49–58%、B 组 66�
 | BindCLIP-hardneg | A | 4.71 | 6.00 | +1.29 | 0.94 |
 | DrugCLIP | A | 4.86 | 6.56 | +1.70 | 0.90 |
 
-组间均值差 **1.73 名**（B 组 −1.04，非 B 组 +0.69）。
-精确置换检验：十个模型里挑四个当 B 组的全部 C(10,4)=210 种分法里，
-只有 **2 种**的组间差 ≥ 观测值，**p = 0.0095**。
+The between-group mean difference is **1.73 places** (group B −1.04, non-B +0.69). Exact
+permutation test: of all C(10,4)=210 ways of picking four of the ten models to call
+"group B", only **2** give a between-group difference ≥ the observed value, **p =
+0.0095**.
 
-> **在只有亲和力半覆盖到的靶点上，训过那一半的模型相对更强约 1.7 个名次。**
-> 而在两组都训过的结构半上，没有任何一组脱颖而出——本来就该如此。
+> **On targets covered only by the affinity half, models trained on that half rank about
+> 1.7 places stronger relative to the others.** On the structure half, which both groups
+> trained on, no group stands out — which is exactly what should happen.
 
-### 稳健性：放到全量共有靶点，唯一的反例消失、分离变成完全的
+### Robustness: on the full set of shared targets, the one exception disappears and the separation becomes complete
 
-上表里 HypSeek 是 B 组唯一反向的（+0.12），而「仅 P」格只有 7 条记录。
-把范围从 350 子集放到**全部十模型共有的 840 条记录**，这一格涨到 28
-（`train_set_crossover.py --subset all` →
-[`results/T3_train_set_crossover_full.csv`](../results/T3_train_set_crossover_full.csv)）：
+In the table above, HypSeek is group B's sole exception in the wrong direction (+0.12),
+and the "P-only" cell has only 7 records. Widening the scope from the 350 subset to the
+**840 records shared by all ten models**, this cell grows to 28
+(`train_set_crossover.py --subset all` →
+[`results/T3_train_set_crossover_full.csv`](../results/T3_train_set_crossover_full.csv)):
 
-| | 350 子集（n=237） | 全量共有（n=840） |
+| | 350 subset (n=237) | Full common set (n=840) |
 |---|---|---|
-| 四格：P∩L / 仅P / 仅L / 都没有 | 128 / **7** / 42 / 60 | 419 / **28** / 191 / 202 |
-| B 组的「仅L−仅P」 | −1.88, −1.25, −1.13, **+0.12** | −1.60, −1.26, −1.20, **−0.37** |
-| B 组是否全为负 | 否 | **是** |
-| 组间差 | 1.73 名 | **1.85 名** |
-| 精确置换 p | 0.0095（2/210） | **0.0048（1/210，完全分离）** |
+| Four cells: P∩L / P-only / L-only / neither | 128 / **7** / 42 / 60 | 419 / **28** / 191 / 202 |
+| Group B's "L-only minus P-only" | −1.88, −1.25, −1.13, **+0.12** | −1.60, −1.26, −1.20, **−0.37** |
+| Is group B entirely negative | No | **Yes** |
+| Between-group difference | 1.73 places | **1.85 places** |
+| Exact permutation p | 0.0095 (2/210) | **0.0048 (1/210, complete separation)** |
 
-**样本量放大三倍之后：效应量微升，p 从 2/210 变成 1/210 的完全分离，
-而唯一的反例消失了**——这正是小样本假象应有的样子。HypSeek 在子集上的
-+0.12 不用解释，它本来就是 7 条记录上的噪声。
+**After tripling the sample size: the effect size ticks up slightly, p goes from 2/210 to
+a complete separation at 1/210, and the sole exception disappears** — exactly what a
+small-sample artefact should look like. HypSeek's +0.12 on the subset needs no further
+explanation — it was simply noise on 7 records to begin with.
 
-### 这组数经过独立复核
+### This set of numbers has been independently verified
 
-按项目新规矩（改写或撤回已发布结论前必须由另一个 agent 独立跑一遍），
-子集版和全量版都由第二个 agent 从 `saved_preds.npy` 沿另一条代码路径重算过：
-四格计数、十个模型的逐个数值、置换 p 全部一致。
+Per the project's new rule (rewriting or retracting a published conclusion requires an
+independent re-run by another agent), both the subset and full-set versions were
+recomputed by a second agent from `saved_preds.npy` along a separate code path: the four
+cell counts, the per-model values for all ten models, and the permutation p all matched.
 
-### 三条必须写进限制的
+### Three things that must go into the limitations
 
-1. **「仅 P」格在 350 子集上只有 7 条记录。** 全量版把它放到 28 条之后
-   B 组方向就一致了，但 28 仍然不厚。子集版 p=0.0095、全量版 p=0.0048。
-2. **分层标签本身被污染了。** 350 子集的 L3 有 4 个（21%）、L4 有 8 个
-   （11%）靶点，四个 B 组模型其实通过结构半见过。方向和当初那个 fall-through
-   bug 一样：L4 混进了见过的靶点 → **衰减被低估** → 修完主结论只会更强。
-3. **这一节解决的是「用谁的训练集」，没解决「相似性定在哪一层」。**
-   seen/unseen 用的是 UniProt 精确匹配和序列同一性，而序列是蛋白相似性里最弱
-   的一层——口袋级、相互作用模式级的相似可以在序列一致性 &lt;30% 时依然很高。
-   这是另一条正交的补实验。
+1. **The "P-only" cell has only 7 records in the 350 subset.** After the full-set version
+   widens it to 28, group B's direction becomes consistent, but 28 is still thin. Subset
+   p=0.0095, full-set p=0.0048.
+2. **The layer labels themselves are contaminated.** In the 350 subset, 4 (21%) L3
+   targets and 8 (11%) L4 targets were in fact seen by the four group-B models through
+   the structure half. The direction is the same as that earlier fall-through bug: seen
+   targets leaked into L4 → **decay is underestimated** → fixing it can only make the
+   headline conclusion stronger.
+3. **This section settles "whose training set was used", not "at what level similarity
+   should be defined".** Seen/unseen uses exact UniProt matches and sequence identity,
+   and sequence is the weakest layer of protein similarity — pocket-level and
+   interaction-pattern-level similarity can still be high when sequence identity is
+   &lt;30%. That is a separate, orthogonal follow-up experiment.
 
-### 还有一处同样的问题，没修
+### One more instance of the same problem, unfixed
 
-配体新颖度（`ligand_novelty.json`）是对**亲和力半的 428,767 个配体**算的，
-而 A 组的训练配体是那 66,164 条 pair 里的分子——**是另一批**。
-所以 §4 和 §6b 的新颖度分档对 A 组三个模型只是近似。
-修它要重算一份对 A 组配体的新颖度缓存（纯 CPU，约半天），还没做。
+Ligand novelty (`ligand_novelty.json`) is computed against the **affinity half's 428,767
+ligands**, while group A's training ligands are the molecules in those 66,164 pairs — **a
+different set entirely**. So the novelty tiers in §4 and §6b are only approximate for the
+three group-A models. Fixing it would require recomputing a novelty cache against group
+A's ligands (CPU-only, roughly half a day) — not yet done.
 
 ---
 
-## 6b. 靶点见没见过 × 配体新颖度：两个轴近似独立
+## 6b. Target seen/unseen × ligand novelty: the two axes are approximately independent
 
-把第 6 节的靶点侧口径和第 4 节的配体侧口径叉在一起，每个模型按**自己的**
-训练集判 seen/unseen（[`novelty_tiered_ef.py --target-groups`](../timesplit/analysis/novelty_tiered_ef.py)
-→ [`results/T3_novelty_by_own_train.csv`](../results/T3_novelty_by_own_train.csv)）。
+Crossing §6's target-side criterion with §4's ligand-side criterion, judging seen/unseen
+for each model against **its own** training set
+([`novelty_tiered_ef.py --target-groups`](../timesplit/analysis/novelty_tiered_ef.py)
+→ [`results/T3_novelty_by_own_train.csv`](../results/T3_novelty_by_own_train.csv)).
 
-EF_t，1.0 = 随机；括号里是参与统计的靶点数：
+EF_t, where 1.0 = random; numbers in parentheses are the target counts included:
 
-| 模型 | 组 | 全新 <0.35 | 远 .35–.5 | 近 .5–.7 | 极近 ≥0.7 | 新/熟比 |
+| Model | Group | Novel <0.35 | Distant .35–.5 | Close .5–.7 | Very close ≥0.7 | Novel/familiar ratio |
 |---|---|---|---|---|---|---|
 | LigUnity-protein | seen | 19.2 (119) | 26.4 (177) | 44.8 (173) | **53.1** (120) | 0.36 |
 | | unseen | 5.2 (56) | 9.4 (69) | 19.0 (46) | 36.8 (29) | 0.14 |
@@ -815,72 +945,86 @@ EF_t，1.0 = 随机；括号里是参与统计的靶点数：
 | SPRINT | seen | 0.2 (14) | 2.9 (19) | 1.6 (17) | 5.6 (12) | 0.04 |
 | | unseen | 1.1 (153) | 2.2 (225) | 1.9 (207) | 2.9 (145) | 0.38 |
 
-**三条读法。**
+**Three readings.**
 
-**一、两个轴近似独立，没有交互项。** 新/熟比在 seen 组的中位数是 0.26，
-unseen 组也是 0.26（不含 SPRINT，它的 seen 只有 14–19 个靶点，是噪声）。
-逐模型方向也不一致——四个模型 unseen 组的比值更大，三个更小。
-所以「靶点新」和「配体新」是两件近似**乘性**的独立事情，
-第 4 节里那个「放大」是单模型现象。
+**One: the two axes are approximately independent, with no interaction term.** The
+novel/familiar ratio's median is 0.26 in the seen group and 0.26 in the unseen group too
+(excluding SPRINT, whose seen group has only 14–19 targets and is noise). The per-model
+direction is also inconsistent — four models have a larger ratio in the unseen group,
+three have a smaller one. So "novel target" and "novel ligand" are two approximately
+**multiplicative** independent things, and the "amplification" in §4 was a single-model
+phenomenon.
 
-**二、最差的那格才是真实的前瞻筛选场景。** 靶点没见过 + 化学全新：
-最好的模型 7.9，主流的 4.2–5.2，DrugCLIP 系 3.8–4.9。而最好的那格
-（见过的靶点 + 极近的化学）是 53.1。**同一个模型，同一套指标，
-跨越 12 倍。**
+**Two: the worst cell is the genuinely prospective screening scenario.** Target unseen +
+chemistry fully novel: the best model reaches 7.9, the mainstream sits at 4.2–5.2, the
+DrugCLIP family at 3.8–4.9. The best cell (target seen + chemistry very close) is 53.1.
+**Same model, same metric, a 12-fold span.**
 
-**三、SPRINT 反过来了。** 它在自己见过的 26 个靶点上的全新档是 0.2，
-在没见过的 302 个上是 1.1。这和第 6 节它 p=0.84 的零效应一致——
-它的训练集太小（336 个蛋白），落在子集里的样本量不足以支撑任何结论。
+**Three: SPRINT goes the other way.** Its novel tier is 0.2 on the 26 targets it has
+seen, and 1.1 on the 302 it hasn't. This is consistent with its p=0.84 null effect in §6
+— its training set is too small (336 proteins), and the sample size falling within the
+subset is not enough to support any conclusion.
 
-⚠️ **配体侧的参照系对 A 组三个模型是错的。** 新颖度档按亲和力半的 428,767 个
-配体算，而 DrugCLIP / BindCLIP ×2 的训练配体只有 13,590 个。按它们自己的配体
-衡量，T3 有 72.6% 的分子是「全新 <0.35」、只有 0.9% 到「极近 ≥0.7」（见 §2c），
-所以**这张表里 A 组那六行的档位标签不成立**——它们的「极近」按自己的标准看
-仍然是新化学。这也意味着：**A 组在「见过的靶点 + 极近化学」那格拿到的 21–22 倍
-富集，其实是在近乎纯新化学上拿到的。**
+⚠️ **The ligand-side reference set is wrong for the three group-A models.** Novelty
+tiers are computed against the affinity half's 428,767 ligands, while DrugCLIP /
+BindCLIP ×2's training ligands number only 13,590. Measured against their own ligands,
+72.6% of T3's molecules are "novel <0.35" and only 0.9% reach "very close ≥0.7" (see
+§2c), so **the tier labels for group A's six rows in this table do not hold** — what
+they call "very close" is still novel chemistry by their own standard. This also
+implies: **the 21–22-fold enrichment group A gets in the "target seen + chemistry very
+close" cell was in fact achieved on near-purely novel chemistry.**
 
-B 组四个模型的档位是对的（参照系就是它们的训练配体）。
-ConPLex 有 BindingDB 的 SMILES、SPRINT 有 139 万个配体 id，都还没做。
+The tiers for group B's four models are correct (the reference set is exactly their
+training ligands). ConPLex has BindingDB's SMILES and SPRINT has 1.39 million ligand
+IDs — neither has been done yet.
 
-**ConPLex 缺席**：它的 T3 原始打分不在 `results/t3_raw/conplex/` 的目录布局下，
-这一格是空的，不是它没有结果。
+**ConPLex is absent**: its raw T3 scores are not under the `results/t3_raw/conplex/`
+directory layout — this cell is empty, not because it has no result.
 
 ---
 
-## 6c. NEW-4 正式交互检验：两个轴可加，没有交互项
+## 6c. NEW-4 formal interaction test: the two axes are additive, no interaction term
 
-§6b 用描述性的 2×2 说了「两个轴近似独立」，但那不能说明交互项在统计上是不是零。
-任务清单 3.2 要的是正式检验：
+§6b used a descriptive 2×2 to say "the two axes are approximately independent", but that
+cannot establish whether the interaction term is statistically zero. Task-list item 3.2
+calls for a formal test:
 
 ```
 Performance ~ TargetNovelty + LigandNovelty + TargetNovelty × LigandNovelty
 ```
 
-### 为什么用二项 GLM 而不是对 EF 做回归
+### Why a binomial GLM rather than regressing on EF
 
-EF_t 有大量精确的 0（某档活性一个都没进 top-1%），取对数变 −inf，加 epsilon
-又让结果依赖 epsilon 怎么选。回到 EF 的定义本身——它就是「该档活性进 top-1%
-的比例 ÷ 0.01」，所以直接把**每个活性是否进 top-1%** 当伯努利响应做 logit：
+EF_t has a large number of exact zeros (a tier's actives with none landing in the top
+1%), and taking a log turns those into −inf; adding an epsilon then makes the result
+depend on how epsilon is chosen. Going back to the definition of EF itself — it is
+simply "the fraction of that tier's actives that land in the top 1% ÷ 0.01" — so instead
+treat **whether each active lands in the top 1%** directly as a Bernoulli response and
+fit a logit:
 
 ```
-logit P(进 top-1%) = β₀ + β₁·靶点见过 + β₂·配体档 + β₃·(靶点见过 × 配体档)
+logit P(in top 1%) = β₀ + β₁·TargetSeen + β₂·LigandTier + β₃·(TargetSeen × LigandTier)
 ```
 
-零天然被处理，不需要任何变换。
+Zeros are handled naturally, with no transformation needed.
 
-**标准误用靶点级 bootstrap（1000 次）而不是 GLM 自带的。** 同一靶点的活性不独立
-（同系列），GLM 假定独立会把标准误算小。任务清单允许 bootstrap 或 mixed-effects，
-这里按靶点有放回重抽，把靶点内相关性吸收进重抽单元。
+**Standard errors use target-level bootstrap (1,000 draws) rather than the GLM's own.** A
+given target's actives are not independent (same series), and a GLM's independence
+assumption would understate the standard error. The task list allows bootstrap or
+mixed-effects; here, resampling with replacement is done by target, absorbing
+within-target correlation into the resampling unit.
 
-**参照系逐模型。** 配体新颖度按各模型自己的训练配体算——四套缓存，训练配体数
-从 3,814（ConPLex）到 1,390,031（SPRINT），差两个量级。混用会让交互项是假的。
+**The reference set is per-model.** Ligand novelty is computed against each model's own
+training ligands — four separate caches, with training-ligand counts ranging from 3,814
+(ConPLex) to 1,390,031 (SPRINT), a two-order-of-magnitude spread. Mixing them would make
+the interaction term spurious.
 
-### 结果
+### Results
 
-（[`novelty_interaction.py`](../timesplit/analysis/novelty_interaction.py) →
-[`results/T3_novelty_interaction.csv`](../results/T3_novelty_interaction.csv)）
+([`novelty_interaction.py`](../timesplit/analysis/novelty_interaction.py) →
+[`results/T3_novelty_interaction.csv`](../results/T3_novelty_interaction.csv))
 
-| 模型 | 集 | 格子 | novelty IQR 宽 | β 靶点 | β 配体档 | **β 交互** | 95% CI | p |
+| Model | Set | Cells | Novelty IQR width | β target | β ligand tier | **β interaction** | 95% CI | p |
 |---|---|---|---|---|---|---|---|---|
 | LigUnity-protein | B | 789 | 0.179 | +1.596 | +0.978 | −0.339 | [−0.881, +0.173] | 0.20 |
 | LiTENCLIP | B | 789 | 0.179 | +1.299 | +0.917 | −0.162 | [−0.703, +0.378] | 0.55 |
@@ -891,40 +1035,48 @@ logit P(进 top-1%) = β₀ + β₁·靶点见过 + β₂·配体档 + β₃·(�
 | BindCLIP-hardneg | A | 682 | **0.086** | +0.724 | +0.782 | −0.272 | [−0.843, +0.271] | 0.34 |
 | ConPLex | C | 639 | **0.066** | +1.054 | +1.468 | −0.478 | [−0.915, +0.015] | 0.06 |
 | SPRINT | D | 765 | 0.113 | **−2.034** | +0.326 | **+1.146** | [+0.060, +2.006] | **0.046** ⚠️ |
-| **合并**（+ 模型固定效应） | | **6,601** | | **+0.940** | **+0.724** | **−0.038** | **[−0.292, +0.291]** | **0.87** |
+| **Pooled** (+ model fixed effects) | | **6,601** | | **+0.940** | **+0.724** | **−0.038** | **[−0.292, +0.291]** | **0.87** |
 
-> **两个主效应都强，交互项是零。** 靶点新颖度和配体新颖度在 logit 尺度上
-> **可加**——各自独立起作用，不互相放大也不互相抵消。这从正式统计上确认了
-> §6b 的描述性结论。
+> **Both main effects are strong, and the interaction term is zero.** Target novelty and
+> ligand novelty are **additive** on the logit scale — each acts independently, neither
+> amplifying nor cancelling the other. This confirms §6b's descriptive conclusion with a
+> formal statistical test.
 
-### 三条必须一起读的限制
+### Three limitations that must be read together
 
-**一、逐模型的符号一致不构成证据。** 九个估计里八个为负、一个为正，看上去像
-「有一个小的负交互被功效不足掩盖了」。**但这九个估计跑的是同一批 264–323 个
-靶点，彼此高度相关，不是九次独立重复。** 对它们做符号检验会得到一个假的 p
-（约 0.04）。**合并模型的 CI 覆盖零，是唯一可引用的结论。**
+**One: agreement in sign across models is not evidence.** Eight of nine estimates are
+negative and one positive, which looks like "there is a small negative interaction masked
+by insufficient power". **But these nine estimates run on the same 264–323 targets and
+are highly correlated with each other — they are not nine independent replicates.**
+Running a sign test on them would produce a spurious p (about 0.04). **The pooled model's
+CI covering zero is the only citable conclusion.**
 
-**二、A 组和 ConPLex 的自变量展布只有 B 组的一半。** 活性新颖度的 IQR 宽度：
-B 组 0.179、SPRINT 0.113、A 组 0.086、ConPLex 0.066。ConPLex 的训练配体只有
-3,814 个，T3 有 87.9% 的分子落在最低档、只有 0.5% 在最高档。
-**它们的宽 CI 要读成「功效不足」，不是「没有交互」。**
+**Two: group A and ConPLex have only half of group B's spread in the independent
+variable.** The IQR width of active novelty: group B 0.179, SPRINT 0.113, group A 0.086,
+ConPLex 0.066. ConPLex's training ligands number only 3,814, and 87.9% of T3's molecules
+fall in the lowest tier with only 0.5% in the highest. **Their wide CIs should be read as
+"insufficient power", not "no interaction".**
 
-**三、SPRINT 那个 p=0.046 不可单独引用。** 它是九个检验里的一个（BH 过不了），
-而且它的 β靶点 是 **−2.034**——在自己训练集的靶点上反而更差，而它在 350 子集里
-只有 **22 个 seen 靶点**。这个模型的三个系数都不可靠。
+**Three: SPRINT's p=0.046 cannot be cited on its own.** It is one of nine tests (fails BH
+correction), and its β_target is **−2.034** — it actually does worse on targets in its
+own training set, while it has only **22 seen targets** in the 350 subset. All three
+coefficients for this model are unreliable.
 
-### 独立复核
+### Independent verification
 
-按项目规矩，这组数由第二个 agent 用**完全不同的估计量**重算过：从
-`T3_novelty_interaction_cells.csv` 直接算四档并两档后的对数优势比之差，
-不做 bootstrap、不做靶点聚类加权。逐模型符号完全一致（包括 SPRINT 是唯一
-正号），合并交互 −0.271，落在本文 CI [−0.292, +0.291] 内。
-量级差异来自估计量不同，方向和模式吻合。
+Per project rules, this set of numbers was recomputed by a second agent using a
+**completely different estimator**: directly computing the difference in log-odds ratios
+after collapsing the four tiers into two, straight from
+`T3_novelty_interaction_cells.csv`, with no bootstrap and no target-cluster weighting.
+The per-model signs match exactly (including SPRINT being the sole positive one), and the
+pooled interaction is −0.271, falling within this document's CI of [−0.292, +0.291]. The
+difference in magnitude comes from the different estimator; direction and pattern agree.
 
 ---
 
-## 7. 还没做的
+## 7. Not yet done
 
-- **逐模型分层**：给 DrugCLIP/BindCLIP 按 A、给 ConPLex 按 C 各自重划 L1–L4，
-  各自算各自的衰减。数据都在，只是换个标签重新汇总
-- 把 L1/L2 的骨架二值分界换成连续 Tanimoto 分档
+- **Per-model layering**: re-cut L1–L4 for DrugCLIP/BindCLIP against A and for ConPLex
+  against C respectively, and compute each one's own decay. The data all exists — it's
+  just a matter of re-aggregating under different labels
+- Replace L1/L2's binary scaffold-seen/unseen boundary with continuous Tanimoto tiers
