@@ -1,12 +1,15 @@
-"""FEP 基准（JACS 8 + Merck 8 = 16 个体系）的排序能力评测。
+"""Ranking-ability evaluation on the FEP benchmark (JACS 8 + Merck 8 = 16 systems).
 
-这套是自由能计算领域十年来的标准集，测的是「同一靶点内按结合强弱排序」——
-正是我们 T2 测出所有检索模型接近零的那个能力。用它的价值在于：
-物理方法（FEP+）在这些体系上的数字文献里可查，能把自建 T2 的结论
-锚定到公认基准上。
+This is the standard set the free-energy-calculation field has used for a
+decade, and it tests "ranking by binding strength within the same target" --
+exactly the ability our T2 measured every retrieval model at near zero on.
+Its value here: physics methods (FEP+) have published numbers on these
+systems, which lets our own T2 conclusion be anchored against a recognised
+benchmark.
 
-注意官方实现只报 R²，且 corr<0 时归零——那会把「排序方向反了」
-和「完全无关」混为一谈。这里同时报 Spearman（带符号）。
+Note the official implementation only reports R^2, and zeroes it whenever
+corr<0 -- which conflates "ranked backwards" with "completely unrelated".
+Spearman (signed) is reported here as well.
 """
 import json, os
 import numpy as np

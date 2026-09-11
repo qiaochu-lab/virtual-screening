@@ -1,7 +1,9 @@
-"""从 summary_t2_v2.json（按分子身份对齐的修正口径）导出 T2_on_T3.csv。
+"""Export T2_on_T3.csv from summary_t2_v2.json (the corrected convention, aligned by molecule identity).
 
-历史：08-26 的导出用的是旧的 score_t2.py，读 lmdb 时按数值下标而非游标序，
-分子与打分整体错位。旧列一并保留，方便对照撤回了什么。
+History: the 08-26 export used the old score_t2.py, which read the lmdb by
+numeric index rather than cursor order, so molecules and scores were
+misaligned throughout. The old column is kept alongside so the retraction
+can be checked against it.
 """
 import csv, json, os
 B = "/data/work/vs"

@@ -1,20 +1,24 @@
-"""同一批靶点上，FEP 数据 vs T3 数据的排序能力对比。
+"""Compare ranking ability on the FEP data vs. the T3 data, on the same set of targets.
 
-问题：LigUnity 在 FEP 基准上 Spearman +0.396，在 T3 上只有 +0.018，差二十倍。
-三种可能的解释：
-  ① 配体性质不同 —— FEP 是同系列类似物，T3 是跨库抽取、化学多样性大
-  ② 靶点熟悉度   —— FEP 的 16 个都是经典靶点，必在训练集里；T3 有新靶点
-  ③ 数据质量     —— FEP 活性来自同一批测定，噪音小
+The question: LigUnity scores Spearman +0.396 on the FEP benchmark but only
++0.018 on T3 -- a twentyfold gap. Three possible explanations:
+  (1) Ligand properties differ -- FEP is a congeneric series of analogues,
+      T3 is drawn cross-database with large chemical diversity
+  (2) Target familiarity -- all 16 FEP targets are classic ones, certainly in
+      the training set; T3 includes novel targets
+  (3) Data quality -- FEP's affinities come from one consistent assay batch,
+      so noise is low
 
-这个检验隔离出 ②：只看**同时出现在 FEP 和 T3 里的靶点**。
-若在同一批靶点上，T3 数据仍排不出来，说明差异来自 ①③ 而非 ②。
+This test isolates (2): look only at **the targets that appear in both FEP
+and T3**. If T3's data still fails to rank on the same set of targets, the
+gap comes from (1)/(3), not (2).
 """
 import json, os
 import numpy as np
 from scipy import stats
 
 B = "/data/work/vs-benchmark"
-# FEP.json 是 [uniprot, pdb, ...] 的列表；靶点名（pocket）在 fep_labels.json 里
+# FEP.json is a list of [uniprot, pdb, ...]; the target name (pocket) lives in fep_labels.json
 fep_ups = {e["uniprot"]: e["pockets"][0]
            for e in json.load(open(f"{B}/code/LigUnity/test_datasets/FEP/fep_labels.json"))}
 print(f"FEP 靶点 {len(fep_ups)} 个\n")
@@ -38,14 +42,14 @@ for m, femodel in [("ligunity_pocket_ranking","ligunity_pocket_ranking"),
     print("  " + "-"*60)
     fep_v, t3_v = [], []
     for up, pk in sorted(fep_ups.items()):
-        # FEP 侧
+        # FEP side
         d = f"{B}/results/fep/{femodel}/FEP/{pk}"
         try:
             pr = np.load(f"{d}/saved_preds.npy"); yy = np.load(f"{d}/saved_labels.npy")
             fr, fn = stats.spearmanr(pr, yy).statistic, len(yy)
         except Exception:
             fr, fn = None, 0
-        # T3 侧
+        # T3 side
         tr, tn = None, 0
         for L in ["L1","L2","L3","L4"]:
             dd = f"{B}/results/t3/{m}/{L}/{up}"

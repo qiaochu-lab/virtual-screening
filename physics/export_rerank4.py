@@ -1,14 +1,18 @@
-"""rerank4（diffusion_samples=5）对 rerank3（=1）的配对比较。
+"""Paired comparison of rerank4 (diffusion_samples=5) against rerank3 (=1).
 
-两轮用的是同一批 yaml（boltz_rerank3/），同一个 manifest，同样的 MSA，
-亲和力阶段同样是默认的 5 个扩散样本。唯一的差别是结构阶段采样几次。
+Both runs use the same batch of yaml files (boltz_rerank3/), the same
+manifest, the same MSA, and the same default of 5 diffusion samples at the
+affinity stage. The only difference is how many times the structure stage
+samples.
 
-为什么这个差别可能重要：Boltz 结构阶段采样 N 个复合物后按 confidence 排名，
-只有 rank-0 会写成 pre_affinity_*.npz 交给亲和力模型
-（boltz/data/write/writer.py:177）。N=1 等于没有筛选，把一次未经挑选的
-随机抽样直接交给打分模型；N=5 至少有个 best-of-5。
+Why this difference might matter: Boltz's structure stage samples N
+complexes and ranks them by confidence, and only rank-0 gets written as
+pre_affinity_*.npz and handed to the affinity model
+(boltz/data/write/writer.py:177). N=1 is equivalent to no selection at all --
+one unfiltered random sample handed straight to the scoring model; N=5 at
+least gives a best-of-5.
 
-输出 results/export/T6_rerank4.csv，并打印逐靶点配对检验。
+Writes results/export/T6_rerank4.csv and prints the per-target paired test.
 """
 import glob, json, os
 import numpy as np
@@ -55,7 +59,7 @@ def metrics(lab, sc):
 rows = ["target,n_shortlist,n_actives,method,p_at_5,p_at_10,mean_active_rank,auroc"]
 per = {}
 for up, items in by.items():
-    # 只保留两轮都有分的复合物，保证是严格配对
+    # keep only complexes scored in both runs, to guarantee a strict pairing
     items = [e for e in items if e["name"] in both]
     if len(items) < 10:
         continue

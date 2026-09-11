@@ -1,15 +1,19 @@
-"""对接结果的评测：在同一个 top-N shortlist 内比「检索原序 vs 对接重排 vs 融合」。
+"""Evaluation of the docking results: compare "retrieval's original order vs. docking rerank vs. fusion" within the same top-N shortlist.
 
-与 Boltz-2 那三轮的关系
------------------------
-同一个问题、同一套指标，但换了物理方法并把深度从 50 加到 200
-（recall@50 在 L4 只有 17.5%，@200 是 34.0%，天花板翻倍）。
-如果对接也无收益，那「串联 rerank 不奏效」就不再是 Boltz-2 一家的性质；
-如果对接有效而 Boltz-2 无效，说明问题出在共折叠打分而非级联思路。
+Relationship to the three Boltz-2 rounds
+--------------------------------------------
+Same question, same set of metrics, but a different physics method and the
+depth raised from 50 to 200 (recall@50 on L4 is only 17.5%, recall@200 is
+34.0% -- the ceiling doubles). If docking also shows no benefit, then
+"cascade reranking does not work" is no longer a property of Boltz-2 alone;
+if docking helps while Boltz-2 does not, that points at co-folding scoring
+being the problem rather than the cascade idea itself.
 
-⚠️ 口径限制：这是**口袋切片对接**——受体只有 6Å 口袋内的原子，
-切片边缘残基缺少邻接约束，绝对亲和力会有偏差。
-但我们只用它做同一批分子的**相对排序**，这个偏差影响有限。
+Warning: scope limitation -- this is **pocket-slice docking**: the receptor
+only has the atoms inside the 6A pocket, and residues at the slice's edge
+lack their neighbor constraints, biasing absolute affinity. But this is only
+used for the **relative ranking** of the same batch of molecules, where that
+bias has limited effect.
 """
 import glob
 import json
@@ -24,7 +28,7 @@ B = "/data/work/vs"
 
 
 def parse_scores(path):
-    """smina 的表格输出 -> [affinity]，顺序与输入 SDF 一致。"""
+    """smina's table output -> [affinity], in the same order as the input SDF."""
     out = []
     for m in re.finditer(r"^\s*1\s+(-?\d+\.\d+)\s", open(path).read(), re.M):
         out.append(float(m.group(1)))
@@ -57,7 +61,7 @@ def main():
         if lab.sum() < 2 or (lab == 0).sum() < 2:
             continue
         ret = np.array([info[i]["retrieval_score"] for i in range(n)])
-        dock = -np.array(aff[:n])          # affinity 越负越好，取负同向
+        dock = -np.array(aff[:n])          # more negative affinity is better; flip sign to align direction
         r1, r2 = stats.rankdata(-ret), stats.rankdata(-dock)
         fus = -(r1 + r2) / 2
 

@@ -1,23 +1,30 @@
-"""为 L1/L2 的 rerank 靶点预热 MSA —— 不需要 GPU。
+"""Pre-warm MSAs for the L1/L2 rerank targets -- no GPU needed.
 
-为什么要单独做这一步
---------------------
-T6 现在只有 L4 的负面结果，分不清是「物理重排这个思路不行」还是
-「思路可行，但在新靶点 + 预测结构 + 跨系列配体下失效」。补 L1/L2 就能判定。
-而 L1 的 recall@50 是 64.1%（L4 只有 17.5%），shortlist 在那里才装得下
-大部分 active，测出来才有意义。
+Why this step is done separately
+-------------------------------------
+T6 currently has only a negative result on L4, which cannot distinguish
+"the physics-rerank idea does not work" from "the idea works, but fails
+under novel targets + predicted structures + cross-series ligands". Adding
+L1/L2 settles this. And L1's recall@50 is 64.1% (L4 is only 17.5%), so the
+shortlist there actually holds most of the actives, which is what makes the
+measurement meaningful.
 
-卡点是：现有的 934 份 MSA 全是跑 T3 结构预测时顺带产的，
-而只有**没有实验结构的新靶点**才需要预测结构——也就是 L3/L4。
-L1/L2 是旧靶点，本来就有晶体结构，从没生成过 MSA。
-Boltz-2 没有 MSA 只能走单序列模式，结构质量大幅下降，那测的就不是 rerank 本身了。
+The blocker: the existing 934 MSAs were all produced incidentally while
+running T3's structure prediction, and structure prediction is only needed
+for **novel targets that have no experimental structure** -- i.e. L3/L4.
+L1/L2 are old targets that already have crystal structures, so no MSA was
+ever generated for them.
+Without an MSA, Boltz-2 can only fall back to single-sequence mode, which
+sharply degrades structure quality -- and then the measurement would no
+longer be about rerank itself.
 
-这里直接调 boltz 内部的 compute_msa（就是 predict 时用的同一个函数），
-只发 MSA 服务器请求、不做结构预测，所以**纯 CPU、不占卡**，
-可以在别人占满 GPU 的时候先把这步做完。
+This calls boltz's internal compute_msa directly (the same function predict
+uses), issuing only the MSA server request without any structure prediction,
+so it is **pure CPU, no GPU used** -- it can be done ahead of time while
+others have the GPUs fully occupied.
 
-产出：{out}/{uniprot}_0.csv，之后 rerank 的 yaml 直接 msa: 指过去，
-正式跑的时候一次服务器请求都不发。
+Output: {out}/{uniprot}_0.csv; the rerank yaml's msa: field then points
+straight to it, and the real run issues zero server requests.
 """
 import argparse
 import json
@@ -37,7 +44,7 @@ MSA_URL = "https://api.colabfold.com"
 
 
 def pick_targets(layer, topn, min_hits, max_hits, model, seqs, need):
-    """挑 shortlist 稀疏的靶点，口径与 L4 那一版完全一致，保证可比。"""
+    """Pick targets with a sparse shortlist, using exactly the same convention as the L4 version, to keep it comparable."""
     ev = {json.loads(x)["uniprot"]: json.loads(x)
           for x in open(f"{B}/data/t3/eval/{layer}.jsonl")}
     root = f"{B}/results/t3_raw/{model}/T3/{layer}"
@@ -97,7 +104,7 @@ def main():
             ok += 1
             continue
         try:
-            # msa_dir 必须是 Path：compute_msa 内部用 / 拼路径
+            # msa_dir must be a Path: compute_msa builds paths internally with /
             compute_msa(
                 data={up: seqs[up]},
                 target_id=up,
@@ -109,7 +116,7 @@ def main():
         except Exception as e:
             fail.append((up, str(e)[:80]))
             print(f"  [{i}/{len(todo)}] {L} {up} ✗ {str(e)[:80]}", flush=True)
-        time.sleep(1)          # 别把 MSA 服务器打太急
+        time.sleep(1)          # don't hammer the MSA server too fast
 
     json.dump({L: [{"uniprot": u, "hits": h} for u, h in picked[L]] for L in picked},
               open(f"{B}/data/t3/rerank_l1l2_targets.json", "w"), indent=1)

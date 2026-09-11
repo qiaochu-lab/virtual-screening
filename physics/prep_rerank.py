@@ -1,29 +1,43 @@
-"""T6 串联 rerank 的输入准备：检索模型 top-N → Boltz-2 逐个重打分。
+"""Input preparation for T6's cascade rerank: retrieval model's top-N -> Boltz-2 rescores each one.
 
-要回答什么
-----------
-T6 到目前为止只证明了「Boltz-2 排序强」（FEP 16 体系 ρ=0.615 vs 检索 0.28–0.40）。
-但真实虚筛流程关心的是另一件事：**先用检索粗筛、再用物理精排，比单用检索强吗？**
-这是唯一能给出方法学建议、而不只是评测数字的实验。
+What this answers
+-------------------
+So far T6 has only shown that "Boltz-2 ranks well" (rho=0.615 on the 16 FEP
+systems vs. retrieval's 0.28-0.40). But a real virtual-screening pipeline
+cares about a different question: **is coarse retrieval followed by physics
+reranking better than retrieval alone?** This is the only experiment that
+yields a methodological recommendation rather than just another evaluation
+number.
 
-为什么这样设计
---------------
-· 靶点选 L4（训练后才出现的新靶点）——rerank 的价值就在模型最不熟的地方
-· 只要结构质量 A/B 级：口袋不可信的话，物理重排必然崩，那测的就不是 rerank 本身
-· 类别尽量分散：激酶/GPCR/表观等，避免结论只在一类靶点上成立
-· 每靶点取检索模型的 top-N（默认 50）——正是真实流程会送去精算的规模，
-  而且 top-N 里通常有若干真 active，重排才有得比
+Why designed this way
+-----------------------
+. Targets are drawn from L4 (targets that only appeared after training) --
+  that is exactly where reranking would add value, since it is where the
+  model is least familiar
+. Structure quality restricted to grade A/B: if the pocket cannot be
+  trusted, physics reranking necessarily fails, and the measurement is no
+  longer about rerank itself
+. Classes kept as diverse as possible: kinases/GPCRs/epigenetic targets
+  etc., to avoid a conclusion that only holds for one target class
+. Each target takes the retrieval model's top-N (default 50) -- exactly the
+  scale a real pipeline would send for detailed scoring, and the top-N
+  usually contains some genuine actives, which is what gives reranking
+  something to compare against
 
-MSA 复用
---------
-Boltz-2 默认每条记录都去 MSA 服务器要一次比对。同一个靶点 50 个配体，
-蛋白序列完全一样，重复 50 次既慢又容易被限流。
-之前跑 T3 结构时已经为每个 UniProt 生成过 MSA（msa/<uniprot>_0.csv），
-这里直接在 yaml 里引用，一次服务器请求都不发。
+MSA reuse
+-----------
+By default Boltz-2 requests an alignment from the MSA server for every
+single record. With 50 ligands on the same target sharing an identical
+protein sequence, repeating that 50 times is both slow and likely to get
+rate-limited.
+MSAs were already generated per UniProt (msa/<uniprot>_0.csv) when the T3
+structures were run; here they are referenced directly in the yaml, without
+issuing a single new server request.
 
-⚠️ 注意 rerank 的评价口径：只能在 **top-N 这个子集内部**比较
-「检索原序 vs Boltz 重排」，不能拿来和全库 EF 直接比——
-子集里的 active 比例已经被粗筛抬高了。
+Warning: mind rerank's evaluation scope: "retrieval's original order vs.
+Boltz reranking" can only be compared **within the top-N subset itself**,
+not directly against the full-pool EF -- the active fraction within the
+subset has already been raised by coarse retrieval.
 """
 import argparse
 import json
@@ -41,7 +55,7 @@ MAX_ATOMS, MAX_LEN = 128, 1170
 
 
 def msa_index():
-    """uniprot -> 已有的 MSA csv 路径（之前跑 T3 结构时生成的）。"""
+    """uniprot -> path to an existing MSA csv (generated earlier when the T3 structures were run)."""
     out = {}
     for d in ["boltz_batch_out", "boltz_retry_out", "boltz_gap_out", "boltz_r2_out"]:
         root = f"{B}/{d}"
@@ -57,11 +71,13 @@ def msa_index():
 
 
 def lig_order(up, L, n_pred, rec):
-    """模型看到的分子顺序 -> [smiles]；对不上返回 None。
+    """The molecule order the model saw -> [smiles]; returns None on a mismatch.
 
-    标签**不**从这里出——用模型自己的 saved_labels.npy，它与打分同序。
-    早先版本拿评测集的 active SMILES 做字符串匹配，规范化不一致导致
-    大部分 active 被误判成 decoy（top-50 里真值 269 个，匹配只认出 36 个）。
+    Labels **do not** come from here -- they come from the model's own
+    saved_labels.npy, which is in the same order as the scores. An earlier
+    version string-matched against the eval set's active SMILES, and
+    inconsistent canonicalization misclassified most actives as decoys
+    (269 true actives in the top-50, of which matching only recognised 36).
     """
     jsonl = [m["smiles"] for m in rec["actives"]] + \
             [m["smiles"] for m in rec["decoys"]]
@@ -70,8 +86,8 @@ def lig_order(up, L, n_pred, rec):
     p = f"{B}/data/T3_6A/{L}/{up}/{up}_lig.lmdb"
     if not os.path.exists(p):
         return None
-    # 必须按游标序读：key 是字符串，模型侧遍历得到的是字典序
-    # （0, 1, 10, 100, ...），不是数值序。按数值下标读会整体错位。
+    # must read in cursor order: the key is a string, and iterating on the model side gives
+    # lexicographic order (0, 1, 10, 100, ...), not numeric order. Reading by numeric index would misalign everything.
     e = lmdb.open(p, subdir=False, readonly=True, lock=False)
     smis = []
     with e.begin() as t:
@@ -95,7 +111,7 @@ def main():
     args = ap.parse_args()
 
     seqs = {k: v["seq"] for k, v in json.load(open(f"{B}/data/t3/sequences.json")).items()}
-    # 截断表只记 beg/end（1-based，闭区间），序列在这里按坐标切出来
+    # the truncation table only records beg/end (1-based, closed interval); the sequence is sliced out here by coordinate
     tp = f"{B}/data/t3/domain_truncation.json"
     trunc = {}
     if os.path.exists(tp):
@@ -111,7 +127,7 @@ def main():
           for x in open(f"{B}/data/t3/eval/{args.layer}.jsonl")}
     root = f"{B}/results/t3_raw/{args.model}/T3/{args.layer}"
 
-    # 候选：高质量结构 + 有 MSA + 有序列 + active 够多
+    # candidates: high-quality structure + has an MSA + has a sequence + enough actives
     cand = []
     for up in sorted(os.listdir(root)):
         if up not in hq or up not in msas or up not in seqs or up not in ev:
@@ -132,7 +148,7 @@ def main():
         cand.append((up, p, y, order, seq))
     print(f"候选靶点: {len(cand)}")
 
-    # 按类别轮转挑选，保证类别分散
+    # round-robin selection by class, to keep classes diverse
     by_cls = defaultdict(list)
     for c in cand:
         by_cls[cls.get(c[0], "其他/未分类")].append(c)
@@ -152,7 +168,7 @@ def main():
     for up, p, y, order, seq in picked:
         top = np.argsort(-p)[:args.topn]
         for rank, idx in enumerate(top):
-            smi, is_act = order[idx], int(y[idx])   # 标签只认 saved_labels
+            smi, is_act = order[idx], int(y[idx])   # label comes only from saved_labels
             m = Chem.MolFromSmiles(smi)
             if m is None:
                 skipped["SMILES 解析失败"] += 1; continue

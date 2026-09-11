@@ -1,27 +1,36 @@
-"""T6 最小动作：Boltz-2 的亲和力预测和实测值有没有相关。
+"""T6's minimal action: does Boltz-2's affinity prediction correlate with the measured value.
 
-背景
-----
-T2 已经测出：七个检索类模型的亲和力排序能力**全部接近零**
-（Spearman −0.011 ~ +0.129），且已排除数据端解释。
-于是 T6 的问题变得具体：**物理方法能不能补上这一块？**
+Background
+------------
+T2 already found that all seven retrieval-family models' affinity-ranking
+ability is **near zero across the board** (Spearman -0.011 to +0.129), and
+data-side explanations have been ruled out. So T6's question becomes
+concrete: **can a physics method fill this gap?**
 
-现有材料
---------
-建 T3 结构时，Boltz-2 的 affinity 模块顺带算了 929 个预测。
-但**每个靶点只有一个代表配体**（建结构时取的亲和力最高那个），
-所以做不了「靶点内排序」，只能做**跨靶点的绝对亲和力相关**。
+Material already on hand
+----------------------------
+When the T3 structures were built, Boltz-2's affinity module incidentally
+computed 929 predictions. But **each target has only one representative
+ligand** (the one with the highest affinity, picked while building the
+structure), so "within-target ranking" cannot be done -- only **absolute
+affinity correlation across targets**.
 
-两者测的不是一回事，但跨靶点相关能回答一个前置问题：
-Boltz-2 的亲和力输出到底有没有信号？没有的话，后面投入逐配体重算就不划算。
+The two measure different things, but the cross-target correlation answers
+a prerequisite question: does Boltz-2's affinity output carry any signal at
+all? If not, investing further in a per-ligand rerun would not be worth it.
 
-⚠️ 已知的偏差来源
------------------
-1. **方向相反**：`affinity_pred_value` 越小表示结合越强，pAffinity 越大越强。
-   算相关前必须统一方向，否则符号是反的。
-2. **范围限制**：代表配体都是各靶点亲和力最高的那个，pAff 分布被截断，
-   相关系数会被系统性压低。这是设计使然，不是模型的问题，报告时必须说明。
-3. Boltz-2 的 affinity 模块不支持 >128 原子的配体，大分子/肽类系统性缺失。
+Warning: known sources of bias
+----------------------------------
+1. **Opposite direction**: `affinity_pred_value` is smaller for stronger
+   binding, while pAffinity is larger for stronger binding. The direction
+   must be aligned before computing correlation, or the sign comes out
+   reversed.
+2. **Restriction of range**: every representative ligand is each target's
+   highest-affinity one, so the pAff distribution is truncated, which
+   systematically depresses the correlation coefficient. This is by design,
+   not a model problem, and must be stated when reporting.
+3. Boltz-2's affinity module does not support ligands with >128 atoms, so
+   large molecules/peptide-like systems are systematically missing.
 """
 import glob
 import json
@@ -35,7 +44,7 @@ B = "/data/work/vs-benchmark"
 
 
 def load_boltz():
-    """uniprot -> Boltz-2 亲和力预测。"""
+    """uniprot -> Boltz-2 affinity prediction."""
     out = {}
     for d in ["boltz_batch_out", "boltz_retry_out", "boltz_gap_out", "boltz_r2_out"]:
         for p in glob.glob(f"{B}/{d}/**/affinity_*.json", recursive=True):
@@ -49,7 +58,7 @@ def load_boltz():
 
 
 def load_truth():
-    """建结构时每个靶点用的代表配体 = 该靶点 pAff 最高的那个。这里复原它。"""
+    """The representative ligand used per target when building the structure = the one with the highest pAff for that target. Recovered here."""
     best = {}
     for L in ["L3", "L4"]:
         p = f"{B}/data/t3/layers/{L}.jsonl"
@@ -90,7 +99,7 @@ def main():
     print("=" * 62)
     print("跨靶点相关（注意：代表配体都是各靶点最强的，范围受限）")
     print("=" * 62)
-    # affinity_pred_value 越小越强，取负号与 pAff 同向
+    # affinity_pred_value is smaller for stronger binding; sign flipped to align with pAff's direction
     for name, x in [("affinity_pred_value（已取负号同向）", -pred),
                     ("affinity_probability_binary", prob)]:
         m = np.isfinite(x)
@@ -102,11 +111,11 @@ def main():
         print(f"  Spearman ρ = {r.statistic:+.3f}   p = {r.pvalue:.2e}")
         print(f"  Pearson  r = {pe.statistic:+.3f}   p = {pe.pvalue:.2e}")
 
-    # 分箱看是否单调 —— 相关系数低也可能是非线性
+    # bin and check for monotonicity -- a low correlation coefficient could also mean a nonlinear relationship
     print("\n" + "=" * 62)
     print("按 Boltz 预测值分五档，看实测 pAff 是否单调")
     print("=" * 62)
-    # affinity_pred_value 越小越强，所以按 pred 降序 = 从最弱到最强
+    # affinity_pred_value is smaller for stronger binding, so descending order by pred = weakest to strongest
     order = np.argsort(-pred)
     k = len(order) // 5
     labels = ["最弱", "较弱", "中间", "较强", "最强"]

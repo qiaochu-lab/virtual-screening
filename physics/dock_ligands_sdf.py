@@ -1,13 +1,17 @@
-"""把待对接配体写成带 3D 坐标的 SDF —— 复用建 T3 输入时生成的构象。
+"""Write the ligands to be docked out as an SDF with 3D coordinates -- reusing the
+conformers generated when the T3 inputs were built.
 
-为什么不用 obabel 现生成
-------------------------
-smina 读不了 SMILES（内部报 tree.h 错误），需要 3D 结构。
-而 data/T3_6A/<层>/<靶点>/<靶点>_lig.lmdb 里已经存着每个分子的 3D 构象——
-**模型看到的就是这一份**。复用它有两个好处：省掉 4,000 次 ETKDG，
-以及保证对接和检索模型吃的是同一个构象，比较时少一个混杂变量。
+Why not just regenerate with obabel
+------------------------------------
+smina cannot read SMILES (it raises an internal tree.h error) and needs a 3D
+structure. data/T3_6A/<layer>/<target>/<target>_lig.lmdb already stores each
+molecule's 3D conformer -- **this is exactly what the model saw**. Reusing it
+has two benefits: it skips 4,000 ETKDG embeddings, and it guarantees docking
+and the retrieval models are scored on the same conformer, removing one
+confound from the comparison.
 
-lmdb 里是「原子类型 + 坐标 + smi + rdkit mol」，直接用 mol 对象写 SDF 即可。
+The lmdb holds "atom types + coordinates + smi + rdkit mol"; the SDF can be
+written directly from the mol object.
 """
 import json
 import os
@@ -36,9 +40,9 @@ def main(layer="L4"):
         if os.path.exists(p):
             e = lmdb.open(p, subdir=False, readonly=True, lock=False)
             with e.begin() as t:
-                for _k, v in t.cursor():            # 游标序 = 模型看到的顺序
+                for _k, v in t.cursor():            # cursor order = the order the model saw
                     r = pickle.loads(v)
-                    # 存的 mol 只有 2D 图，3D 坐标在 coordinates 里（UniMol 存多个构象）
+                    # the stored mol is 2D-only; 3D coordinates live in coordinates (UniMol stores multiple conformers)
                     cache[r["smi"]] = (r.get("mol"), r.get("atoms"), r.get("coordinates"))
             e.close()
         w = Chem.SDWriter(out)
@@ -47,7 +51,7 @@ def main(layer="L4"):
             mol = None
             if hit is not None:
                 m0, atoms, coords = hit
-                # 把存好的构象装回 2D 图：原子数对得上才用，否则宁可重算
+                # re-attach the stored conformer to the 2D graph: only if the atom count matches, else recompute
                 if m0 is not None and atoms and coords is not None and len(coords):
                     try:
                         mh = Chem.RemoveHs(Chem.Mol(m0))
@@ -62,7 +66,7 @@ def main(layer="L4"):
                             mol = mh
                     except Exception:
                         mol = None
-            if mol is None:                          # 缓存对不上就现生成
+            if mol is None:                          # no cache match, so generate it now
                 mol = Chem.MolFromSmiles(lig["smiles"])
                 if mol is None:
                     n_fail += 1

@@ -1,23 +1,28 @@
-"""为 16 个 FEP 体系的每个配体准备 Boltz-2 输入。
+"""Prepare Boltz-2 inputs for every ligand across the 16 FEP systems.
 
-为什么要逐配体
+Why per-ligand
 --------------
-T6 现有的 929 个 Boltz-2 预测**每个靶点只有一个代表配体**，只能做
-「跨靶点的绝对亲和力相关」（已测出 Spearman +0.404）。而 FEP 基准测的是
-**同一靶点内按结合强弱排序**——必须每个配体各算一次。
+T6's existing 929 Boltz-2 predictions have **only one representative ligand
+per target**, which can only support "absolute affinity correlation across
+targets" (already measured at Spearman +0.404). The FEP benchmark instead
+tests **ranking by binding strength within the same target** -- every ligand
+has to be scored individually.
 
-为什么用 FEP 这套体系
---------------------
-现在有三个数字，但口径不同、严格说不可比：
-  · 检索模型在 FEP 同系列内   ρ ≈ 0.4
-  · Boltz-2 跨靶点             ρ = +0.404
-  · FEP+ 物理方法（文献）      r ≈ 0.6–0.8
-在同一批 16 个体系、461 个配体上跑 Boltz-2，三类方法才能真正对齐比较。
+Why use the FEP systems
+------------------------
+There are already three numbers, but on different footings and not strictly
+comparable:
+  . retrieval models within an FEP congeneric series   rho ~ 0.4
+  . Boltz-2 across targets                             rho = +0.404
+  . FEP+ physics method (literature)                   r ~ 0.6-0.8
+Running Boltz-2 on the same batch of 16 systems / 461 ligands puts all three
+method families on a genuinely aligned comparison.
 
-⚠️ 已知限制
------------
-Boltz-2 亲和力模块不支持 >128 原子的配体；FEP 集都是类药小分子，应该没问题，
-但仍会检查并记录跳过的。
+Warning: known limitation
+--------------------------
+Boltz-2's affinity module does not support ligands with >128 atoms; the FEP
+set is all drug-like small molecules so this should not be an issue, but any
+skipped cases are still checked and recorded.
 """
 import json
 import os
@@ -29,14 +34,14 @@ RDLogger.DisableLog("rdApp.*")
 B = "/data/work/vs-benchmark"
 FEP = f"{B}/code/LigUnity/test_datasets/FEP"
 OUT = f"{B}/boltz_fep"
-SHARDS = 3          # 用空闲的 GPU 4/6/7
+SHARDS = 3          # use the free GPUs 4/6/7
 MAX_ATOMS = 128
 
 
 def main():
     labels = json.load(open(f"{FEP}/fep_labels.json"))
-    # cmet(1390aa) 和 tyk2(1187aa) 超过 Boltz-2 的 1170 上限，
-    # 用按激酶结构域截取的序列替换（结合位点 3/3 全覆盖，见 fep_truncate.py）
+    # cmet(1390aa) and tyk2(1187aa) exceed Boltz-2's 1170 limit,
+    # replaced with the kinase-domain-truncated sequence (covers 3/3 binding sites, see fep_truncate.py)
     trunc = {}
     tp = f"{B}/data/t3/fep_truncation.json"
     if os.path.exists(tp):
@@ -59,7 +64,7 @@ def main():
             rows.append({"pocket": pocket, "uniprot": e["uniprot"], "idx": j,
                          "smi": smi, "act": lig["act"], "seq": seq})
 
-    # 按序列长度轮转分片，让各卡负载均衡（Boltz-2 耗时随长度陡增）
+    # round-robin shard by sequence length, to balance load across GPUs (Boltz-2 runtime rises steeply with length)
     rows.sort(key=lambda r: -len(r["seq"]))
     manifest = []
     for n, r in enumerate(rows):

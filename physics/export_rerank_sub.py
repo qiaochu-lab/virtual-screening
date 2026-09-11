@@ -1,106 +1,146 @@
-"""Boltz-2 重排在 350 子集 L4 靶点上的结果（T6-RE 的 Boltz 那半）。
+"""Boltz-2 rerank results on the 350-subset L4 targets (the Boltz half of T6-RE).
 
-读这个结果之前必须先知道这轮的设计，以及它**不能**回答什么。
+Read this result only after understanding how this run was designed, and what
+it **cannot** answer.
 
-## 候选池怎么构成的
+## How the candidate pool was built
 
-每个靶点 = 检索模型的 top-200（`rank < 200`）+ **不在 top-200 里的全部活性**
-被补回（`rank >= 200`，`prep_rerank.py --inject-actives`）。所以：
+Each target = the retrieval model's top-200 (`rank < 200`) + **every active
+not in the top-200** injected back (`rank >= 200`, via
+`prep_rerank.py --inject-actives`). So:
 
-    rank < 200   2,388 条：1,934 个诱饵 + 454 个「检索找到的活性」
-    rank >= 200  1,359 条：全部是「检索漏掉的活性」
+    rank < 200   2,388 records: 1,934 decoys + 454 "actives retrieval found"
+    rank >= 200  1,359 records: all "actives retrieval missed"
 
-**所有诱饵都来自 top-200，一个诱饵都没补。** 补回活性是为了解掉召回天花板：
-子集上 L4 的 recall@200 只有 22.6%，重排一个近八成活性都不在里面的列表，
-无论物理方法多准都做不出什么。
+**Every decoy comes from the top-200 -- not one decoy was injected.** Actives
+were injected back to remove the recall ceiling: on the subset, L4's
+recall@200 is only 22.6%, and reranking a list missing nearly 80% of the
+actives cannot demonstrate anything, no matter how accurate the physics
+method is.
 
-## ⚠️ 这个设计让检索臂在数学上不可用
+## Warning: this design makes the retrieval arm mathematically unusable
 
-补回的活性按构造排在**所有诱饵之后**（它们本来就不在 top-200 里）。
-极端情形：某靶点 top-200 里一个活性都没有 → 每个活性排在每个诱饵之后 →
-**AUROC 精确等于 0**，不是「很低」，是数学上的 0。实测 12 个靶点里 5 个如此。
+The injected actives are, by construction, ranked **after every decoy** (they
+were not in the top-200 to begin with). In the extreme case: a target with
+zero actives in its top-200 -> every active ranks below every decoy ->
+**AUROC exactly equals 0**, not "very low" but mathematically 0. Measured: 5
+of the 12 targets hit this exactly.
 
-**所以任何「Boltz 赢检索」的数字都是这个设计造成的假象，在任何覆盖率下都不能引用。**
-csv 里仍然保留 retrieval / rank_fusion 的行，只为留档；脚本不再打印它们的配对检验。
+**So any "Boltz beats retrieval" number is an artefact of this design and
+cannot be quoted at any coverage level.** The retrieval / rank_fusion rows
+are still kept in the csv for the record; the script no longer prints their
+paired test.
 
-## 那么能回答什么
+## So what can it answer
 
-**主分析（能进正文的那个）：检索漏掉的活性，物理方法捞不捞得回来。**
-只在「补回的活性 + 诱饵」上算 Boltz 的 AUROC。补回的活性正是检索失败的那批，
-如果 Boltz 能把它们排到诱饵上面，那就是物理补上了检索的盲区——这是级联的全部
-价值。零假设干净（随机 = 0.5），不需要和检索的排序比，绕开了上面那个构造缺陷。
+**Main analysis (the one that belongs in the writeup): can physics recover
+the actives retrieval missed.** Compute Boltz's AUROC only on "injected
+actives + decoys". The injected actives are exactly the batch retrieval
+failed on; if Boltz can rank them above the decoys, that is physics
+recovering retrieval's blind spot -- the entire value case for the cascade.
+The null hypothesis is clean (random = 0.5) and needs no comparison against
+retrieval's own order, sidestepping the construction flaw above.
 
-**配套对照：检索找到的活性，物理方法排得动吗。**
-同样对诱饵算 AUROC，但用 `rank < 200` 的活性。两者一比就知道 Boltz 的盲区
-是不是和检索的重合：
+**Companion control: can physics move the actives retrieval already found.**
+Compute AUROC against decoys the same way, but using the `rank < 200`
+actives. Comparing the two tells you whether Boltz's blind spot overlaps
+retrieval's:
 
-  · missed ≈ found   → 物理对「检索觉得像」和「检索觉得不像」一视同仁
-  · missed ≪ found   → 两者盲区重合，级联加物理这一级补不上什么
-  · missed > found   → 物理确实互补，级联有价值
+  . missed ~ found  -> physics treats "retrieval thinks it's similar" and
+                        "retrieval thinks it's not" the same way
+  . missed << found -> the two blind spots overlap; adding a physics stage
+                        to the cascade recovers little
+  . missed > found  -> physics is genuinely complementary; the cascade has
+                        value
 
-**次分析：整池对随机。** 只回答「Boltz 有没有任何信号」，门槛很低，作参考。
+**Secondary analysis: whole pool vs. random.** Only answers "does Boltz carry
+any signal at all" -- a very low bar, kept for reference.
 
-## ⚠️ found 这一列只有 5 个靶点能算
+## Warning: the found column can only be computed for 5 targets
 
-逐靶点的 found 活性数不是「倾斜」，是**双峰**——检索在一个 L4 靶点上要么基本管用，
-要么几乎全废，中间几乎没有：
+The per-target found-active count is not "skewed", it is **bimodal** --
+retrieval on an L4 target is either basically working or nearly worthless,
+with almost nothing in between:
 
-    O14578 116  Q8N1C3 100  O42275 91  P20648 77  Q96DB2 60   ← recall@200 49.8%–84.5%
-    P14060   5  Q08828   3  Q13233  1  Q13574  1              ← recall@200 0.2%–6.8%
-    O88634   0  O60427   0  P52429  0                         ← 精确为 0，AUROC 无定义
+    O14578 116  Q8N1C3 100  O42275 91  P20648 77  Q96DB2 60   <- recall@200 49.8%-84.5%
+    P14060   5  Q08828   3  Q13233  1  Q13574  1              <- recall@200 0.2%-6.8%
+    O88634   0  O60427   0  P52429  0                         <- exactly 0, AUROC undefined
 
-所以：**missed 那一列 12 个靶点全报**（每个靶点都有 ≥11 个 missed 活性和 ≥84 个诱饵）；
-**found/missed 的对比只在 found>=10 的 5 个靶点上做**，并且 n=5 的 Wilcoxon
-**双侧 p 的下界是 2/2^5 = 0.0625**，本来就够不到 0.05——所以那 5 对直接逐个列出来，
-不靠一个够不到显著的 p 值说事。
+So: **the missed column is reported for all 12 targets** (each has >=11
+missed actives and >=84 decoys); **the found/missed comparison is done only
+on the 5 targets with found>=10**, and at n=5 the Wilcoxon **two-sided p
+floor is 2/2^5 = 0.0625**, which never reaches 0.05 to begin with -- so those
+5 pairs are listed individually rather than leaning on a p-value that can
+never be significant.
 
-总体 recall@200 = 25.0%（454 / 1,813），但这个数是两群靶点的混合，单独看没有意义。
-**「一半以上的 L4 靶点，检索 top-200 里的活性少于 5 个」比任何 AUROC 都更直白地
-说明召回天花板。**
+Overall recall@200 = 25.0% (454 / 1,813), but this number mixes two distinct
+groups of targets and is meaningless on its own. **"More than half the L4
+targets have fewer than 5 actives in retrieval's top-200" states the recall
+ceiling more plainly than any AUROC.**
 
-## missed 比 found 低，能不能用「补回的活性本身更难」解释
+## Can "the recovered actives are themselves harder" explain missed < found
 
-**定不下来，必须当成公开的替代解释写出来**（check_missed_vs_found_props.py）。
+**Cannot be settled -- must be written up as an open alternative explanation**
+(check_missed_vs_found_props.py).
 
-混合起来比，两组在 MW（p=3.3e-23）和新颖度（p=3.2e-80）上差别巨大。但那些 p
-被靶点构成效应污染了——逐靶点看，**七个性质维度没有一个在五个靶点上同向**：
+Pooled, the two groups differ hugely on MW (p=3.3e-23) and novelty
+(p=3.2e-80). But those p-values are contaminated by a target composition
+effect -- per target, **not one of the seven property dimensions points the
+same way across all five targets**:
 
-    逐靶点 AUC = P(missed 的值 > found 的值)，0.5 = 该靶点内分不开
-    靶点          MW    重原子   新颖度(亲和半)
+    per-target AUC = P(missed value > found value); 0.5 = indistinguishable within that target
+    target        MW    heavy atoms   novelty (affinity half)
     O14578     0.619   0.608      0.094
     O42275     0.217   0.162      0.116
     P20648     0.500   0.478      0.648
     Q8N1C3     0.848   0.845      0.508
     Q96DB2     0.448   0.400      0.470
 
-新颖度也不例外（0.09–0.65）。所以只能说两句：混合比较确实被构成效应污染；
-**同靶点内部有没有系统差异，n=5 且异质这么大，定不下来**——既没排除也没证实。
+Novelty is no exception (0.09-0.65). So only two statements hold: the pooled
+comparison is genuinely contaminated by a composition effect;
+**whether there's a systematic within-target difference cannot be settled at
+n=5 with this much heterogeneity** -- neither ruled out nor confirmed.
 
-⚠️ 中途我用过两个更弱的判据，都会骗人，记在这里免得再犯：
-**(1) 看配对后 p 变大** —— n 从 1,813 个分子掉到 5 个靶点，p 必然崩，
-Wilcoxon 双侧下界就是 2/2^5=0.0625，这个检验读方向不读显著性。
-**(2) 看 pooled/paired 的收缩率** —— 收缩率是比值，和本项目退役掉的 EF 比值
-同一个坑；paired 中位数碰巧落在 pooled 附近就会给出「效应真实」的假象，
-完全掩盖上表那种异质。**n 小的时候唯一可信的是把每个靶点的数列出来。**
+Warning: along the way I used two weaker criteria, both misleading -- noted
+here so they aren't repeated:
+**(1) watching p grow after pairing** -- n drops from 1,813 molecules to 5
+targets, so p necessarily collapses; the Wilcoxon two-sided floor is
+2/2^5=0.0625, and this test reads direction, not significance.
+**(2) watching the pooled/paired shrinkage ratio** -- the shrinkage ratio is
+itself a ratio, the same trap as the EF ratio this project retired
+elsewhere; a paired median that happens to land near the pooled one gives a
+false impression that "the effect is real", completely masking the
+heterogeneity in the table above. **With n this small, the only trustworthy
+thing is listing each target's numbers.**
 
-## 主分析该怎么读（先写下来，再看数）
+## How to read the main analysis (write this down before looking at the numbers)
 
-    missed ≈ found → 物理不吃「对训练化学的熟悉度」这一套，确实能补上检索因
-                     化学不熟而漏掉的活性。**级联值得做的正面结果。**
-    missed ≪ found → 有两个解释分不开，**两个都要写，不能只挑一个**：
-                     (a) 两个方法共享对训练化学的依赖——Boltz-2 本身也是训练
-                         出来的模型，这比「口袋识别的盲区重合」更强，
-                         也和全文主线（模型靠化学系列记忆）是同一条；
-                     (b) 补回的活性本身更难，上面那张表没能排除它。
+    missed ~ found  -> physics does not buy into "familiarity with training
+                        chemistry", and genuinely recovers actives retrieval
+                        missed for chemistry reasons. **A positive result
+                        worth the cascade.**
+    missed << found -> two explanations that cannot be told apart, **both
+                        must be written up, not just one picked**:
+                        (a) the two methods share the same dependence on
+                            training chemistry -- Boltz-2 is itself a
+                            trained model too, which is a stronger claim than
+                            "the pocket-recognition blind spots overlap", and
+                            follows the same throughline as the rest of the
+                            project (models rely on chemical-series memory);
+                        (b) the recovered actives are themselves harder, and
+                            the table above failed to rule this out.
 
-**出分之后要做的直接检验**：把逐靶点的 Boltz AUROC 差（missed − found）和
-上表的性质 AUC 放在一起看。**只列那五个点，不报 r 和 p**——n=5 上相关系数
-本身就是个汇总统计量，正是上面刚证明会骗人的那一类。让读者看五个点。
+**A direct test to run once scores land**: put the per-target Boltz AUROC gap
+(missed - found) side by side with the property AUCs from the table above.
+**List only those five points, do not report r or p** -- a correlation
+coefficient over n=5 is itself a summary statistic, exactly the kind just
+shown above to mislead. Let the reader look at the five points.
 
-## ⚠️ 绝对指标不可与前四轮或全库 EF 比
+## Warning: absolute metrics are not comparable to the first four runs or the full-pool EF
 
-补回活性把整池的活性占比抬到约 48%，P@5/P@10 的随机基线也是 0.48。
-这是构造集上的**排序**测试，不是富集测量。
+Injecting actives back raises the pool's active fraction to about 48%, so the
+random baseline for P@5/P@10 is also 0.48. This is a **ranking** test on a
+constructed set, not an enrichment measurement.
 """
 import argparse
 import glob
@@ -112,7 +152,7 @@ import numpy as np
 from scipy import stats
 
 B = "/data/work/vs-benchmark"
-# prep_rerank.py 的 manifest 路径是写死的，不跟随 --out
+# prep_rerank.py hardcodes the manifest path; it does not follow --out
 MAN = f"{B}/data/t3/rerank_manifest.json"
 
 
@@ -128,7 +168,7 @@ def load(out_root):
 
 
 def auroc(pos, neg):
-    """分数越大越靠前。pos/neg 都非空才有定义。"""
+    """Higher score ranks first. Defined only when both pos and neg are non-empty."""
     if len(pos) == 0 or len(neg) == 0:
         return float("nan")
     u = stats.mannwhitneyu(pos, neg, alternative="greater").statistic
@@ -136,7 +176,7 @@ def auroc(pos, neg):
 
 
 def metrics(lab, sc):
-    """P@5 / P@10 / 活性平均名次 / AUROC。分数越大越靠前。"""
+    """P@5 / P@10 / mean active rank / AUROC. Higher score ranks first."""
     o = np.argsort(-sc)
     lo = lab[o]
     ranks = np.where(lo == 1)[0] + 1
@@ -145,48 +185,65 @@ def metrics(lab, sc):
 
 
 def sign_test(vals, null):
-    """逐单位方向一致性：符号检验（双侧二项，p=0.5），平局剔除。
+    """Per-unit directional agreement: a sign test (two-sided binomial, p=0.5), ties dropped.
 
-    ⚠️ 这是这轮最大教训的执行件（PATCHES.md「n 小的时候三个汇总统计量各给一个
-    答案」）。七个性质维度上，五个靶点没有一个同向——**没有共同效应可合并**，
-    三个汇总统计量于是互相打架，因为它们都在回答一个前提不成立的问题。
-    不是 n 小的问题，是异质的问题；n 小只是让异质无法被检出。
+    Warning: this is the executable form of this round's biggest lesson
+    (PATCHES.md, "with n this small, the three summary statistics each give a
+    different answer"). Across the seven property dimensions, not one of the
+    five targets agrees in direction -- **there is no common effect to pool**,
+    so the three summary statistics fight each other because they are all
+    answering a question whose premise does not hold. It is not a small-n
+    problem, it is a heterogeneity problem; small n just keeps the
+    heterogeneity from being detected.
 
-    **为什么不是二值标记。** 第一版只标「同向/不同向」，队友指出那在纯随机数据上
-    必然触发——12 个靶点、中等效应，期望也就 8/12 或 9/12，**对真效应和无效应
-    都会亮，读者没法用它区分任何东西**。二值化丢掉了底层计数携带的信息，
-    和比值丢掉两个原始数是同一个形状的错。改成报 k/n 加它的精确二项 p。
+    **Why not a binary flag.** The first version only flagged "same
+    direction / not", and a teammate pointed out that on purely random data
+    this necessarily fires -- with 12 targets and a moderate effect, the
+    expectation is already 8/12 or 9/12, **so it lights up for both a real
+    effect and no effect at all, and a reader cannot use it to distinguish
+    anything**. Binarising throws away the information carried by the
+    underlying counts, the same shape of mistake as a ratio throwing away
+    the two raw numbers. Switched to reporting k/n plus its exact binomial p.
 
-    **为什么数的是「高于零假设的个数」而不是「与均值同向的个数」。**
-    后者让数据自己挑方向，再检验这个方向，是轻度的双重浸渍（k 会被系统性抬高：
-    均值方向通常就是多数方向）。数「高于零假设」是方向固定的，
-    这就是标准的符号检验，零分布干净地是 Binomial(n, 0.5)。
-    代价是它测的是「多数在哪边」而不是「均值方向可不可信」——但正是前者
-    才回答「有没有共同效应」。
+    **Why it counts "how many are above the null" rather than "how many
+    agree with the mean's direction".** The latter lets the data pick its own
+    direction and then tests that direction, which is a mild double dip (k
+    gets systematically inflated: the mean's direction is usually already
+    the majority direction). Counting "above the null" fixes the direction in
+    advance, which is the standard sign test, with a clean null distribution
+    of Binomial(n, 0.5). The cost is that it measures "which side the
+    majority is on" rather than "is the mean's direction trustworthy" -- but
+    it is exactly the former that answers "is there a common effect".
     """
     v = np.array([x for x in vals if np.isfinite(x)], dtype=float)
-    v = v[v != null]                       # 平局剔除，符号检验的标准做法
+    v = v[v != null]                       # ties dropped, the standard sign-test convention
     n = len(v)
     if n == 0:
         return 0, 0, float("nan")
     k = int((v > null).sum())
-    p = float(stats.binomtest(k, n, 0.5).pvalue)   # 双侧
+    p = float(stats.binomtest(k, n, 0.5).pvalue)   # two-sided
     return k, n, p
 
 
 def sign_note(k, n, p):
-    """一行：k/n + 二项 p + 该不该信这一行的汇总。
+    """One line: k/n + binomial p + whether this line's summary should be trusted.
 
-    ⚠️ **符号检验故意丢掉了幅度**：AUROC 0.95 和 0.51 各算一票。所以它只能决定
-    「这一行的汇总能不能单独引用」，**不能反过来当「没有效应」的证据**。
-    反例：逐靶点 0.72/0.68/0.65/0.61/0.58/0.55/0.53/0.51/0.47/0.45/0.42/0.38
-    是 8/12、p=0.39，符号检验判成噪声，但正向那半明显更强，逐靶点表一看就知道
-    不是噪声。**判断效应始终以逐靶点表为准**，这也是它印在汇总行之前的原因。
+    Warning: **the sign test deliberately discards magnitude**: an AUROC of
+    0.95 and one of 0.51 each count as one vote. So it can only decide
+    "whether this line's summary can be quoted on its own", **it cannot be
+    used the other way around as evidence of 'no effect'**. Counter-example:
+    per-target values 0.72/0.68/0.65/0.61/0.58/0.55/0.53/0.51/0.47/0.45/0.42/0.38
+    are 8/12, p=0.39, which the sign test calls noise, but the positive half
+    is clearly stronger and the per-target table shows at a glance that it is
+    not noise. **Judging the effect always defers to the per-target table**,
+    which is why that table is printed before the summary line.
 
-    ⚠️ n 很小时符号检验**根本达不到 0.05**（n=5 时即使 5/5 也只有 0.0625）。
-    这种情况下「仅供参考」是**检验本身没功效**，不是「逐靶点异质」的证据——
-    两者读起来一样但含义完全相反，所以必须分开写，否则会把「测不了」
-    误读成「测了，是散的」。
+    Warning: when n is very small the sign test **cannot reach 0.05 at all**
+    (at n=5, even 5/5 only gives 0.0625). In that case "for reference only"
+    means **the test itself has no power**, not "evidence of per-target
+    heterogeneity" -- the two read the same but mean the opposite, so they
+    must be stated separately, otherwise "cannot be tested" gets misread as
+    "was tested, and came out scattered".
     """
     if n == 0:
         return "逐靶点方向：无可用单位"
@@ -201,34 +258,37 @@ def sign_note(k, n, p):
 
 
 def floor_note(n):
-    """n 个单位时 Wilcoxon 双侧 p 的下界。够不到 0.05 就必须说明。"""
+    """The Wilcoxon two-sided p floor at n units. Must be stated if it never reaches 0.05."""
     f = 2 / 2 ** n if n > 0 else float("nan")
     tail = "，够不到 0.05" if f > 0.05 else ""
     return f"n={n}，双侧 p 下界 {f:.4f}{tail}"
 
 
 def wilcoxon_vs(vals, null):
-    """逐靶点对一个常数零假设做 Wilcoxon。
+    """Per-target Wilcoxon against a constant null hypothesis.
 
-    ⚠️ 返回的 n 是**剔除平局之后**的。scipy 的 wilcoxon 默认就丢掉零差值
-    （zero_method="wilcox"），所以有效样本量本来就是剔除后的那个；
-    如果拿剔除前的 n 去算 p 的下界 2/2^n，下界会偏小、显得比实际更有功效。
-    12 个靶点里有两个平局，n 其实是 10，下界从 0.0005 变 0.002。
+    Warning: the returned n is **after ties are dropped**. scipy's wilcoxon
+    already drops zero differences by default (zero_method="wilcox"), so the
+    effective sample size is already the post-drop one; using the pre-drop n
+    to compute the p floor 2/2^n would make the floor look smaller -- i.e.
+    more powerful than it actually is. Two of the 12 targets tie, so n is
+    really 10, and the floor moves from 0.0005 to 0.002.
     """
     v = np.asarray([x for x in vals if np.isfinite(x)], dtype=float)
     k = int((v > null).sum())
-    v = v[v != null]                       # 平局剔除，和 sign_test 口径一致
+    v = v[v != null]                       # ties dropped, matching sign_test's convention
     if len(v) < 5 or np.allclose(v, null):
         return float("nan"), k, len(v)
     return float(stats.wilcoxon(v - null).pvalue), k, len(v)
 
 
 def quarantined():
-    """结构阶段失败、已被移出输入目录的记录（名单以磁盘为准，不写死在代码里）。
+    """Records that failed the structure stage and were moved out of the input directory (the list is read from disk, not hardcoded).
 
-    Boltz 的亲和力阶段碰到没有 `pre_affinity_*.npz` 的记录不是跳过，是**整个退出**，
-    一条坏记录能带走一个 shard——上一轮三个 shard 就是这么崩的。所以这些记录在
-    续跑前被移进隔离目录。
+    When Boltz's affinity stage hits a record with no `pre_affinity_*.npz`, it
+    does not skip it -- it **exits entirely**, and a single bad record can
+    take down an entire shard -- that is how three shards crashed last round.
+    So these records get moved into a quarantine directory before resuming.
     """
     d = f"{B}/boltz_rerank_sub_quarantine"
     if not os.path.isdir(d):
@@ -237,20 +297,28 @@ def quarantined():
 
 
 def coverage_gate(man, aff, excl):
-    """逐靶点完成率。**这是这个脚本存在过的最大教训。**
+    """Per-target completion rate. **This is the biggest lesson this script ever taught.**
 
-    上一版把「出分 2,562/3,747」当成一句覆盖率脚注就发了数字。错在：这轮按
-    **复合物**切 shard，四个 shard 每个都覆盖全部 12 个靶点，所以崩掉的 shard
-    不是拿走几个完整靶点，而是**每个靶点都被咬掉三分之一**（实测逐靶点完成率
-    中位 68.7%，0/12 完整）。在一个靶点三分之二的候选上算的 AUROC 不是全集值
-    加宽误差棒，是另一个量；缺三分之一成员的 P@5 根本没法解释。
+    The previous version reported "scored 2,562/3,747" as a one-line coverage
+    footnote and shipped the numbers. The mistake: this round shards by
+    **complex**, and all four shards each cover all 12 targets, so a crashed
+    shard does not remove a few complete targets -- it **shaves a third off
+    every single target** (measured per-target completion rate: median 68.7%,
+    0/12 complete). AUROC computed on two-thirds of a target's candidates is
+    not the full-set value with a wider error bar -- it is a different
+    quantity; P@5 with a third of the members missing cannot be interpreted
+    at all.
 
-    所以：**任何靶点不满就拒绝出主结论**，不提供「按现有数据凑合」的路径。
+    So: **reject the main conclusion if any target is incomplete** -- there is
+    no "make do with what's there" path offered.
 
-    ⚠️ **唯一的例外是 excl 里那批具名记录，而且它是名单不是阈值。**
-    绝不能把门限从 100% 放宽到「98% 也算」——那等于把刚拆掉的「凑合」路径
-    又装回去。做法是：把结构阶段失败的记录**逐条列出来**、报清楚它们是什么，
-    然后要求**剩下的每一条都必须有分**。名单从磁盘上的隔离目录读，不写死。
+    Warning: **the only exception is the named records in excl, and it is a
+    list, not a threshold.** Never relax the bar from 100% to "98% is good
+    enough" -- that would just reinstall the "make do" path just removed.
+    Instead: list the structure-stage failures **record by record**, state
+    clearly what they are, and then require **every remaining record to have
+    a score**. The list is read from the quarantine directory on disk, not
+    hardcoded.
     """
     by = {}
     for e in man["entries"]:
@@ -340,7 +408,7 @@ def main():
         rnk = np.array([e["rank"] for e in items], dtype=int)
         if lab.sum() < 3 or lab.sum() == len(lab):
             continue
-        # 检索分数越大越好；Boltz 的 affinity_pred_value 越小越好（预测的 log Kd）
+        # higher is better for the retrieval score; lower is better for Boltz's affinity_pred_value (predicted log Kd)
         ret = np.array([e["pred"] for e in items], dtype=float)
         bol = -np.array([aff[e["name"]] for e in items], dtype=float)
         fus = -(stats.rankdata(-ret) + stats.rankdata(-bol))
@@ -384,7 +452,7 @@ def main():
     print("\n" + "=" * 72)
     print("主分析：检索漏掉的活性，Boltz 捞不捞得回来（对诱饵算 AUROC，零假设 0.5）")
     print("=" * 72)
-    # ⚠️ 逐靶点表在汇总行**之前**，不是附录。汇总和逐靶点打架时以逐靶点为准。
+    # warning: the per-target table comes **before** the summary line, not as an appendix. When summary and per-target disagree, defer to per-target.
     print("【逐靶点】这是主表。下面的汇总行只是它的摘要。")
     print("%-10s%8s%8s%8s%14s%14s%13s"
           % ("靶点", "诱饵", "missed", "found", "AUROC missed", "AUROC found", "差"))
@@ -425,8 +493,8 @@ def main():
         d = m_ - f_
         print(f"\n  配对差 missed − found 中位 {np.median(d):+.4f}   "
               f"missed 更高的 {(d > 0).sum()}/{len(d)}")
-        # ⚠️ n=5 的 Wilcoxon 双侧 p 下界是 2/2^5=0.0625，够不到 0.05。
-        #    报一个注定不显著的 p 值会误导，所以把下界一起写出来。
+        # warning: at n=5 the Wilcoxon two-sided p floor is 2/2^5=0.0625, which never reaches 0.05.
+        #    Reporting a p-value that can never be significant would mislead, so the floor is printed alongside it.
         k_, n_, pb = sign_test(d, 0.0)
         print(f"  {sign_note(k_, n_, pb)}")
         if len(d) >= 2:

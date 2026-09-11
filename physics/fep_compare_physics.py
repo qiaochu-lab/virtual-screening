@@ -1,13 +1,16 @@
-"""把检索模型与物理方法（Uni-FEP）在同一批 FEP 体系上对照。
+"""Compare the retrieval models against a physics method (Uni-FEP) on the same batch of FEP systems.
 
-物理方法的基准值来自 dptech-corp/Uni-FEP-Benchmarks，报的是 Kendall tau 和 R²。
-我们的检索模型此前报 Spearman，这里同时算 Kendall 以便直接比。
+The physics method's reference values come from dptech-corp/Uni-FEP-Benchmarks,
+which reports Kendall tau and R^2. Our retrieval models previously reported
+Spearman; Kendall is computed here too so the two are directly comparable.
 
-⚠️ 两点必须说明：
-1. 那是 **Uni-FEP** 的数字，不是 Schrödinger FEP+ 本身。同为自由能微扰类方法，
-   量级可作参照，但不能说成「FEP+ 的结果」。
-2. 配体数与我们的数据一一对应（BACE 36、CDK2 16、thrombin 11…），
-   确认是同一套体系——这是可比的前提，已核对。
+Warning: two points must be stated:
+1. Those are **Uni-FEP** numbers, not Schrodinger FEP+ itself. Both are
+   free-energy-perturbation-family methods, so the magnitude can serve as a
+   reference point, but it must not be described as "FEP+'s result".
+2. The ligand counts match our data one-to-one (BACE 36, CDK2 16,
+   thrombin 11, ...), confirming these are the same systems -- the
+   precondition for comparability, already checked.
 """
 import json, os
 import numpy as np

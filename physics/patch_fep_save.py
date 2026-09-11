@@ -1,10 +1,13 @@
-"""让 FEP 任务把原始打分存下来，供统一评测层重算。
+"""Make the FEP task save the raw scores, so the unified evaluation layer can recompute metrics.
 
-官方实现只存 embedding 和标签，指标只报 R²，而且 corr<0 时直接把 R² 归零——
-这会把「排序方向反了」和「完全无关」混为一谈。负相关是有意义的信号
-（说明模型系统性地把强的排后面），不该被抹掉。
+The official implementation only saves embeddings and labels and reports R^2
+alone, and zeroes R^2 outright whenever corr<0 -- which conflates "ranked
+backwards" with "completely unrelated". A negative correlation is a
+meaningful signal (it means the model is systematically ranking the strong
+ones last) and should not be erased.
 
-这里只补一行 saved_preds.npy，不动任何模型逻辑。
+This only adds one line, saved_preds.npy -- it does not touch any model
+logic.
 """
 import sys
 B = "/data/work/vs-benchmark"

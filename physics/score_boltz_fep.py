@@ -1,20 +1,26 @@
-"""Boltz-2 在 FEP 16 个体系上的逐配体排序能力（可在跑到一半时先看）。
+"""Boltz-2's per-ligand ranking ability on the 16 FEP systems (can be checked partway through the run).
 
-口径
-----
-`affinity_pred_value` **越小表示结合越强**，实测 act (pAffinity) 越大越强，
-所以取负号同向后再算相关——不统一方向的话符号是反的。
+Convention
+-----------
+`affinity_pred_value` **smaller means stronger binding**, while the measured
+act (pAffinity) is stronger when larger, so the sign is flipped to align the
+two directions before computing correlation -- without that, the sign would
+come out reversed.
 
-为什么中途也能看
-----------------
-排序指标是**逐体系**算的：某个体系的配体全跑完了，它那一行就是终值，
-不会因为别的体系还没跑完而改变。只有「跨体系平均」那一行会随覆盖率变。
-所以这里逐体系报覆盖率，覆盖不足的单独标出来，不混进平均。
+Why it can be checked mid-run
+--------------------------------
+The ranking metric is computed **per system**: once a given system's ligands
+have all finished, that row is final and will not change no matter how many
+other systems are still incomplete. Only the "average across systems" row
+moves with coverage. So coverage is reported per system here, and
+under-covered ones are flagged separately rather than mixed into the average.
 
-与检索模型同口径对照
---------------------
-右侧几列是 results/fep/ 下各检索模型在**同一体系、同一批配体**上的 Spearman，
-由 score_fep.py 算出。这是 T6 想要的那张表——三类方法、同一批体系。
+Comparison against the retrieval models on the same footing
+---------------------------------------------------------------
+The columns on the right are each retrieval model's Spearman under
+results/fep/, computed on **the same system, the same batch of ligands**, by
+score_fep.py. This is the table T6 actually wants -- three method families,
+the same set of systems.
 """
 import glob
 import json
@@ -30,7 +36,7 @@ MIN_N, MIN_COV = 8, 0.8
 
 
 def truth():
-    """体系 -> [实测 pAffinity]（顺序与 prep_boltz_fep.py 生成输入时一致）。"""
+    """system -> [measured pAffinity] (in the same order prep_boltz_fep.py used to generate the inputs)."""
     out = {}
     for e in json.load(open(f"{FEP}/fep_labels.json")):
         out[e["pockets"][0]] = [l["act"] for l in e["ligands"]]
@@ -38,7 +44,7 @@ def truth():
 
 
 def preds():
-    """体系 -> {配体序号: 预测值}。文件名形如 affinity_tnks2__015.json。"""
+    """system -> {ligand index: predicted value}. Filenames look like affinity_tnks2__015.json."""
     out = defaultdict(dict)
     for p in glob.glob(f"{B}/boltz_fep_out/shard_*/*/predictions/*/affinity_*.json"):
         name = os.path.basename(p)[len("affinity_"):-len(".json")]
@@ -53,7 +59,7 @@ def preds():
 
 
 def retrieval():
-    """体系 -> {模型: Spearman}，来自检索模型已落盘的打分。"""
+    """system -> {model: Spearman}, from the retrieval models' scores already saved to disk."""
     out = defaultdict(dict)
     root = f"{B}/results/fep"
     if not os.path.isdir(root):
@@ -96,7 +102,7 @@ def main():
             print("%-11s %6d %7.0f%% %10s" % (s, len(y_all), cov * 100, "跑得太少"))
             continue
         yv = np.array([y_all[i] for i in idx])
-        pv = -np.array([got[i] for i in idx])          # 取负号同向
+        pv = -np.array([got[i] for i in idx])          # flip sign to align direction
         rho = stats.spearmanr(pv, yv).statistic
         KEN[s] = stats.kendalltau(pv, yv).statistic
         cells = "".join((f"{R[s][m]:+.3f}".rjust(17) if m in R.get(s, {}) else "—".rjust(17))

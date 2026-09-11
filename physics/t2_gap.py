@@ -1,13 +1,18 @@
-"""T2 的空洞：同一批模型 CASF 靶点内排序 ρ≈0.42–0.55，T3 L1 只有 0.09–0.26。
+"""T2's gap: the same models rank within-target rho ~ 0.42-0.55 on CASF targets, but only 0.09-0.26 on T3 L1.
 
-候选解释
-  A 取值范围受限：T3 的 active 过了 pAff>=6 的门，真实强弱差距被压窄，
-    相关系数被机械衰减（attenuation due to restriction of range）。
-  B 每靶点配体数：CASF 少、T3 多 —— 影响方差不影响均值，不构成系统偏差。
-  C 标签异质：CASF 是 PDBbind 精选 Kd/Ki，T3 是 ChEMBL 混合 IC50/Ki/EC50。
+Candidate explanations
+  A Restriction of range: T3's actives pass a pAff>=6 gate, which narrows
+    the true spread of binding strength and mechanically attenuates the
+    correlation coefficient (attenuation due to restriction of range).
+  B Ligands per target: CASF has fewer, T3 has more -- affects variance, not
+    the mean, so it is not a systematic bias.
+  C Label heterogeneity: CASF is PDBbind's curated Kd/Ki, T3 is ChEMBL's mix
+    of IC50/Ki/EC50.
 
-本脚本量 A：两套数据靶点内 pAff 展布，并给出衰减校正后的估计。
-校正公式（Thorndike case II）：ρ_true ≈ ρ_obs·(S/s) / sqrt(1 + ρ_obs²(S²/s² - 1))
+This script quantifies A: the within-target pAff spread on both datasets,
+and gives an attenuation-corrected estimate.
+Correction formula (Thorndike case II):
+rho_true ~ rho_obs*(S/s) / sqrt(1 + rho_obs^2*(S^2/s^2 - 1))
 """
 import json, os, numpy as np
 B = "/data/work/vs"

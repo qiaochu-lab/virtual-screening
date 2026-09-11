@@ -1,8 +1,10 @@
-"""粗筛能捞回多少 active —— 串联 rerank 的天花板。
+"""How many actives coarse retrieval can recover -- the ceiling for cascade rerank.
 
-重排只能重排「已经进了 top-N 的分子」。所以 recall@N 就是整个级联流程
-能达到的上限：粗筛漏掉的 active，物理方法再准也救不回来。
-第一版实验只报了 P@5/P@10，没报这个，等于不知道天花板在哪。
+Reranking can only rerank "molecules that already made the top-N". So
+recall@N is the upper bound the entire cascade pipeline can reach: an active
+that coarse retrieval missed cannot be saved by a physics method, no matter
+how accurate. The first version of the experiment only reported P@5/P@10 and
+never reported this, which meant the ceiling was unknown.
 """
 import json, os
 import numpy as np

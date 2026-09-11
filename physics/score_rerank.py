@@ -1,26 +1,33 @@
-"""串联 rerank 的评测：检索粗筛 top-N 之后，物理重排到底有没有用。
+"""Evaluation of the cascade rerank: after retrieval's coarse top-N, does physics reranking actually help.
 
-比什么
-------
-在**同一个 top-N 子集内部**比三种排序：
-  A 检索原序        —— 就是模型自己的打分顺序（基线）
-  B Boltz-2 重排    —— 只按物理分数排
-  C 排名融合        —— 两者名次平均（最省事、也最像实践里的做法）
+What is compared
+-------------------
+Three orderings compared **within the same top-N subset**:
+  A retrieval's original order -- the model's own score order (baseline)
+  B Boltz-2 rerank             -- ordered purely by the physics score
+  C rank fusion                -- average of the two ranks (the simplest
+                                   option, and the one closest to practice)
 
-⚠️ 只能在子集内部比。粗筛已经把 active 比例从约 2% 抬到 27%，
-这里的 precision@k 不能和全库 EF 放在一起说。
+Warning: this can only be compared within the subset. Coarse retrieval has
+already raised the active fraction from about 2% to 27%, so precision@k
+here cannot be stated alongside the full-pool EF.
 
-看哪些指标
-----------
-· precision@5 / @10  —— 送去做实验的前几个里有几个真的是 active，最贴近实际决策
-· active 平均名次    —— 整体是否被推上去了，不只看头部
-· 子集内 AUROC       —— 与 k 的选择无关
-配对检验按**靶点**做（分析单位是靶点，不是分子）。
+Which metrics to look at
+---------------------------
+. precision@5 / @10 -- of the first few sent for experimental follow-up, how
+  many are really active; closest to the actual decision
+. mean active rank -- whether actives are pushed up overall, not only at the
+  very top
+. within-subset AUROC -- independent of the choice of k
+The paired test is done **per target** (the unit of analysis is the target,
+not the molecule).
 
-已知的偏差来源
---------------
-Boltz-2 亲和力模块训练时配体上限 56 个重原子，超过会不准。
-这批里有一部分超限，脚本会单独把「全部 ≤56 重原子」的子集再算一遍对照。
+Known source of bias
+------------------------
+Boltz-2's affinity module was trained with a ligand cap of 56 heavy atoms;
+beyond that it becomes inaccurate. Some ligands in this batch exceed that,
+so the script separately recomputes the comparison on the subset where
+"every ligand is <=56 heavy atoms".
 """
 import argparse
 import glob
@@ -54,7 +61,7 @@ def prec_at_k(labels_in_order, k):
 
 
 def summarize(per_target, tag):
-    """per_target: uniprot -> dict(方法 -> (p5, p10, meanrank, auroc))"""
+    """per_target: uniprot -> dict(method -> (p5, p10, meanrank, auroc))"""
     methods = ["检索原序", "Boltz 重排", "排名融合"]
     print(f"\n{tag}（{len(per_target)} 个靶点）")
     print("-" * 74)
@@ -65,7 +72,7 @@ def summarize(per_target, tag):
             continue
         print("%-12s %10.3f %10.3f %12.1f %10.3f" %
               (m, v[:, 0].mean(), v[:, 1].mean(), v[:, 2].mean(), v[:, 3].mean()))
-    # 配对检验：重排 / 融合 相对基线
+    # paired test: rerank / fusion against the baseline
     base = np.array([per_target[u]["检索原序"] for u in per_target])
     for m in methods[1:]:
         alt = np.array([per_target[u][m] for u in per_target])
@@ -104,14 +111,14 @@ def main():
     for up, items in by_t.items():
         items = [e for e in items if e["name"] in aff]
         n_act = sum(e["label"] for e in items)
-        # 两类都要有：全是 active 的子集算不出 AUROC（早先版本会得到 nan）
+        # both classes must be present: a subset that is all-active cannot yield an AUROC (an earlier version got nan here)
         if len(items) < 10 or n_act < 2 or (len(items) - n_act) < 2:
             skipped.append(up)
             continue
         lab = np.array([e["label"] for e in items])
-        ret = np.array([e["pred"] for e in items])          # 检索分数，越大越好
-        bz = -np.array([aff[e["name"]] for e in items])     # 取负同向：越大越好
-        # 排名融合：各自转成名次（1 最好）再平均
+        ret = np.array([e["pred"] for e in items])          # retrieval score, higher is better
+        bz = -np.array([aff[e["name"]] for e in items])     # sign flipped to align direction: higher is better
+        # rank fusion: convert each to rank (1 = best), then average
         r1 = stats.rankdata(-ret); r2 = stats.rankdata(-bz)
         fus = -(r1 + r2) / 2
 
@@ -128,7 +135,7 @@ def main():
         d = {"检索原序": metrics(ret), "Boltz 重排": metrics(bz), "排名融合": metrics(fus)}
         per_all[up] = d
 
-        # 只留 ≤56 重原子的对照（Boltz 亲和力模块的训练上限）
+        # keep only the <=56 heavy-atom control set (Boltz's affinity module training cap)
         keep = []
         for e in items:
             m = Chem.MolFromSmiles(e["smi"])

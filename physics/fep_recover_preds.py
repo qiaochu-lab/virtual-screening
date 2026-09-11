@@ -1,8 +1,9 @@
-"""从已存的 embedding 复原 FEP 打分，避免重跑。
+"""Recover FEP scores from the saved embeddings, avoiding a rerun.
 
-LigUnity 的 FEP 分支没落盘 saved_preds.npy（补丁只进了 LiTENCLIP），
-但打分的定义就是 pocket_emb @ mol_emb.T 再按口袋取 max —— 与
-test_fep_target 里的 `res.max(axis=0)` 逐字一致，所以可以无损复原。
+LigUnity's FEP branch never wrote saved_preds.npy to disk (the patch only
+went into LiTENCLIP), but the score is defined as pocket_emb @ mol_emb.T
+followed by a max over the pocket -- identical, line for line, to
+`res.max(axis=0)` in test_fep_target, so it can be recovered losslessly.
 """
 import glob, os
 import numpy as np
