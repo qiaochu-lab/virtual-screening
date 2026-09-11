@@ -1,75 +1,91 @@
-# Target swap：模型到底有没有在用靶点信息
+# Target Swap: Does the Model Actually Use Target Information?
 
-候选配体池一字不动，只把靶点身份换成另一个蛋白，看模型还剩多少区分力。
-十个模型 × L1/L4 × 三轮随机替身。
-
----
-
-## 1. 为什么需要这个实验
-
-[泄漏诊断](T3-leakage.md) 测出一件让人不安的事：一个**完全不看蛋白**的配体相似性
-基线，EF@1% 打到理论上限的 98.7%。这很容易被读成「模型根本不看蛋白，只是在认分子」。
-
-**但那个结论我们支持不了。**化学系列 oracle 证明的是「这个基准可以被纯化学信号解掉」，
-不是「模型走的是纯化学这条路」。审稿人一问「你怎么知道模型没用蛋白信息」，答不上来。
-
-Target swap 直接回答：**如果模型不看蛋白，换个靶点应该没影响。**
+The candidate ligand pool is left completely untouched; only the target
+identity is swapped for another protein, to see how much discriminative power
+the model has left.
+Ten models × L1/L4 × three rounds of random substitutes.
 
 ---
 
-## 2. 设计
+## 1. Why this experiment is needed
+
+The [leakage audit](T3-leakage.md) turned up something unsettling: a
+ligand-similarity baseline that **looks at the protein not at all** reaches
+98.7% of the theoretical EF@1% ceiling. This is easy to read as "the models
+don't look at the protein at all — they're just recognizing molecules."
+
+**But we cannot support that conclusion.** What the chemical-series oracle
+proves is that "this benchmark can be solved by a pure chemistry signal", not
+"the models are taking the pure-chemistry route." The moment a reviewer asks
+"how do you know the models aren't using protein information", there is no
+answer.
+
+Target swap answers this directly: **if the model doesn't look at the
+protein, swapping the target should have no effect.**
+
+---
+
+## 2. Design
 
 ```
-正确： 靶点 T 的身份  +  为 T 准备的候选池（T 的活性 + 跨靶点诱饵）
-swap： 靶点 T′ 的身份 +  同一个候选池（标签、顺序、分子全不变）
+correct: identity of target T   +  the candidate pool built for T (T's actives + cross-target decoys)
+swap:    identity of target T′  +  the same candidate pool (labels, order, molecules all unchanged)
 ```
 
-唯一变量是靶点身份。
+The only variable is target identity.
 
-### 目录布局：为什么不能只换 pocket 文件
+### Directory layout: why you can't just swap the pocket file
 
-模型的蛋白序列是**按目录名查**的，不在 lmdb 里。所以
-[`build_target_swap.py`](../timesplit/build/build_target_swap.py) 把目录命名成替身 `T′`，
-再把原靶点 `T` 的配体池软链进去：
+The model's protein sequence is looked up **by directory name**, not stored
+in the lmdb. So
+[`build_target_swap.py`](../timesplit/build/build_target_swap.py) names the
+directory after the substitute `T′`, then symlinks the original target `T`'s
+ligand pool into it:
 
 ```
-swap_root/{层}/{T′}/{T′}_pocket.lmdb  →  T′ 自己的口袋
-swap_root/{层}/{T′}/{T′}_lig.lmdb     →  T 的配体池（软链，改名）
+swap_root/{layer}/{T′}/{T′}_pocket.lmdb  →  T′'s own pocket
+swap_root/{layer}/{T′}/{T′}_lig.lmdb     →  T's ligand pool (symlinked, renamed)
 ```
 
-回读时用 `swap_manifest.json` 映射回 `T` 才能与正确口袋的结果配对。
+When reading results back, `swap_manifest.json` is used to map back to `T` so
+they can be paired with the results from the correct pocket.
 
-> ⚠️ 试跑时我按 `T` 去查 swap 目录，取到的是「T 的口袋 + 别人的配体」，
-> 两边分子数完全不同却差点当成结果报出去。
+> ⚠️ During a trial run I looked up the swap directory by `T`, which retrieves
+> "T's pocket + someone else's ligands" — the molecule counts on the two sides
+> are completely different, and this nearly got reported as a result.
 > [`score_target_swap.py`](../timesplit/analysis/score_target_swap.py)
-> 因此对每一对都比标签数组，不一致就剔除并报出来。
+> therefore compares the label array for every pair, and drops and flags any
+> mismatch.
 
-### 序列类模型
+### Sequence-only models
 
-ConPLex / ConGLUDe / SPRINT 不读口袋，从评测集 jsonl 的 `uniprot` 去查序列。
-[`build_swap_eval.py`](../timesplit/build/build_swap_eval.py) 为它们生成
-**换了 `uniprot`、配体池保留**的评测集，与口袋树**共用同一份 swap_manifest**，
-所以配对关系一致，十个模型的结果能放进同一张表。
+ConPLex / ConGLUDe / SPRINT don't read a pocket — they look up sequence from
+the eval-set jsonl's `uniprot` field.
+[`build_swap_eval.py`](../timesplit/build/build_swap_eval.py) generates an
+eval set for them with **`uniprot` swapped, ligand pool kept**, sharing **the
+same swap_manifest** as the pocket tree, so the pairing stays consistent and
+all ten models' results can go into one table.
 
-原计划把序列模型标成 not applicable，实际上这套设计对它们天然有效。
+The original plan was to mark sequence models as not applicable; in practice
+this design turns out to apply to them naturally.
 
-### 三个控制
+### Three controls
 
-| | 做法 | 为什么 |
+| | Approach | Why |
 |---|---|---|
-| 口袋大小 | 替身原子数与原靶点相差 ≤30%（实测中位 13–16%） | 否则测的是尺寸效应不是身份效应 |
-| 抽样方差 | 每靶点抽 3 个替身，逐靶点取中位数 | 单次抽样的运气会淹没效应 |
-| 推理路径 | 每个模型照抄自己的 `run_t3_*.sh`，只改 `--t3-root` 和 `--results-path` | 十个模型的 arch / loss / 精度都不同，自己拼参数容易引入无关差异 |
+| Pocket size | Substitute atom count within ≤30% of the original target's (measured median 13–16%) | Otherwise it measures a size effect, not an identity effect |
+| Sampling variance | 3 substitutes drawn per target, median taken per target | The luck of a single draw would drown out the effect |
+| Inference path | Each model copies its own `run_t3_*.sh`, changing only `--t3-root` and `--results-path` | The ten models differ in architecture / loss / precision, so hand-assembling parameters would easily introduce unrelated differences |
 
 ---
 
-## 3. 结果
+## 3. Results
 
-配对 Wilcoxon signed-rank。EF = EF@1%。
+Paired Wilcoxon signed-rank. EF = EF@1%.
 
-### L1（靶点和骨架都见过）
+### L1 (target and scaffold both seen)
 
-| 模型 | EF 正确 | EF swap | ΔEF | AUROC 正确 | AUROC swap | p |
+| Model | EF correct | EF swap | ΔEF | AUROC correct | AUROC swap | p |
 |---|---|---|---|---|---|---|
 | LigUnity-protein | 38.24 | **0.26** | **−99.3%** | 0.906 | 0.560 | <1e-4 |
 | LigUnity-pocket | 34.17 | **0.21** | **−99.4%** | 0.880 | **0.504** | <1e-4 |
@@ -82,9 +98,9 @@ ConPLex / ConGLUDe / SPRINT 不读口袋，从评测集 jsonl 的 `uniprot` 去�
 | ConPLex | 5.61 | 0.90 | −83.9% | 0.589 | 0.511 | 0.0004 |
 | **SPRINT** | 2.75 | 1.22 | **−55.4%** | 0.589 | 0.547 | **0.077** |
 
-### L4（靶点和家族都没见过）
+### L4 (target and family both novel)
 
-| 模型 | EF 正确 | EF swap | ΔEF | AUROC 正确 | AUROC swap | p |
+| Model | EF correct | EF swap | ΔEF | AUROC correct | AUROC swap | p |
 |---|---|---|---|---|---|---|
 | HypSeek | 9.91 | **0.08** | **−99.2%** | 0.727 | **0.500** | <1e-4 |
 | LigUnity-pocket | 11.91 | 0.38 | −96.8% | 0.683 | 0.471 | <1e-4 |
@@ -99,69 +115,80 @@ ConPLex / ConGLUDe / SPRINT 不读口袋，从评测集 jsonl 的 `uniprot` 去�
 
 ---
 
-## 4. 三条结论
+## 4. Three conclusions
 
-### 一、换掉靶点，AUROC 精确落到 0.5
+### One: swapping the target lands AUROC exactly at 0.5
 
-L4 上八个模型的 swap AUROC 落在 **0.471–0.522，中位 0.500**。不是「变差」，
-是**完全失去区分能力**——恰好是抛硬币。
+At L4, eight models' swap AUROC falls in **0.471–0.522, median 0.500**. This
+is not "getting worse" — it is **complete loss of discriminative power** —
+exactly a coin flip.
 
-单轮结果的散布是 0.44–0.61；三轮取中位数把抽样噪声压掉之后收敛到 0.5。
-这本身也说明三轮的设计是必要的。
+A single round's results spread over 0.44–0.61; taking the median across
+three rounds suppresses sampling noise and it converges to 0.5. This itself
+shows that the three-round design was necessary.
 
-### 二、存在剂量关系：模型越强，越依赖靶点身份
+### Two: there is a dose relationship — the stronger the model, the more it depends on target identity
 
-| 模型 | L1 正确 EF | ΔEF |
+| Model | L1 correct EF | ΔEF |
 |---|---|---|
 | LigUnity-protein | 38.24 | −99.3% |
 | HypSeek | 32.90 | −96.6% |
 | DrugCLIP | 16.88 | −95.5% |
 | ConPLex | 5.61 | −83.9% |
-| SPRINT | 2.75 | −55.4%（p=0.077） |
+| SPRINT | 2.75 | −55.4% (p=0.077) |
 
-**SPRINT 是唯一一个 swap 后不显著变差的模型**——因为它本来就几乎没有靶点特异性
-（L1 AUROC 0.589、L4 0.558，都贴着随机）。
+**SPRINT is the only model that does not degrade significantly after the
+swap** — because it had almost no target specificity to begin with (L1 AUROC
+0.589, L4 0.558, both hugging random).
 
-**弱模型不是「更鲁棒」，是本来就没在用靶点信息。**这条把「靶点信号强度」
-和「模型性能」直接挂上了钩，比单说「所有模型都崩」信息量大得多。
+**Weak models are not "more robust" — they were never using target
+information to begin with.** This ties "target-signal strength" directly to
+"model performance", which carries far more information than simply saying
+"every model collapses."
 
-### 三、纯序列模型同样崩
+### Three: pure sequence models collapse just the same
 
-LigUnity-protein 不读 3D 口袋，只读氨基酸序列——它掉得最狠（L1 −99.3%）。
-ConGLUDe（序列 + 结构图）L1 −93.5%。**靶点身份依赖不是 3D 口袋模型特有的现象。**
+LigUnity-protein does not read the 3D pocket, only the amino-acid sequence —
+and it drops the hardest (L1 −99.3%). ConGLUDe (sequence + structure graph) is
+L1 −93.5%. **Dependence on target identity is not a phenomenon specific to
+3D-pocket models.**
 
 ---
 
-## 5. 和另外两个实验合起来
+## 5. Put together with the other two experiments
 
-| 实验 | 说明什么 |
+| Experiment | What it shows |
 |---|---|
-| [化学系列 oracle 打到上限 98.7%](T3-leakage.md#2-化学系列-oracle-上界打到理论上限的-987) | 这个基准**可以**被纯化学解掉——但需要已知该靶点的活性 |
-| **Target swap 塌到 0.5** | 模型**确实**在用靶点信息，不是靠化学蒙的 |
-| [新颖度分档 L4 全新化学只有 4.5](T3-leakage.md#4-按新颖度档分别算富集--真实场景的数字) | 但这个信号**不够强**，遇到全新化学就不行 |
+| [Chemical-series oracle reaches the ceiling at 98.7%](T3-leakage.md#2-chemical-series-oracle-ceiling-reaches-987-of-the-theoretical-limit) | This benchmark **can** be solved by pure chemistry — but only if that target's actives are already known |
+| **Target swap collapses to 0.5** | The models **do** use target information; they are not just guessing from chemistry |
+| [Novelty-tiered enrichment: L4 fully novel chemistry is only 4.5](T3-leakage.md#4-enrichment-computed-separately-per-novelty-tier--the-realistic-scenario-numbers) | But this signal **is not strong enough** — it fails once the chemistry is genuinely novel |
 
-三句合起来：
+Put the three sentences together:
 
-> **模型确实使用了靶点信息，但这个信号不足以支撑真正的化学外推。**
+> **The models do use target information, but that signal is not enough to
+> support real chemical extrapolation.**
 
-单独任何一条都会被误读——只报第一条会被读成「模型不看蛋白」，
-只报第二条会被读成「模型工作正常」。
+Any one of them alone invites misreading — reporting only the first reads as
+"the model doesn't look at the protein"; reporting only the second reads as
+"the model works fine."
 
 ---
 
-## 5b. 同家族 swap：模型认的是家族，不是靶点身份
+## 5b. Same-family swap: the model recognizes family, not target identity
 
-随机 swap 只能证明「换成无关靶点会崩」，区分不了模型认的是**具体靶点**还是
-**它所属的家族**。同家族 swap 直接回答：替身取序列同源、口袋相似的另一个蛋白，
-候选配体池仍然完全不动。
+A random swap can only prove "swapping to an unrelated target causes
+collapse" — it cannot tell whether the model recognizes the **specific
+target** or **the family it belongs to**. A same-family swap answers this
+directly: the substitute is another protein that is sequence-homologous and
+pocket-similar, while the candidate ligand pool remains completely unchanged.
 
-替身是真同源蛋白，123 对里**零自配对**——抽查：
-HDAC3 → HDAC1（O15379 → Q13547）、碳酸酐酶 I → II（P00915 → P00918）、
-JAK2 → JAK3（O60674 → P52333）。
+The substitutes are genuine homologous proteins — **zero self-pairs** among
+the 123 pairs. Spot check: HDAC3 → HDAC1 (O15379 → Q13547), carbonic
+anhydrase I → II (P00915 → P00918), JAK2 → JAK3 (O60674 → P52333).
 
 ### AUROC
 
-| 模型 | 层 | 正确 | 换无关靶点 | 换同家族 |
+| Model | Layer | Correct | Unrelated-target swap | Same-family swap |
 |---|---|---|---|---|
 | HypSeek `_rk` | L1 | 0.918 | 0.570 (**−37.9%**) | 0.907 (**+0.2%**) |
 | | L4 | 0.718 | 0.486 (**−32.3%**) | 0.795 (−4.1%) |
@@ -181,83 +208,113 @@ JAK2 → JAK3（O60674 → P52333）。
 
 ### EF@1%
 
-同一批模型，换无关靶点掉 **93.5–99.3%**（HypSeek L1 34.37 → 1.51，
-L4 9.08 → 0.11）；换同家族靶点掉 **−18% 到 +12%**，即在噪声范围内。
-最大的一个是 BindCLIP-hardneg L1 的 −18.1%，DrugCLIP L1 −16.4%。
+For the same batch of models, swapping to an unrelated target drops EF@1% by
+**93.5–99.3%** (HypSeek L1 34.37 → 1.51, L4 9.08 → 0.11); swapping to a
+same-family target drops it by **−18% to +12%**, i.e. within the noise range.
+The largest is BindCLIP-hardneg L1 at −18.1%, DrugCLIP L1 at −16.4%.
 
-### 结论
+### Conclusion
 
-> **模型学到的是家族层面的识别，不是靶点身份。**
-> 把靶点换成无关蛋白，十个模型全部塌到随机；换成同源蛋白，
-> **一个模型都没有显著下降。**
+> **What the models learn is family-level recognition, not target identity.**
+> Swap the target for an unrelated protein and all ten models collapse to
+> random; swap it for a homologous protein, and **not one model degrades
+> significantly.**
 
-这把随机 swap 的结论收窄了一大截，也让它更有用：
-「模型确实在用蛋白信息」是对的，但那个信息的**分辨率只到家族**。
-对虚拟筛选的实际含义是——在一个已有已知配体的家族内换靶点，模型迁移得动；
-要它区分同一家族里两个口袋差异细微的成员，现有证据说它做不到。
+This narrows the random-swap conclusion considerably, and also makes it more
+useful: "the model does use protein information" is correct, but that
+information's **resolution only reaches the family level**. The practical
+implication for virtual screening is — a model transfers within a family that
+already has known ligands when the target is swapped; the current evidence
+says it cannot tell apart two members of the same family whose pockets differ
+subtly.
 
-这也和 §5 的另外两个实验拼上了：化学系列 oracle 说明**配体侧信号足够解释很多**，
-随机 swap 说明**蛋白侧信号确实存在**，同家族 swap 说明**那个信号的粒度是家族**。
+This also fits together with the other two experiments in §5: the
+chemical-series oracle shows that **ligand-side signal explains a great
+deal**, the random swap shows that **protein-side signal genuinely exists**,
+and the same-family swap shows that **the granularity of that signal is
+family-level**.
 
-### ⚠️ 两条必须写在数字前面的限制
+### ⚠️ Two limitations that must be stated before the numbers
 
-1. **L4 只有 7 对替身。** 这是结构性稀疏不是抽样不足——L4 的定义就是
-   「靶点和家族都没见过」，所以它的靶点在池子里天然找不到同家族替身。
-   **L4 那几行不能单独引用**，上面的结论主要靠 L1（32–34 对）。
-2. **ConGLUDe 的 L1 只有 8 对**（10 对因标签不一致被剔除），L4 完全没有。
+1. **L4 has only 7 substitute pairs.** This is structural sparsity, not a
+   sampling shortfall — L4 is by definition "target and family both novel",
+   so its targets have no same-family substitute to be found in the pool in
+   the first place. **The L4 rows above cannot be cited on their own**; the
+   conclusions above rest mainly on L1 (32–34 pairs).
+2. **ConGLUDe's L1 has only 8 pairs** (10 pairs were dropped for label
+   mismatch), and L4 has none at all.
 
-## 5c. 蛋白置空（protein-null）：决定不做，理由记在这里
+## 5c. Protein-null: decided not to run, reasons recorded here
 
-清单里还有一项 protein-null 消融——把蛋白输入整个抽掉或置零，看还剩多少性能。
-标的是 P2（最低档）。**我们决定不做，这是一个有理由的决定，不是遗漏。**
+The checklist also had a protein-null ablation — removing the protein input
+entirely or zeroing it out, to see how much performance remains. It was
+tagged P2 (lowest priority). **We decided not to run it — this is a reasoned
+decision, not an oversight.**
 
-置空有两种做法，两种都不值得跑：
+There are two ways to do the null-input experiment, and neither is worth
+running:
 
-**一、退化输入（全零 / 掩码口袋）。** 模型训练时没见过这种东西，输出落在哪都
-没有解释力。跑出 0.5，我们分不清是「没有蛋白就不行」还是「模型对畸形输入的
-默认行为」；跑出不是 0.5，更难解释。**两个方向都读不出东西的实验不值得跑。**
-这一点和 target swap 正相反：random swap 给的是**合法但错误**的蛋白，模型拿到
-的是正常口袋表示，所以「AUROC 精确落到 0.5」是干净的、可解释的。
+**One, degenerate input (all-zero / masked pocket).** The model never saw
+anything like this during training, so wherever the output lands, it carries
+no explanatory power. If it comes out at 0.5, we can't tell whether that
+means "it doesn't work without a protein" or "the model's default behavior on
+malformed input"; if it doesn't come out at 0.5, that's even harder to
+explain. **An experiment that reads out nothing in either direction is not
+worth running.** This is the exact opposite of target swap: a random swap
+hands the model a **valid but wrong** protein, so the model still receives a
+normal pocket representation, which is why "AUROC lands exactly at 0.5" is
+clean and interpretable.
 
-**二、固定替身（所有靶点都用同一个真实口袋）。** 这个是合法输入、可解释，
-但它**就是 random swap 的退化情形**（替身数 n=1 而不是每靶点随机抽）。
-第 4 节的 random swap 已经用每靶点 3 个替身、取中位数测过同一件事，
-而且抽样方差控制得更好。固定替身只会得到同一个结论、更差的估计。
+**Two, a fixed substitute (the same real pocket for every target).** This is
+valid, interpretable input, but it **is just a degenerate case of random
+swap** (substitute count n=1 instead of a random draw per target). Section 4's
+random swap has already tested the same thing with 3 substitutes per target
+and the median taken, and its sampling variance is better controlled. A fixed
+substitute would only produce the same conclusion with a worse estimate.
 
-**「有空闲的卡」不构成做实验的理由。** 这一条写下来是因为它差点成了理由：
-Boltz 续跑重新分片之后曾有 GPU 空出来，当时的第一反应是「顺手塞进去」。
-资源闲置的成本是零，发表一个读不出东西的结果的成本不是零。
+**"There are idle GPUs available" is not a reason to run an experiment.**
+This is written down because it nearly became one: after Boltz's continued
+run was re-sharded, some GPUs freed up, and the first instinct was "might as
+well fit it in." The cost of idle resources is zero; the cost of publishing a
+result that reads out nothing is not zero.
 
-真要用空闲算力，更值的是把 Boltz-2 也跑在 AIMNet2 那 93 个靶点上——那是
-「两个物理方法在同一批靶点上的排序能力」，现在只有一家。但那属于新战场，
-不在这份清单里，要另外排。
+If there is idle compute to spend, it would be better spent running Boltz-2
+on AIMNet2's same 93 targets — that would give "two physics methods' ranking
+ability on the same batch of targets", of which currently only one exists.
+But that is a new front, not on this checklist, and would need to be
+scheduled separately.
 
-## 6. 局限
+## 6. Limitations
 
-- **只做了随机替身，没做同家族替身。**所以现在只能说「换成无关靶点会崩」，
-  不能区分模型认的是**具体靶点**还是**靶点家族**。同家族 swap 是下一步。
-- **只跑了 L1 和 L4。**L2/L3 没跑，但这两层是新颖度的两端，中间层预期落在中间。
-- 每靶点 3 个替身，替身之间不做去重——同一替身可能被多个靶点选中。
+- **Only random substitutes were done, not same-family substitutes.** So for
+  now we can only say "swapping to an unrelated target causes collapse" — we
+  cannot distinguish whether the model recognizes the **specific target** or
+  the **target family**. Same-family swap is the next step.
+- **Only L1 and L4 were run.** L2/L3 were not run, but these two layers are
+  the two extremes of novelty, and the middle layers are expected to fall in
+  between.
+- 3 substitutes per target, with no deduplication among substitutes — the
+  same substitute may be selected by multiple targets.
 
-## 复现
+## Reproduction
 
 ```bash
 python timesplit/build/build_target_swap.py --out-root .../T3_swap_full \
     --layers L1 L4 --rounds 3 --size-tol 0.30 --subset results/T3_vsds_matched.csv
 python timesplit/build/build_swap_eval.py --manifest .../swap_manifest.json \
-    --out-root .../T3_swap_eval --rounds 3 --layers L1 L4     # 序列类模型
-./standard/swap_queue.sh          # 十个模型 × 三轮，4 GPU 上限的调度
-python timesplit/analysis/score_target_swap.py --models <十个> --rounds 3
+    --out-root .../T3_swap_eval --rounds 3 --layers L1 L4     # sequence-only models
+./standard/swap_queue.sh          # ten models × three rounds, scheduled under the 4-GPU cap
+python timesplit/analysis/score_target_swap.py --models <ten models> --rounds 3
 ```
 
-### 同家族 swap 的复现
+### Reproducing the same-family swap
 
 ```bash
 python timesplit/build/build_target_swap.py --out-root .../T3_swap_family \
     --layers L1 L4 --rounds 3 --mode family --clstr .../uniport40.clstr \
     --size-tol 0.30 --subset results/T3_vsds_matched.csv
-./standard/family_queue.sh        # 排在 swap_queue.sh 之后，自己不汇总
-python timesplit/analysis/score_target_swap.py --models <十个> --rounds 3 \
+./standard/family_queue.sh        # runs after swap_queue.sh, does not aggregate on its own
+python timesplit/analysis/score_target_swap.py --models <ten models> --rounds 3 \
     --prefix swapfam --manifest .../T3_swap_family/swap_manifest.json \
     --out results/T3_target_swap_family.csv
 ```

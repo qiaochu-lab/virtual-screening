@@ -1,226 +1,268 @@
-# T3 数据集 v2：活性 ≥50 且类别对齐 VSDS-vd
+# T3 Dataset v2: ≥50 Actives per Target and Class Composition Matched to VSDS-vd
 
-导师 2026-09-04 定了两条：每个靶点**至少 50 个活性分子**，靶点类别构成**参考
-VSDS-vd**。本文档记录这个子集怎么来的、指标变了多少、哪些下游分析受影响。
+The advisor set two conditions on 2026-09-04: every target must have **at least
+50 active molecules**, and target class composition should **reference VSDS-vd**.
+This document records how this subset was derived, how much the metrics
+changed, and which downstream analyses were affected.
 
-**这是筛选，不是重建。**新集合里每个靶点原本就在 1,144 条里、早被十个模型打过分，
-而每靶点的 EF/AUROC 是在它自己的候选池里算的、靶点之间互不影响——
-所以换子集只是换一批数求平均，**不需要重新推理**。
+**This is a filtering, not a rebuild.** Every target in the new set was already
+among the 1,144 entries and had already been scored by the ten models, and each
+target's EF/AUROC is computed within its own candidate pool, independent of
+other targets — so switching subsets is just averaging over a different batch
+of numbers, **no re-inference required**.
 
 ---
 
-## 0. 这个 benchmark 长什么样
+## 0. What this benchmark looks like
 
-数字都由 [`timesplit/analysis/benchmark_stats.py`](../timesplit/analysis/benchmark_stats.py)
-从数据本身数出来（→ [`results/T3_benchmark_stats.csv`](../results/T3_benchmark_stats.csv)），
-不引用任何文档里的旧值。
+All numbers are counted directly from the data by
+[`timesplit/analysis/benchmark_stats.py`](../timesplit/analysis/benchmark_stats.py)
+(→ [`results/T3_benchmark_stats.csv`](../results/T3_benchmark_stats.csv)); none
+are quoted from older values in any document.
 
-| | 全量 | **350 配额子集（实际用于报告）** |
+| | Full set | **350-quota subset (used in the report)** |
 |---|---|---|
-| 条目 / 唯一靶点 | 1,144 / 868 | **328 / 293** |
-| 活性分子 | 156,203 | **89,690** |
-| 诱饵 | 7,789,429 | 4,463,779 |
-| 分子总数 | 7,945,632 | 4,553,469 |
-| 活性:诱饵 | 1:50 | 1:50 |
+| Entries / unique targets | 1,144 / 868 | **328 / 293** |
+| Active molecules | 156,203 | **89,690** |
+| Decoys | 7,789,429 | 4,463,779 |
+| Total molecules | 7,945,632 | 4,553,469 |
+| Active:decoy ratio | 1:50 | 1:50 |
 
-⚠️ **这些是「设计的池子」，不是「实际被打分的池子」。** 数字取自评测集 jsonl，
-而模型读的是 lmdb——建 lmdb 时有少量分子因 RDKit 解析或构象生成失败被丢掉。
-L1+L4 的 546 个靶点里 **413 个（75.6%）** 两者长度不等，jsonl 每次都更多，
-差值中位 2 个、最多 78 个，总计 2,495 个分子。占比 0.03%，对任何指标都没有
-可见影响——所有 EF/Recall 的截断线都是按**模型数组长度**算的，不是按 jsonl。
-但描述性统计报的是设计值，这里说明一下。
-| 每靶点活性（中位） | 41 | **138** |
-| 每靶点活性（四分位） | 18–115 | 81–328 |
-| 每靶点活性（范围） | 10–3,262 | 50–3,262 |
+⚠️ **These are the "designed pool", not the "pool actually scored".** The
+numbers are taken from the eval-set jsonl, while the models read from
+lmdb — building the lmdb drops a small number of molecules due to RDKit
+parsing or conformer-generation failures. Of the 546 targets in L1+L4,
+**413 (75.6%)** have mismatched lengths between the two, with jsonl always
+larger, a median difference of 2 molecules and a maximum of 78, for a total of
+2,495 molecules. That is 0.03% of the total, with no visible effect on any
+metric — every EF/Recall cutoff is computed against the **model's array
+length**, not the jsonl. But the descriptive statistics below report the
+designed values, noted here for clarity.
+| Actives per target (median) | 41 | **138** |
+| Actives per target (IQR) | 18–115 | 81–328 |
+| Actives per target (range) | 10–3,262 | 50–3,262 |
 
-### 分层
+### Stratification
 
-| 层 | 含义 | 全量条目 | 子集条目 | 子集活性 | 子集中位活性 |
+| Layer | Meaning | Full-set entries | Subset entries | Subset actives | Subset median actives |
 |---|---|---|---|---|---|
-| L1 | 靶点见过 · 骨架见过 | 349 | 56 | 7,710 | 100 |
-| L2 | 靶点见过 · 骨架新 | 488 | **178** | 59,783 | 172 |
-| L3 | 靶点新 · 家族见过 | 53 | **19** | 3,533 | 103 |
-| L4 | 靶点新 · 家族也新 | 254 | 75 | 18,664 | 152 |
+| L1 | target seen · scaffold seen | 349 | 56 | 7,710 | 100 |
+| L2 | target seen · scaffold novel | 488 | **178** | 59,783 | 172 |
+| L3 | target novel · family seen | 53 | **19** | 3,533 | 103 |
+| L4 | target novel · family novel | 254 | 75 | 18,664 | 152 |
 
-⚠️ **L3 只有 19 个靶点**，是全表最薄的一层；涉及 L3 的任何逐类别拆分都不要报。
+⚠️ **L3 has only 19 targets**, the thinnest layer in the whole table; any
+per-class breakdown involving L3 should not be reported.
 
-### 蛋白类别
+### Protein class
 
-| 类别 | 全量占比 | 子集占比 | 变化 | 子集中位活性 |
+| Class | Full-set share | Subset share | Change | Subset median actives |
 |---|---|---|---|---|
-| 激酶 | 25.5% | **31.7%** | +6.2 pt | 164 |
-| 其他酶 | 28.3% | 24.4% | −3.9 pt | 170 |
+| Kinases | 25.5% | **31.7%** | +6.2 pt | 164 |
+| Other enzymes | 28.3% | 24.4% | −3.9 pt | 170 |
 | GPCR | 9.9% | 12.5% | +2.6 pt | 101 |
-| 蛋白酶 | 6.7% | 10.4% | +3.6 pt | 114 |
-| 表观 | 6.3% | 8.8% | +2.5 pt | 159 |
-| 其他/未分类 | 13.0% | 6.1% | **−6.9 pt** | 108 |
-| 离子通道 | 5.2% | 2.7% | −2.5 pt | 351 |
-| 核受体 | 1.9% | 1.8% | −0.1 pt | 172 |
-| 转运体 | 2.0% | 0.9% | −1.1 pt | 109 |
+| Proteases | 6.7% | 10.4% | +3.6 pt | 114 |
+| Epigenetic | 6.3% | 8.8% | +2.5 pt | 159 |
+| Unclassified | 13.0% | 6.1% | **−6.9 pt** | 108 |
+| Ion channels | 5.2% | 2.7% | −2.5 pt | 351 |
+| Nuclear receptors | 1.9% | 1.8% | −0.1 pt | 172 |
+| Transporters | 2.0% | 0.9% | −1.1 pt | 109 |
 | P450 | 1.0% | 0.6% | −0.4 pt | 85 |
 
-### 结构来源
+### Structure source
 
-| 来源 | 全量 | 子集 |
+| Source | Full set | Subset |
 |---|---|---|
-| A 实验结构 | 77.7% | **83.5%** |
-| B 预测 · 置信达标 | 8.0% | 7.3% |
-| C 预测 · 置信不足 | 5.6% | 5.2% |
-| C 无置信度记录 | 8.7% | 4.0% |
+| A experimental structure | 77.7% | **83.5%** |
+| B predicted · confidence sufficient | 8.0% | 7.3% |
+| C predicted · confidence insufficient | 5.6% | 5.2% |
+| C no confidence record | 8.7% | 4.0% |
 
-### 「≥50 个活性」这条门槛筛掉了什么
+### What the "≥50 actives" threshold filters out
 
-全量里只有 **44.3%** 的条目有 ≥50 个活性，所以这条门槛本身就砍掉一半以上。
-子集保留了 28.7% 的条目，但保留了 **57.4%** 的活性分子——筛掉的是活性稀少的
-那批靶点。代价有两个：
+Only **44.3%** of entries in the full set have ≥50 actives, so this threshold
+alone removes more than half. The subset keeps 28.7% of entries, but keeps
+**57.4%** of active molecules — what gets filtered out is the batch of targets
+with sparse actives. There are two costs to this:
 
-1. **类别构成被推向数据多的方向**：激酶 +6.2 pt，「其他/未分类」−6.9 pt。
-   活性少的类别（离子通道、转运体、P450）被系统性削弱。
-2. **结构质量被动变好**：实验结构从 77.7% 升到 83.5%。被研究得多的靶点
-   既有更多活性、也更可能有晶体结构，两者相关。所以子集上的绝对指标
-   会比全量略高，这不是模型变强。
+1. **Class composition is pushed toward the data-rich direction**: kinases
+   +6.2 pt, "unclassified" −6.9 pt. Classes with few actives (ion channels,
+   transporters, P450) are systematically weakened.
+2. **Structure quality improves as a side effect**: experimental structures
+   rise from 77.7% to 83.5%. Well-studied targets tend to have both more
+   actives and a higher chance of a crystal structure — the two are
+   correlated. So the subset's absolute metrics will run slightly higher than
+   the full set's, and that is not the models getting stronger.
 
 ---
 
-## 1. 参照基准 VSDS-vd 是什么
+## 1. What the reference benchmark VSDS-vd is
 
 Gu, Zhang, Shen et al., *Benchmarking AI-powered docking methods from the
 perspective of virtual screening*, **Nature Machine Intelligence** 7(3):509–520
-(2025), DOI `10.1038/s42256-025-00993-0`（浙大侯廷军 / 康玉组，
-与 KarmaDock 同一个组）。数据 <https://zenodo.org/records/13684010>。
+(2025), DOI `10.1038/s42256-025-00993-0` (Zhejiang University, Hou Tingjun /
+Kang Yu group, the same group behind KarmaDock). Data at
+<https://zenodo.org/records/13684010>.
 
-下载数据集按 UniProt 目录实测（不是引用二手描述）：
+Measured directly from the downloaded dataset by UniProt catalog (not quoted
+from a secondhand description):
 
-| 子集 | 靶点 | 说明 |
+| Subset | Targets | Description |
 |---|---|---|
-| DTEBV-D (TrueDecoy) | **147** | 活性配实验验证过的低活性分子 |
-| DRSM-D (RandomDecoy) | 68 | 诱饵随机取自商业库 |
-| DLSCL-D | 8 | 大规模筛选，配 TopscienceRefineSet 库 |
+| DTEBV-D (TrueDecoy) | **147** | actives paired with experimentally confirmed low-activity molecules |
+| DRSM-D (RandomDecoy) | 68 | decoys drawn randomly from a commercial library |
+| DLSCL-D | 8 | large-scale screening, paired with the TopscienceRefineSet library |
 
-诱饵:活性比例中位 **40.5**（论文称 1:40）。
+Median decoy:active ratio **40.5** (the paper states 1:40).
 
-> **⚠️ 一个必须记录的矛盾**：VSDS-vd 每靶点活性数**中位只有 28，只有 24%
-> 的靶点到 50 以上**。按 ≥50 筛它自己，147 个只剩 36 个。所以「活性 ≥50」
-> 和「构成对齐 VSDS-vd」这两条在数据上并不一致。我们 ≥50 之后中位是 118，
-> 是它的 4 倍——这条我们比参照基准更严。
+> **⚠️ A contradiction that must be recorded**: VSDS-vd's per-target active
+> count has a **median of only 28, and only 24% of its targets reach 50 or
+> more**. Filtering it by its own ≥50 rule leaves only 36 of the 147. So
+> "actives ≥50" and "composition matched to VSDS-vd" are not mutually
+> consistent in the data. Our own median after the ≥50 filter is 118 — 4×
+> VSDS-vd's — so on this criterion we are stricter than the reference
+> benchmark.
 
-类别构成用**与 `annotate_target_class3.py` 完全相同**的 ChEMBL 分类树口径重标，
-两边同口径是这个比对唯一有意义的前提。
+Class composition is relabeled using **exactly the same** ChEMBL
+classification-tree criteria as `annotate_target_class3.py` — using the same
+criteria on both sides is the only precondition under which this comparison is
+meaningful.
 
 ---
 
-## 2. 子集怎么选的
+## 2. How the subset was selected
 
 `timesplit/build/select_vsds_matched.py --quota 350` → `results/T3_vsds_matched.csv`
 
-**328 条 = 293 个唯一靶点**（35 个靶点同时出现在多个层，因为 L1/L2 是按
-**配体骨架**分的，同一靶点可以两边都有）。
+**328 entries = 293 unique targets** (35 targets appear in more than one layer
+at once, because L1/L2 are split by **ligand scaffold**, so the same target
+can fall on both sides).
 
-分层：**L1 56 · L2 178 · L3 19 · L4 75**
+Stratification: **L1 56 · L2 178 · L3 19 · L4 75**
 
-⚠️ **「35 个靶点跨层」这件事有操作后果**：凡是拿这个 CSV 当过滤器的脚本，
-键必须是 **(层, 靶点)** 不能只用靶点。只按靶点过滤会把该靶点在别的层的记录
-也算进来——这个坑在 §6 的逐模型分析里出现过，`seen+unseen` 报到 417、
-比子集本身的 328 条还多 89 条。
+⚠️ **The "35 targets span multiple layers" fact has an operational
+consequence**: any script that uses this CSV as a filter must key on
+**(layer, target)**, not target alone. Filtering by target alone will also
+pull in that target's records from other layers — this pitfall showed up in
+the per-model analysis in §6, where `seen+unseen` came out to 417, 89 more
+than the subset's own 328 entries.
 
-⚠️ 本节下面的配平算法、类别构成、冗余分析三段是**按 250 配额那一版写的**
-（242 条 / 222 靶点 / L1 40·L2 128·L3 20·L4 54）。方法学不变，
-但具体数字是旧配额的，最终采用的是 350。当前子集的完整统计见 §0。
+⚠️ The balancing algorithm, class composition, and redundancy analysis
+sections below were **written against the 250-quota version** (242 entries /
+222 targets / L1 40 · L2 128 · L3 20 · L4 54). The methodology is unchanged,
+but the specific numbers are from the old quota — the version finally adopted
+is 350. See §0 for the current subset's full statistics.
 
-### 配平算法
+### Balancing algorithm
 
-带上限的**迭代比例配平（IPF）**：行边际 = VSDS-vd 的类别比例，
-列边际 = 候选池的分层比例，每格不超过实际存货，最后按最大余数取整。
-类内用固定种子随机抽样——按活性数取会系统性偏向被研究透的热门靶点，
-还会把每靶点活性数的跨度进一步拉大（池子里最大 3,262）。
+**Iterative proportional fitting (IPF)** with caps: row margins = VSDS-vd's
+class proportions, column margins = the candidate pool's layer proportions,
+each cell capped at actual stock, with final rounding by largest remainder.
+Within-cell sampling uses a fixed random seed — sampling by active count would
+systematically bias toward well-studied, popular targets, and would further
+widen the spread of per-target active counts (up to 3,262 in the pool).
 
-**踩过两个坑（都在脚本注释里）**：
+**Two pitfalls hit along the way (both noted in the script comments)**:
 
-1. 只按类别配额、类内优先塞 L3/L4 → 「其他酶」46 个名额被 L4 一层吃光，
-   **L1/L2 里这个最大的类变成 0 个**，层间构成完全失衡
-2. 加了分层配平后 **L3 被压到 9 个** → L3 存货本来就只有 20 个，
-   改成整层全留、不参与比例分配
+1. Quota by class alone, filling L3/L4 preferentially within each class → all
+   46 "other enzyme" slots were consumed by L4 alone, **this largest class
+   dropped to 0 in L1/L2**, completely unbalancing composition across layers
+2. After adding layer balancing, **L3 was squeezed down to 9** → L3's stock
+   was only 20 to begin with, so this was changed to keep the entire layer and
+   exclude it from proportional allocation
 
-### 类别构成对照
+### Class composition comparison
 
-| 类别 | VSDS-vd | 本子集 | 偏差 |
+| Class | VSDS-vd | This subset | Deviation |
 |---|---|---|---|
-| 激酶 | 23.8% | 66 (27%) | +3.5 |
-| 其他酶 | 18.4% | 51 (21%) | +2.7 |
+| Kinases | 23.8% | 66 (27%) | +3.5 |
+| Other enzymes | 18.4% | 51 (21%) | +2.7 |
 | GPCR | 15.6% | 41 (17%) | +1.3 |
-| 蛋白酶 | 15.6% | 34 (14%) | −1.6 |
-| **核受体** | 7.5% | **6 (2%)** | **−5.0** |
-| 表观 | 6.8% | 19 (8%) | +1.0 |
-| 离子通道 | 2.0% | 6 (2%) | +0.4 |
+| Proteases | 15.6% | 34 (14%) | −1.6 |
+| **Nuclear receptors** | 7.5% | **6 (2%)** | **−5.0** |
+| Epigenetic | 6.8% | 19 (8%) | +1.0 |
+| Ion channels | 2.0% | 6 (2%) | +0.4 |
 | **P450** | 4.1% | **2 (1%)** | **−3.3** |
-| 转运体 | 1.4% | 3 (1%) | −0.1 |
-| 其他/未分类 | 4.8% | 14 (6%) | +1.0 |
+| Transporters | 1.4% | 3 (1%) | −0.1 |
+| Unclassified | 4.8% | 14 (6%) | +1.0 |
 
-八类偏差在 ±3.5pp 以内。**核受体和 P450 全部拿光也不够**（有 6 个和 2 个，
-按比例需要 17 和 9）——不是筛选口径的问题：这两个家族研究得早、成员少，
-2024-12 之后基本不出新靶点，**L3+L4 两层里它们是 0 个**。写成 limitation。
+Eight of the ten classes deviate by within ±3.5pp. **Nuclear receptors and
+P450 fall short even taking every one available** (there are 6 and 2, against
+17 and 9 needed to match proportion) — this is not a filtering-criteria issue:
+these two families were characterized early and have few members, with almost
+no new targets appearing after 2024-12, and **both L3+L4 hold zero of
+either**. Recorded as a limitation.
 
-### 规模是可调的
+### The scale is adjustable
 
-| 配额 | 实得 | 偏差（除去两个供给不足的类） | L1 | L2 | L3 | L4 |
+| Quota | Actual | Deviation (excluding the two under-supplied classes) | L1 | L2 | L3 | L4 |
 |---|---|---|---|---|---|---|
 | 200 | 199 | 1.8pp | 32 | 104 | 20 | 43 |
 | **250** | **242** | **3.5pp** | 40 | 128 | 20 | **54** |
 | 300 | 284 | 6.1pp | 48 | 152 | 19 | 65 |
 | 400 | 369 | 9.5pp | 63 | 201 | 19 | 86 |
 
-`--quota` 调整。**最终采用 350**：实得 328 条，L1 56 · L2 178 · L3 19 · L4 75，
-L4 从 250 配额的 54 个涨到 75 个——L4 太小是这个方案最贵的代价
-（全量 ≥50 时有 116 个），所以往大了取。
+Adjusted via `--quota`. **The version finally adopted is 350**: actual 328
+entries, L1 56 · L2 178 · L3 19 · L4 75, with L4 rising from 54 at the 250
+quota to 75 — an undersized L4 is the most expensive cost of this scheme (the
+full ≥50 set has 116), so the larger quota was chosen.
 
 ---
 
-## 3. 靶点内部冗余：不删
+## 3. Within-subset target redundancy: not removed
 
 `timesplit/analysis/target_redundancy.py` → `results/T3_target_redundancy.csv`
 
-（下面这段是 250 配额那版的 222 个靶点算的，结论不因配额改变。）
-222 个靶点全对全局部比对（BLOSUM62，identity / min(len)），24,531 对：
-中位 **2.9%**，**没有任何一对 ≥90%**，最高 87.3%，≥70% 只有 9 对（0.04%）。
+(The section below was computed on the 250-quota version's 222 targets; the
+conclusion does not change with the quota.)
+All-to-all local alignment of the 222 targets (BLOSUM62, identity / min(len)),
+24,531 pairs: median **2.9%**, **no pair ≥90%**, maximum 87.3%, only 9 pairs
+(0.04%) ≥70%.
 
-**判断冗余必须按类内看**——跨类别配对（激酶 vs GPCR）几乎为零，会把全局中位拉低：
+**Redundancy must be judged within-class** — cross-class pairs (kinase vs
+GPCR) are near zero and pull the global median down:
 
-| 类别 | 靶点 | 配对 | 中位 | 最大 | ≥40% 的对 |
+| Class | Targets | Pairs | Median | Max | Pairs ≥40% |
 |---|---|---|---|---|---|
 | GPCR | 35 | 595 | **21.7%** | 66.8% | 16 |
-| 核受体 | 6 | 15 | **23.6%** | 37.1% | 0 |
-| 激酶 | 62 | 1,891 | 11.4% | 86.1% | 22 |
-| 蛋白酶 | 28 | 378 | 2.8% | 77.9% | 6 |
-| 其他酶 | 49 | 1,176 | 2.8% | 87.3% | 2 |
-| *(跨类别)* | | 20,230 | *2.7%* | *33.2%* | *0* |
+| Nuclear receptors | 6 | 15 | **23.6%** | 37.1% | 0 |
+| Kinases | 62 | 1,891 | 11.4% | 86.1% | 22 |
+| Proteases | 28 | 378 | 2.8% | 77.9% | 6 |
+| Other enzymes | 49 | 1,176 | 2.8% | 87.3% | 2 |
+| *(cross-class)* | | 20,230 | *2.7%* | *33.2%* | *0* |
 
-GPCR 和核受体最高（共享折叠：7 次跨膜 / 配体结合域），但**最高的也远低于
-常用的 40% 去冗余阈值**。cd-hit 按 90% 删 0 个、70% 删 8 个、40% 删 37 个。
+GPCR and nuclear receptors are highest (shared fold: 7-transmembrane /
+ligand-binding domain), but **even the highest is far below the commonly used
+40% redundancy-removal threshold**. cd-hit removes 0 at 90%, 8 at 70%, and 37
+at 40%.
 
-**结论：不删。**（合作者 2026-09-05 同意。）
+**Conclusion: not removed.** (The collaborator agreed on 2026-09-05.)
 
 ---
 
-## 4. 指标变了多少
+## 4. How much the metrics changed
 
 `timesplit/analysis/score_subset.py` → `results/T3_main_vsds_subset.csv`
 
-| | 全量 1,144 条 | 新子集 原分层 | 新子集 修正分层 |
+| | Full set (1,144 entries) | New subset, original layers | New subset, corrected layers |
 |---|---|---|---|
 | LigUnity-protein L4 | 8.83 | 12.38 | **9.38** |
 | HypSeek L4 | 7.34 | 9.91 | **7.85** |
-| EF 衰减范围 | −68 ~ −84% | −48 ~ −72% | −43 ~ −80% |
+| EF decay range | −68 ~ −84% | −48 ~ −72% | −43 ~ −80% |
 
-**L4 在新子集上变简单了**：类别配平砍掉大量「其他/未分类」靶点
-（L4 里 41 → 4），而那批恰恰是最难的。
+**L4 gets easier on the new subset**: class balancing removes a large number
+of "unclassified" targets (41 → 4 within L4), and that batch happened to be
+the hardest.
 
-**修正分层**指把 L4 中对训练集同源 ≥40% 的靶点改判 L3（见
-[T3 泄漏诊断](T3-leakage.md)）。**只挪 6 个靶点（51 的 12%），
-L4 就变了 20–25%、衰减从 −69% 回到 −78%**——L4 太薄，几个靶点能左右主结论。
+**Corrected layers** means reclassifying L4 targets that are ≥40% homologous
+to the training set as L3 (see [T3 leakage audit](T3-leakage.md)). **Moving
+just 6 targets (12% of 51) changes L4 by 20–25%, and restores the decay from
+−69% to −78%** — L4 is thin enough that a handful of targets can swing the
+headline conclusion.
 
-### 主表（修正分层）
+### Main table (corrected layers)
 
-| 模型 | L1 | L2 | L3 | L4 | EF 衰减 |
+| Model | L1 | L2 | L3 | L4 | EF decay |
 |---|---|---|---|---|---|
 | LigUnity-protein | 38.24 | 32.27 | 19.56 | **9.38** | **−78%** |
 | LigUnity-pocket | 34.17 | 27.84 | 14.92 | 9.29 | −75% |
@@ -233,36 +275,39 @@ L4 就变了 20–25%、衰减从 −69% 回到 −78%**——L4 太薄，几个
 | ConPLex | 5.61 | 3.16 | 3.73 | 1.94 | −80% |
 | SPRINT | 2.75 | 2.17 | 1.44 | 2.00 | −43% |
 
-靶点数 L1 40 · L2 119 · L3 26 · L4 45。衰减按「超出随机」算。
+Target counts: L1 40 · L2 119 · L3 26 · L4 45. Decay is computed on the excess
+over random.
 
 ---
 
-## 5. 下游哪些受影响
+## 5. What downstream analyses are affected
 
-| 任务 | 受影响吗 | 处理 |
+| Task | Affected? | Handling |
 |---|---|---|
-| **T1** 标准基准 | **否**（用 DUD-E/DEKOIS/LIT-PCBA） | 不动 |
-| **T2** 排序 | 是（T3 那一列） | 已重算，见 `results/T2_on_T3_subset.csv` |
-| **T5** 三项对照 | 是 | 已重算，见 T5 文档 |
-| **T6** 召回天花板 | 是 | 已重算，L4 recall@50 从 17.5% → **9.5%** |
-| **T6** 对接重排 | **是，且不能靠重算解决** | 20 个对接靶点只有 5 个在新子集里 |
+| **T1** standard benchmarks | **No** (uses DUD-E/DEKOIS/LIT-PCBA) | Untouched |
+| **T2** ranking | Yes (the T3 column) | Recomputed, see `results/T2_on_T3_subset.csv` |
+| **T5** three controls | Yes | Recomputed, see the T5 document |
+| **T6** recall ceiling | Yes | Recomputed, L4 recall@50 goes from 17.5% → **9.5%** |
+| **T6** docking rerank | **Yes, and it cannot be fixed by recomputing** | Only 5 of the 20 docked targets are in the new subset |
 
-T6 对接的分数是实打实跑出来的（33 小时 CPU），新靶点没跑过就是没有。
-三个选项：① 写明该实验在全量 L4 上做 ② 重挑 20 个靶点重跑（~33 小时 CPU）
-③ 降为附录。**未定。**
+T6's docking scores were run for real (33 CPU-hours) — targets that were never
+run simply have no score. Three options: ① state that this experiment was run
+on the full L4 ② pick 20 new targets and re-run (~33 CPU-hours) ③ demote it to
+an appendix. **Undecided.**
 
 ---
 
-## 复现
+## Reproduction
 
 ```bash
-python timesplit/build/select_vsds_matched.py --quota 250    # 选子集
-python timesplit/analysis/target_redundancy.py               # 内部冗余
-python timesplit/analysis/score_subset.py                    # T3 主表
+python timesplit/build/select_vsds_matched.py --quota 250    # select subset
+python timesplit/analysis/target_redundancy.py               # within-target redundancy
+python timesplit/analysis/score_subset.py                    # T3 main table
 python timesplit/analysis/score_t2_subset.py --subset results/T3_vsds_matched.csv
-python t5_structure_source.py --models <十个> --subset ...
+python t5_structure_source.py --models <ten models> --subset ...
 python t5_threshold_curve.py --subset ...
 python shortlist_recall.py --subset ...
 ```
 
-`--subset` 由 `timesplit/analysis/_subset.py` 提供，所有下游脚本共用。
+`--subset` is provided by `timesplit/analysis/_subset.py`, and is shared by
+all downstream scripts.
