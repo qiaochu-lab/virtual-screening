@@ -1,11 +1,15 @@
-"""让 run_t3_conglude.py 也能跑 T1，复用同一套打分与落盘逻辑。
+"""Let run_t3_conglude.py also run T1, reusing the same scoring and
+disk-write logic.
 
-T3 那边的结构要现下 RCSB、拿不到再回退 Boltz-2 预测；
-T1 这边 149 个靶点的 .pdb 已经全部备好（data/t1/structures/{uniprot}.pdb），
-所以加一个 --struct_dir：给了就直接从目录取，不下载、不回退。
+On the T3 side, structures are fetched live from RCSB and fall back to a
+Boltz-2 prediction when unavailable; on the T1 side, all 149 targets'
+.pdb files are already prepared (data/t1/structures/{uniprot}.pdb), so a
+--struct_dir flag is added: when given, structures are taken straight from
+that directory, with no download and no fallback.
 
-其余（写 protein_ids.txt / smiles.txt、调 predict.py、按靶点切分落盘）不动，
-保证 T1 与 T3 的口径一致。
+Everything else (writing protein_ids.txt / smiles.txt, calling predict.py,
+splitting output by target) is left untouched, so T1 and T3 stay on the
+same convention.
 """
 import shutil
 

@@ -1,15 +1,20 @@
-"""查 T3 里有多少 protein–ligand pair 其实已经在训练集里。
+"""Check how many protein-ligand pairs in T3 are actually already in a
+training set.
 
-背景
+Background
 ----
-现在的 T3 只做了**时间切分**（取 2025+ 入库的记录），没有对训练集做**内容层面的差集**。
-问题在于：一条 2025 年的数据库记录，不代表这个 pair 第一次出现——
-可能 2023 年就有了、模型训练过；2025 年只是被重新测了一遍，或才录入 BindingDB。
+T3 currently applies only a **time split** (records deposited in 2025+),
+with no **content-level** set difference against the training sets. The
+problem: a 2025 database record does not mean the pair appeared for the
+first time -- it may have existed since 2023 and been trained on, with 2025
+only being a re-measurement or a later entry into BindingDB.
 
-这类污染会落在 L1/L2（靶点见过的层），让对照层的数字偏高，
-从而**高估** L1→L4 的衰减。
+This kind of contamination lands in L1/L2 (the layers where the target has
+been seen), inflating those layers' numbers and **overstating** the L1->L4
+decay.
 
-这里按 (UniProt, InChIKey) 逐对核对，量化污染比例。
+Checked pair by pair on (UniProt, InChIKey) here, to quantify the
+contamination rate.
 """
 import json
 
@@ -21,7 +26,8 @@ TD = f"{B}/code/LigUnity/test_datasets"
 
 
 def train_pairs():
-    """LigUnity 训练集里的 (uniprot, inchikey) 对，以及出现过的分子集合。"""
+    """The (uniprot, inchikey) pairs in LigUnity's training set, plus the
+    set of molecules that appear in it."""
     lab = json.load(open(f"{TD}/train_label_blend_seq_full.json"))
     pairs, mols, n_lig, bad = set(), set(), 0, 0
     for a in lab:

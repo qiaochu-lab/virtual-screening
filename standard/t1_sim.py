@@ -1,7 +1,9 @@
-"""T1 辅助分析（PPT slide 11）：性能 vs 测试靶点到训练集的序列相似度。
+"""T1 supporting analysis (PPT slide 11): performance vs. sequence
+similarity between the test target and the training set.
 
-统计口径：bootstrap 在**靶点层面**重采样（分析单位是靶点，不是分子）。
-把各靶点分子拼起来再重采样会低估方差，且改变了 EF 的定义。
+Statistical convention: bootstrap resamples at the **target level** (the
+unit of analysis is the target, not the molecule). Pooling molecules across
+targets before resampling understates variance and changes what EF means.
 """
 import json, os, re, sys
 import numpy as np
@@ -38,7 +40,8 @@ print(f"距离表覆盖蛋白: {len(min_dist):,}", flush=True)
 
 
 def boot_ci(vals, n=2000, seed=0):
-    """靶点层面 bootstrap：重采样靶点，算均值分布。"""
+    """Target-level bootstrap: resample targets, compute the distribution
+    of the mean."""
     vals = np.asarray([v for v in vals if not np.isnan(v)], float)
     if len(vals) < 2:
         return (float("nan"), float("nan"))

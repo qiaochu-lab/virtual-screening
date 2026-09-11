@@ -1,20 +1,27 @@
-"""化学系列 oracle 上界，跑在传统 benchmark 上 —— T3 那个 98.7% 有多少是构造带来的。
+"""Chemical-series oracle ceiling, run on the classic benchmarks -- how
+much of T3's 98.7% is a product of its own construction.
 
-为什么必须做这个对照
+Why this control is necessary
 --------------------
-在 T3 上，这个 oracle（按「对该靶点其他已知活性的最大 Tanimoto」打分，
-留一）打到理论上限的 98.7%。这很容易被读成「虚筛基准普遍能被纯化学解掉」。
+On T3, this oracle (scores by "max Tanimoto to the target's other known
+actives", leave-one-out) reaches 98.7% of the theoretical ceiling. That is
+easy to misread as "virtual-screening benchmarks in general can be solved
+by pure chemistry alone."
 
-但 Part 1 的骨架统计显示 **T3 的活性比传统基准聚集约一倍**：
-骨架/活性 中位 0.44–0.49，而 DUD-E 是 **0.997**（每个活性一个骨架，
-因为 DUD-E 构建时就按 Bemis-Murcko 骨架去过重）、DEKOIS 0.825、LIT-PCBA 0.782。
+But Part 1's scaffold statistics show **T3's actives are roughly twice as
+clustered as the classic benchmarks'**: scaffold/active median 0.44-0.49,
+against DUD-E's **0.997** (one scaffold per active, because DUD-E
+deduplicates by Bemis-Murcko scaffold during construction), DEKOIS 0.825,
+LIT-PCBA 0.782.
 
-所以那个 98.7% 里有多少是「化学世界本来如此」、有多少是「T3 这样构造出来的」，
-必须在传统基准上跑同一个 oracle 才知道。这是审稿人一定会问的，
-自己先答比被问出来好。
+So how much of that 98.7% is "the chemical world is just like this" versus
+"T3's construction produced this" can only be known by running the same
+oracle on the classic benchmarks. A reviewer will ask this; better to
+answer it ourselves first.
 
-口径与 `ligand_only_baseline.py` 完全一致：ECFP4 r=2 fpSize=2048，
-活性留一，EF@1% 用 ceil 取整、并列按期望值。
+Convention matches `ligand_only_baseline.py` exactly: ECFP4 r=2 fpSize=2048,
+leave-one-out on actives, EF@1% rounded with ceil, ties broken by expected
+value.
 """
 import argparse
 import csv
@@ -78,7 +85,7 @@ def main():
         ef, ceil_, bd, au, pct = [], [], [], [], []
         for name, s, y in out:
             n, na = len(y), int(y.sum())
-            # 上限 = min(1/fraction, n_total/n_active)，不是 1/fraction
+            # ceiling = min(1/fraction, n_total/n_active), not 1/fraction
             c = min(100.0, n / na)
             e = enrichment_factor(s, y, 0.01)
             ef.append(e); ceil_.append(c); pct.append(e / c)

@@ -1,19 +1,23 @@
-"""量化「只按 LigUnity 训练集做差」这个口径的影响。
+"""Quantify the impact of the "set difference computed only against
+LigUnity's training set" convention.
 
-问题
+Problem
 ----
-T3 的层标签（L1=靶点见过 / L3,L4=靶点没见过）是按 **LigUnity 的训练集**
-（PocketAffDB，2,196 个 UniProt）判定的。但 DrugCLIP / BindCLIP 用的是
-另一套训练数据（16,744 个 PDB 口袋）。
+T3's layer labels (L1 = target seen / L3, L4 = target unseen) are decided
+against **LigUnity's training set** (PocketAffDB, 2,196 UniProt). But
+DrugCLIP / BindCLIP use a different training set (16,744 PDB pockets).
 
-如果某个靶点 LigUnity 没见过、DrugCLIP 见过，我们会把它标成 L4（新靶点），
-但对 DrugCLIP 而言它其实是熟悉的 → DrugCLIP 在 L4 上的衰减被**低估**。
+If a target is unseen by LigUnity but seen by DrugCLIP, we label it L4
+(novel target) -- but it is actually familiar to DrugCLIP, so DrugCLIP's L4
+decay is **understated**.
 
-这个脚本把 DrugCLIP 训练集的 PDB 条目映射到 UniProt，
-然后数一下我们的 L3/L4 里有多少靶点其实在 DrugCLIP 训练集里。
+This script maps DrugCLIP's training-set PDB entries to UniProt, then
+counts how many of our L3/L4 targets are actually in DrugCLIP's training
+set.
 
-注意：时间切分本身已经挡住了数据泄漏（所有模型都是 2024-12 前训练的，
-2025 年后的活性数据谁都没见过）。这里查的是**层标签的公平性**，不是泄漏。
+Note: the time split itself already blocks data leakage (every model was
+trained before 2024-12, and none has seen post-2025 affinity data). What is
+checked here is **the fairness of the layer labels**, not leakage.
 """
 import json
 import time
@@ -72,7 +76,7 @@ def main():
     json.dump(sorted(dc_up), open(f"{B}/data/t3/drugclip_train_uniprots.json", "w"))
     print(f"\nDrugCLIP 训练集覆盖的 UniProt: {len(dc_up):,}")
 
-    # LigUnity 的训练靶点
+    # LigUnity's training targets
     TD = f"{B}/code/LigUnity/test_datasets"
     lab = json.load(open(f"{TD}/train_label_blend_seq_full.json"))
     lig_up = {a["uniprot"] for a in lab if a.get("uniprot")}

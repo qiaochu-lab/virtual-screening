@@ -1,23 +1,29 @@
-"""构建所有参评模型训练集的并集，用于 T3 的差集与重新分层。
+"""Build the union of all evaluated models' training sets, for T3's set
+difference and re-stratification.
 
-为什么只有两套
+Why only two sets
 --------------
-七个 pocket 系模型实际只用了两套训练数据：
-  A  train_no_test_af   →  DrugCLIP、BindCLIP(两档权重)
-  B  PocketAffDB        →  LigUnity(两个变体)、LiTENCLIP
-     （LiTENCLIP 的 test_datasets/ 全是指向 LigUnity 的软链，共用同一份）
+The seven pocket-family models actually use only two training sets:
+  A  train_no_test_af   ->  DrugCLIP, BindCLIP (both weight variants)
+  B  PocketAffDB        ->  LigUnity (both variants), LiTENCLIP
+     (LiTENCLIP's test_datasets/ is entirely symlinks into LigUnity's, so
+     they share one copy)
 
-所以并集 = A ∪ B，不需要逐模型收集。
-ConPLex(BindingDB) / ConGLUDe / SPRINT(MERGED) 的清单暂时拿不到，
-会在 limitation 里写明。
+So the union = A ∪ B, and there is no need to collect per model.
+The lists for ConPLex (BindingDB) / ConGLUDe / SPRINT (MERGED) are not
+available yet and will be stated as a limitation.
 
-产出两样东西
+Two outputs
 ------------
-1. union_uniprots.json  —— 并集覆盖的靶点，用于**重新分层**
-                            （现在的 L1/L3/L4 标签只按 B 判定，对用 A 的模型不公平）
-2. union_pairs.json     —— 并集里的 (UniProt, InChIKey) 对，用于**内容去污染**
-                            （时间切分挡不住「2023 年就有、2025 年重测/才录入」的记录，
-                              实测 L1 有 20.9% 是这种）
+1. union_uniprots.json  -- the targets covered by the union, used for
+                            **re-stratification** (the current L1/L3/L4
+                            labels are decided against B alone, which is
+                            unfair to models trained on A)
+2. union_pairs.json     -- the (UniProt, InChIKey) pairs in the union, used
+                            for **content-level decontamination** (the time
+                            split alone cannot catch a record that "existed
+                            in 2023 and was only re-measured/re-entered in
+                            2025" -- measured at 20.9% of L1)
 """
 import json
 import os
@@ -31,7 +37,8 @@ B = "/data/work/vs-benchmark"
 
 
 def set_b_pairs():
-    """PocketAffDB（LigUnity / LiTENCLIP）。标的就是 UniProt，直接用。"""
+    """PocketAffDB (LigUnity / LiTENCLIP). The label is UniProt directly --
+    use it as-is."""
     lab = json.load(open(f"{B}/data/raw/figshare/train_label_blend_seq_full.json"))
     ups, pairs = set(), set()
     for a in lab:
@@ -54,7 +61,8 @@ def set_b_pairs():
 
 
 def set_a_pairs():
-    """train_no_test_af（DrugCLIP / BindCLIP）。按 PDB 存，需映射成 UniProt。"""
+    """train_no_test_af (DrugCLIP / BindCLIP). Stored by PDB, needs mapping
+    to UniProt."""
     pdb2up = json.load(open(f"{B}/data/t3/drugclip_pdb2uniprot.json"))
     e = lmdb.open(f"{B}/data/train_no_test_af/train.lmdb",
                   subdir=False, readonly=True, lock=False)

@@ -1,18 +1,23 @@
-"""LigUnity 序列版 vs 口袋版，在三个标准基准上的逐靶点配对比较。
+"""LigUnity sequence branch vs pocket branch: a per-target paired
+comparison on the three standard benchmarks.
 
-T3 上的同一对照见 seq_vs_pocket.py。分成两个脚本是因为输入格式不同：
-T3 的原始打分打包成了 npz，T1 的仍是每靶点一个目录。
+The same control on T3 is in seq_vs_pocket.py. It's split into two scripts
+because the input formats differ: T3's raw scores are packed into npz,
+T1's are still one directory per target.
 
-结论与 T3 相反，所以两个脚本要一起读：**没有一致的赢家，随基准反转。**
-LIT-PCBA（诱饵是实验验证过不结合的分子）上口袋版在所有榜首指标上全胜；
-DEKOIS 上序列版赢；DUD-E 打平。
+The conclusion is the opposite of T3's, so the two scripts must be read
+together: **there is no consistent winner -- it flips by benchmark.** On
+LIT-PCBA (whose decoys are experimentally confirmed non-binders), the
+pocket branch sweeps every early-enrichment metric; on DEKOIS the sequence
+branch wins; DUD-E is a tie.
 
-打分口径与 eval/score_ligunity.py 一致：没有 saved_preds.npy 时，
-用 (pocket_reps @ mol_reps.T).max(axis=0)，多口袋取最大。
+Scoring convention matches eval/score_ligunity.py: when saved_preds.npy is
+absent, use (pocket_reps @ mol_reps.T).max(axis=0), taking the max over
+multiple pockets.
 
-用法
+Usage
 ----
-    python seq_vs_pocket_t1.py [--results 结果根目录] [--out 输出CSV]
+    python seq_vs_pocket_t1.py [--results result-root-dir] [--out output-CSV]
 """
 import argparse
 import csv
@@ -25,7 +30,7 @@ from scipy import stats
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "eval"))
 try:
     from metrics import enrichment_factor, roc_auc, bedroc
-except ImportError:                       # 允许从别处调用
+except ImportError:                       # allow being invoked from elsewhere
     sys.path.insert(0, "/data/work/vs/eval")
     from metrics import enrichment_factor, roc_auc, bedroc
 

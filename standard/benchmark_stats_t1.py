@@ -1,19 +1,24 @@
-"""传统 benchmark 的描述性统计 —— 论文 Part 1 / Table S1 要的那张表。
+"""Descriptive statistics for the classic benchmarks -- the table needed for
+Part 1 / Table S1 of the paper.
 
-DUD-E、DEKOIS 2.0、LIT-PCBA 三个基准各自：靶点数、活性数、诱饵数、
-活性:诱饵比、**Bemis-Murcko 骨架数**。
+For each of DUD-E, DEKOIS 2.0 and LIT-PCBA: number of targets, actives,
+decoys, active:decoy ratio, and **Bemis-Murcko scaffold count**.
 
-为什么要骨架数
+Why scaffold count
 --------------
-活性分子数掩盖了一件事：同一个靶点的活性可能是一个化学系列的几百个类似物，
-也可能是几十个互不相干的骨架。前者能被「记住一个系列」解掉，后者不能。
-骨架数 / 活性数这个比值，直接量化了每个基准里「化学多样性」有多少。
+The active count alone hides something: a target's actives could be a few
+hundred analogs of one chemical series, or a few dozen unrelated scaffolds.
+The former can be solved by "memorizing one series"; the latter cannot.
+The scaffold-count / active-count ratio directly quantifies how much
+"chemical diversity" a benchmark has.
 
-这也是我们 T3 用 Bemis-Murcko 骨架做 L1/L2 分界的同一把尺子，
-放在一起才能说明 T3 和传统基准的难度差在哪。
+This is the same yardstick T3 uses to draw the L1/L2 boundary from
+Bemis-Murcko scaffolds, so putting them side by side is what lets us say
+where T3's difficulty diverges from the classic benchmarks'.
 
-⚠️ 数的是**设计的池子**（jsonl），不是实际被打分的分子。T1 这边两者一致
-（T1 不经过 lmdb 那条路径），但口径写清楚。
+⚠️ Counts the **designed pool** (jsonl), not the molecules actually scored.
+On the T1 side the two agree (T1 never goes through the lmdb path), but the
+convention is stated here for clarity.
 """
 import argparse
 import collections
@@ -29,13 +34,14 @@ from rdkit.Chem.Scaffolds import MurckoScaffold
 RDLogger.DisableLog("rdApp.*")
 B = "/data/work/vs-benchmark"
 BENCH = [("DUD-E", "DUDE"), ("DEKOIS 2.0", "DEKOIS"), ("LIT-PCBA", "PCBA")]
-# T3 用同一把尺子一起算，否则「传统基准 vs 我们的基准」没有可比的数
+# Compute T3 with the same yardstick here too -- otherwise there is no
+# comparable number for "classic benchmarks vs our benchmark"
 T3 = [("T3 L1", "t3/eval/L1"), ("T3 L2", "t3/eval/L2"),
       ("T3 L3", "t3/eval/L3"), ("T3 L4", "t3/eval/L4")]
 
 
 def scaffold(smi):
-    """Bemis-Murcko 骨架的 SMILES；解析失败返回 None。"""
+    """Bemis-Murcko scaffold SMILES; returns None on parse failure."""
     m = Chem.MolFromSmiles(smi)
     if m is None:
         return None
@@ -71,7 +77,8 @@ def main():
             print(f"{label}: 缺 {p}"); continue
         recs = [json.loads(x) for x in open(p)]
 
-        # 骨架并行算：先收全部唯一活性 SMILES，一次算完再分配回靶点
+        # Compute scaffolds in parallel: collect all unique active SMILES
+        # first, compute once, then assign back to targets
         uniq = sorted({m["smiles"] for r in recs for m in r["actives"]})
         with ProcessPoolExecutor(args.workers) as ex:
             sc = list(ex.map(scaffold, uniq, chunksize=200))

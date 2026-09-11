@@ -1,27 +1,32 @@
-"""修 HypSeek / LiTENCLIP 的 CASF 分支：它调 model.forward 的方式和自家模型对不上。
+"""Fix HypSeek / LiTENCLIP's CASF branch: the way it calls model.forward
+doesn't match their own model.
 
-症状
+Symptoms
 ----
 LiTENCLIP: TypeError: forward() missing 1 required positional argument: 'mol_src_coord'
 HypSeek  : ValueError: not enough values to unpack (expected 4, got 3)
 
-原因
+Cause
 ----
-两个 fork 的 `inference_pdbbind` 都是从 LigUnity 抄来的，写成
+Both forks' `inference_pdbbind` was copied from LigUnity as-is:
     mol_emb, pocket_emb, _, _ = model.forward(**net_input, protein_sequences=seq)
     mol_emb = mol_emb[0]...
-但它们自家的 forward 签名/返回值都改过了——
-LiTENCLIP 的 forward 多要一个 mol_src_coord（CASF 数据集不提供），
-HypSeek 的 forward 返回三个值 (h_prot, h_poc, h_mol)。
-这条代码路径作者显然没跑过。
+but each fork changed its own forward's signature and/or return value --
+LiTENCLIP's forward needs an extra mol_src_coord (which the CASF dataset
+does not provide), and HypSeek's forward returns three values
+(h_prot, h_poc, h_mol). This code path was evidently never exercised by
+either author.
 
-改法
+Fix
 ----
-不碰模型，改成用两个 fork 自己在别处一直用的写法（DUD-E/DEKOIS/LIT-PCBA 分支）：
+Leave the model alone; switch to the call pattern each fork already uses
+everywhere else (the DUD-E/DEKOIS/LIT-PCBA branch):
     mol_emb    = model.mol_forward(**net_input)
     pocket_emb = model.pocket_forward(protein_sequences=seq, **net_input)
-两个塔分开前向，返回就是 [B, D] 张量，不需要 [0] 取第一个元素——
-原来的 `mol_emb[0]` 在返回值是张量时会取走第一行，即使不报错也是错的。
+Forwarding the two towers separately returns [B, D] tensors directly, with
+no need to index [0] -- the original `mol_emb[0]` silently takes the first
+row whenever the return value is a tensor, which is wrong even when it
+doesn't raise.
 """
 import shutil
 

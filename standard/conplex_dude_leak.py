@@ -1,33 +1,40 @@
-"""ConPLex 在 DUD-E 上的靶点泄漏检验。
+"""Target-leakage check for ConPLex on DUD-E.
 
-背景
+Background
 ----
-ConPLex 的核心方法就是「用 DUD-E 诱饵做对比学习」——configs/default_config.yaml
-里 ``contrastive: True`` 是默认值，训练时按 ``dataset/DUDe/dude_*_train_test_split.csv``
-取 train 那一半靶点。仓库给了两套划分（cross / within），各 26 个靶点，重叠 12 个，
-并集 40 个；两个 CSV 一共涉及 57 个 DUD-E 靶点。
+ConPLex's core method is literally "contrastive learning against DUD-E
+decoys" -- ``contrastive: True`` is the shipped default in
+configs/default_config.yaml, and training draws its train-half targets from
+``dataset/DUDe/dude_*_train_test_split.csv``. The repo ships two splits
+(cross / within), 26 targets each, 12 overlapping, union 40; the two CSVs
+together name 57 DUD-E targets.
 
-而我们的 T1 用的是 **全部 102 个** DUD-E 靶点，那 40 个训练靶点全在里面。
-其余九个模型的训练数据都不含 DUD-E（HypSeek 的日志里能看到它显式剔除了
-DUD-E/DEKOIS/LIT-PCBA/CASF 的蛋白），所以它们是天然对照。
+Our T1 uses **all 102** DUD-E targets, so all 40 training targets are in
+there. The other nine models' training data contains no DUD-E (HypSeek's
+logs show it explicitly excludes DUD-E/DEKOIS/LIT-PCBA/CASF proteins), so
+they act as a natural control.
 
-难度归一化
+Difficulty normalization
 ----------
-两套划分都是按蛋白家族切的（cross 的 train 多为酶和核受体，test 全是激酶和
-GPCR），所以「见过组更高」可能只是这批靶点本身好做。先把靶点难度除掉：
+Both splits are cut along protein family lines (cross's train half is
+mostly enzymes and nuclear receptors, its test half all kinases and GPCRs),
+so "the seen group scores higher" could just mean those targets are easier
+to begin with. Divide out target difficulty first:
 
-    r_t = EF(模型, t) / median(EF(其余九个模型, t))
+    r_t = EF(model, t) / median(EF(other nine models, t))
 
-对照模型的 r 组内/组外比值应当接近 1；只有真正训练过的模型才会显著偏高。
+For the control models, r's within-group/out-of-group ratio should sit near
+1; only a genuinely trained-on model should come out significantly higher.
 
-三段划分
+Three-way partition
 --------
-把 102 个靶点切成互斥三段，看是不是单调的：
-  A 两套划分的 train 并集（40）
-  B 只在 CSV 里出现、两套都标 test（17）
-  C 两个 CSV 都没出现过（45）—— 这一段才是 ConPLex 干净的 DUD-E 成绩
+Cut the 102 targets into three mutually exclusive parts and check for
+monotonicity:
+  A  union of the two splits' train targets (40)
+  B  named only as test in both CSVs (17)
+  C  never named in either CSV (45) -- this is ConPLex's clean DUD-E score
 
-用法::
+Usage::
 
     python standard/conplex_dude_leak.py
 """
@@ -57,7 +64,8 @@ SPLIT_CSV = [f"{B}/dude_cross_full.csv", f"{B}/dude_within_full.csv"]
 
 
 def load_splits():
-    """返回 (train 并集, 两个 CSV 出现过的全部靶点)，靶点名一律小写。"""
+    """Return (union of train targets, every target named in either CSV);
+    target names are lowercased throughout."""
     train, allcsv = set(), set()
     for p in SPLIT_CSV:
         for line in open(p):
@@ -71,7 +79,8 @@ def load_splits():
 
 
 def score(d):
-    """一个靶点的四个指标。只落了 embedding 的按官方规则口袋×分子取 max。"""
+    """The four metrics for one target. For runs that only saved embeddings,
+    reconstruct the score via the official rule: max over pocket x molecule."""
     p = f"{d}/saved_preds.npy"
     if os.path.exists(p):
         s = np.load(p).reshape(-1)
@@ -100,12 +109,12 @@ def main():
     T = sorted(t for t in M if len(M[t]) == len(MODELS))
     print(f"十个模型都有结果的 DUD-E 靶点：{len(T)}")
 
-    # 难度归一化的每靶点比值
+    # per-target ratio after difficulty normalization
     R = {}
     for name, _ in MODELS:
         for t in T:
             base = float(np.median([M[t][m]["ef1"] for m, _ in MODELS if m != name]))
-            if base > 0.01:                      # 全员都做不了的靶点，比值没意义
+            if base > 0.01:                      # a target none of the models can do gives a meaningless ratio
                 R.setdefault(name, {})[t] = M[t][name]["ef1"] / base
 
     A = [t for t in T if t in TRAIN]

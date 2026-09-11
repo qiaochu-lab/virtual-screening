@@ -1,11 +1,13 @@
-"""T1 汇总：九个模型 × 三个标准基准，一张表。
+"""T1 rollup: nine models x three standard benchmarks, into one table.
 
-各模型的原始输出散在两处布局：
-  · UniMol 系与 LigUnity 系  results/<模型>/<基准>/<靶点>/
-  · 后接的三个模型          results/t1_raw/<模型>/<基准>/<靶点>/
-指标一律由统一评测层从逐分子打分重算，不抄任何论文数字。
-靶点数各模型可能不同（序列超长、结构缺失、SMILES 解析失败），一并记下来，
-不然 EF 的分母不一样会被误读成模型差异。
+Each model's raw output sits in one of two layouts:
+  · the UniMol and LigUnity families  results/<model>/<benchmark>/<target>/
+  · the three models added later      results/t1_raw/<model>/<benchmark>/<target>/
+Every metric is recomputed from per-molecule scores by the unified eval
+layer -- none are copied from a paper.
+Target counts can differ between models (sequence too long, structure
+missing, SMILES parse failure); recorded alongside the numbers, otherwise a
+different EF denominator would be misread as a model difference.
 """
 import os, sys, json
 import numpy as np
@@ -31,7 +33,7 @@ def score_target(d):
     p = f"{d}/saved_preds.npy"
     if os.path.exists(p):
         s = np.load(p).reshape(-1)
-    else:                      # 只落了 embedding 的，按官方规则复原：口袋×分子取 max
+    else:                      # for runs that only saved embeddings, reconstruct via the official rule: max over pocket x molecule
         mp, pp = f"{d}/saved_mols_embed.npy", f"{d}/saved_target_embed.npy"
         if not os.path.exists(pp):
             pp = f"{d}/saved_pocket_embed.npy"

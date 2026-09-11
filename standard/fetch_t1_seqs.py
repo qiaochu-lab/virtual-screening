@@ -1,7 +1,9 @@
-"""补齐 T1 三个基准靶点的序列（149 个 UniProt，其中 26 个 T3 那边没有）。
+"""Fill in sequences for T1's three benchmarks' targets (149 UniProt IDs,
+26 of which T3 doesn't have).
 
-ConPLex 只吃序列；SPRINT 要在结构上做 3Di，也需要序列做底。
-直接从 UniProt 的 REST 拿 fasta，存进单独的文件，不动 T3 的 sequences.json。
+ConPLex consumes only sequences; SPRINT needs a sequence as the basis for
+its 3Di computed on the structure. Fetched directly from UniProt's REST API
+as fasta and stored in a separate file, leaving T3's sequences.json untouched.
 """
 import json
 import os
@@ -40,14 +42,14 @@ def main():
     for up in sorted(ups):
         if up in out:
             continue
-        if up in have:                       # T3 已经取过的直接复用
+        if up in have:                       # reuse directly if T3 has already fetched it
             out[up] = have[up]["seq"] if isinstance(have[up], dict) else have[up]
             continue
         s = fetch(up)
         if s:
             out[up] = s
             print(f"  {up} {len(s)} aa")
-        time.sleep(0.2)                      # 别把 UniProt 打太急
+        time.sleep(0.2)                      # don't hammer UniProt too fast
 
     json.dump(out, open(OUT, "w"))
     miss = sorted(ups - set(out))

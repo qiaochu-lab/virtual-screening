@@ -1,16 +1,20 @@
-"""T1 靶点身份改用 target_id（基准里的名字），因为有五处 UniProt 撞车。
+"""Switch T1 target identity to target_id (the benchmark's own name),
+because five UniProt IDs collide across targets.
 
-撞车实例（后一个会覆盖前一个，DEKOIS 81 个只落盘 78 个就是这么来的）
-  DUD-E    P11362 → CSF1R, FGFR1        （dude.json 把 CSF1R 标错，应是 P07333）
-  DEKOIS   P03366 → HIV1PR, HIV1RT      （同一条 pol 多聚蛋白切出的两个酶）
-           P19793 → PPARG, RXR          （PPARG 应是 P37231，也是标错）
-           P06737 → PYGL-IN, PYGL-OUT   （同一蛋白的两个不同结合位点）
-  LIT-PCBA P03372 → ESR1_ago, ESR1_ant  （同一蛋白，激动/拮抗两种构象）
+Collision instances (the later one overwrites the earlier one -- this is
+why DEKOIS's 81 targets only ever write 78 to disk)
+  DUD-E    P11362 -> CSF1R, FGFR1        (dude.json mislabels CSF1R; should be P07333)
+  DEKOIS   P03366 -> HIV1PR, HIV1RT      (two enzymes cleaved from the same pol polyprotein)
+           P19793 -> PPARG, RXR          (PPARG should be P37231, also mislabeled)
+           P06737 -> PYGL-IN, PYGL-OUT   (two different binding sites on the same protein)
+  LIT-PCBA P03372 -> ESR1_ago, ESR1_ant  (same protein, agonist/antagonist conformations)
 
-原则：**身份用 target_id，查序列/结构仍用 uniprot**——
-同一个蛋白的两个位点本来就该用同一条序列和同一个结构。
-另外 PYGL-IN / PYGL-OUT 这种情况，纯序列模型原理上就分不开，
-这是基准自身的性质，不是模型的问题，报告时要写明。
+Principle: **identity uses target_id; sequence/structure lookup still uses
+uniprot** -- two sites on the same protein should legitimately share the
+same sequence and the same structure. Also, a case like PYGL-IN / PYGL-OUT
+is something a sequence-only model cannot distinguish in principle -- that
+is a property of the benchmark itself, not of the model, and must be stated
+when reporting.
 """
 import json
 import shutil
@@ -27,7 +31,7 @@ for bench in ["DUDE", "DEKOIS", "PCBA"]:
             f.write(json.dumps(r) + "\n")
     print(f"{bench}: {len(rows)} 条已补 target_id")
 
-# ---- ConPLex：TSV 里的行标识与落盘目录都改成 target_id ----
+# ---- ConPLex: switch both the TSV row identifier and the output directory to target_id ----
 P = f"{B}/run_t3_conplex.py"
 s = open(P).read()
 subs = [
@@ -58,7 +62,7 @@ if n:
     open(P, "w").write(s)
 print(f"conplex: 改了 {n} 处")
 
-# ---- ConGLUDe：protein_ids 清单与落盘也用 target_id，结构文件名仍按 uniprot 找 ----
+# ---- ConGLUDe: use target_id for the protein_ids manifest and output too; structure filenames are still looked up by uniprot ----
 P = f"{B}/run_t3_conglude.py"
 s = open(P).read()
 subs = [

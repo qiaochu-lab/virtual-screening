@@ -1,13 +1,17 @@
-"""T1 辅助分析：性能 vs「训练集中最近邻蛋白的距离」（PPT slide 11）。
+"""T1 supporting analysis: performance vs. "distance to the nearest
+neighbor protein in the training set" (PPT slide 11).
 
-关键口径说明
+Key convention
 ------------
-距离计算时**排除测试靶点自身**，也排除其他测试靶点——因为 LigUnity_VS
-的 checkpoint 在训练时已剔除了 DUD-E/DEKOIS/LIT-PCBA 的测试蛋白
-（见 HF 仓库说明）。所以有意义的量是「训练集里**剩下的**蛋白中最近的有多近」。
+The distance computation **excludes the test target itself**, and also
+excludes other test targets -- because the LigUnity_VS checkpoint already
+removed the DUD-E/DEKOIS/LIT-PCBA test proteins during training (per the HF
+repo's notes). So the meaningful quantity is "how close is the nearest
+protein among what **remains** in the training set."
 
-距离 0 = 序列相同，0.7 = 距离表的截断上限（更远的对不在表里）。
-bootstrap 在靶点层面重采样。
+Distance 0 = identical sequence; 0.7 = the distance table's truncation
+cutoff (pairs farther than that are not in the table).
+Bootstrap resamples at the target level.
 """
 import json, os, re, sys
 import numpy as np
@@ -39,7 +43,7 @@ for line in open(f"{B}/ckpt/ligunity/LigUnity_VS/sequence_distance.txt"):
         d = float(p[2])
     except ValueError:
         continue
-    # 测试靶点 → 训练集中「非测试」蛋白的距离
+    # distance from a test target -> a "non-test" protein in the training set
     if u1 in test_up and u2 in train_up and u2 not in test_up:
         md[u1] = min(md.get(u1, 9.9), d)
     if u2 in test_up and u1 in train_up and u1 not in test_up:

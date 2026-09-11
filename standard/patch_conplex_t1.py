@@ -1,10 +1,14 @@
-"""让 run_t3_conplex.py 也能跑 T1（三个标准基准），不必再写一个 runner。
+"""Let run_t3_conplex.py also run T1 (the three standard benchmarks),
+instead of writing a separate runner.
 
-改动只有两处：
-  · 评测集路径与序列文件改成可传参（--eval_dir / --seqs），默认仍是 T3
-  · 序列文件两种结构都认：T3 的是 {up: {"seq": ...}}，T1 的是 {up: "序列"}
-其余逻辑（写 tsv、调 conplex-dti、按靶点切分落盘）一个字不动，
-保证 T1 和 T3 的打分口径完全一致——这正是统一评测的前提。
+Only two changes:
+  · the eval-set path and sequence file become CLI-configurable
+    (--eval_dir / --seqs), still defaulting to T3
+  · both sequence-file shapes are accepted: T3's is {up: {"seq": ...}},
+    T1's is {up: "sequence"}
+Everything else (writing the tsv, calling conplex-dti, splitting output by
+target) is left untouched, so T1 and T3 stay on exactly the same scoring
+convention -- which is the whole premise of a unified eval layer.
 """
 import shutil
 

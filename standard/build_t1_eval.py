@@ -1,25 +1,30 @@
-"""把三个标准基准转成 T3 评测集同样的格式，好让另外三个模型直接跑 T1。
+"""Convert the three standard benchmarks into the same format as the T3
+eval set, so the other three models can run T1 directly.
 
-为什么要转
+Why convert
 ----------
-ConGLUDe / ConPLex / SPRINT 不吃 UniMol 那套口袋 lmdb——
-它们要的是序列、`.pdb` 结构、SaProt 3Di 序列。
-但我们已经有三个能跑 T3 的 runner，而 T3 评测集的格式是
+ConGLUDe / ConPLex / SPRINT don't consume UniMol's pocket lmdb format --
+they need sequences, `.pdb` structures, and SaProt 3Di sequences.
+But we already have three runners that can run T3, and the T3 eval-set
+format is
     {"uniprot": ..., "actives": [{"smiles":...}], "decoys": [{"smiles":...}]}
-只要把 DUD-E / DEKOIS / LIT-PCBA 也写成这个格式，三个 runner 换个
-`--eval` 路径就能跑 T1，不用各写一遍。
+so writing DUD-E / DEKOIS / LIT-PCBA into the same format lets the three
+runners run T1 just by swapping the `--eval` path, instead of writing a
+separate one for each.
 
-靶点身份从哪来
+Where target identity comes from
 --------------
-test_datasets 里的 dude.json / dekois.json / PCBA.json 是
-[UniProt, PDB, 名称] 三元组，102 / 81 / 15 个，正好给出：
-  · UniProt → 序列（ConPLex 用）
-  · PDB     → 结构（ConGLUDe 用 .pdb，SPRINT 用它做 3Di）
-DUD-E 每个靶点目录里本来就带 receptor.pdb，省一次下载。
+dude.json / dekois.json / PCBA.json in test_datasets are
+[UniProt, PDB, name] triples -- 102 / 81 / 15 of them -- which give exactly:
+  · UniProt -> sequence (used by ConPLex)
+  · PDB     -> structure (ConGLUDe uses the .pdb; SPRINT uses it to build 3Di)
+Every DUD-E target directory already ships a receptor.pdb, saving a download.
 
-⚠️ LIT-PCBA 单个靶点最多 36 万个分子，全量跑 ConPLex/SPRINT 代价很大。
-默认按 --max-decoys 抽样（对 active 不抽），并把抽样比例记进产出文件，
-算 EF 时按实际比例算，不能直接和全量的数字比。
+⚠️ A single LIT-PCBA target can have up to 360k molecules; running
+ConPLex/SPRINT on the full set is expensive. By default we subsample via
+--max-decoys (actives are never subsampled) and record the sampling ratio
+in the output file -- EF must be computed against the actual ratio and
+cannot be compared directly to a full-set number.
 """
 import argparse
 import json
@@ -34,7 +39,8 @@ TD = f"{B}/code/LigUnity/test_datasets"
 
 
 def read_lmdb(path):
-    """按游标序读——和模型侧看到的顺序一致（key 是字符串，字典序）。"""
+    """Read in cursor order -- matches the order the model side sees
+    (keys are strings, lexicographic)."""
     e = lmdb.open(path, subdir=False, readonly=True, lock=False)
     out = []
     with e.begin() as t:
@@ -43,7 +49,7 @@ def read_lmdb(path):
             smi = d.get("smi")
             if smi is None:
                 continue
-            # LIT-PCBA 有些 smi 后面跟了个 ID，用空格分开
+            # some LIT-PCBA smi strings have an ID appended, separated by a space
             out.append((smi.split()[0], int(d.get("label", 0))))
     e.close()
     return out
@@ -77,7 +83,8 @@ def main():
 
     rows, miss, meta = [], [], []
     for up, pdb, name in targets(args.bench):
-        # DEKOIS 的目录名是小写，DUD-E 用第三列的小写，LIT-PCBA 用原名
+        # DEKOIS directory names are lowercase; DUD-E uses the lowercase of
+        # the third column; LIT-PCBA uses the name as-is
         cands = [name, name.lower()]
         p = None
         for c in cands:

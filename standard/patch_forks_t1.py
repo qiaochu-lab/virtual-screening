@@ -1,19 +1,24 @@
-"""补两个卡住 T1 的 fork bug（HypSeek / LiTENCLIP，都是 LigUnity 的分支）。
+"""Fix two fork bugs blocking T1 (HypSeek / LiTENCLIP, both LigUnity forks).
 
-① CASF 标签路径写死成绝对路径
-   两个 fork 里都是 `open(f"/casf_label_seq.json")`——少了 `{self.args.data}/`，
-   直接 FileNotFoundError。LigUnity 原版是对的，是 fork 时手滑。
-   CASF 这条分支对我们不只是补 T1：CASF-2016 是 T2 缺的第三套数据。
+(1) The CASF label path is hardcoded as an absolute path
+   Both forks have `open(f"/casf_label_seq.json")` -- missing the
+   `{self.args.data}/` prefix, which raises FileNotFoundError outright.
+   LigUnity's original is correct; this is a slip introduced by forking.
+   This CASF branch matters beyond fixing T1: CASF-2016 is the third
+   dataset T2 is missing.
 
-② HypSeek 把单条蛋白向量复制 N_lig 份再做矩阵乘
+(2) HypSeek replicates a single protein vector N_lig times before the
+    matrix multiply
        prot_reps = np.repeat(prot_np, mol_reps.shape[0], axis=0)   # [N_lig, D]
        sim_prot  = prot_reps @ mol_reps.T                          # [N_lig, N_lig]
        prot_scores = sim_prot.max(axis=0)
-   N 行完全相同，取 max 之后等于单行点积，但内存是 O(N²)。
-   DUD-E 最大靶点 52,056 个分子 → 10.8 GB，硬扛过去了；
-   LIT-PCBA 最大 361,997 个 → **488 GiB**，直接 MemoryError。
-   去掉 repeat，sim_prot 变成 [1, N_lig]，max(axis=0) 结果逐位相同——
-   所以已经跑完的 DUD-E / DEKOIS 数字不受影响，不用重跑。
+   All N rows are identical, so the result after max is the same as a
+   single-row dot product, but memory is O(N^2).
+   DUD-E's largest target has 52,056 molecules -> 10.8 GB, survivable;
+   LIT-PCBA's largest has 361,997 -> **488 GiB**, an outright MemoryError.
+   Dropping the repeat makes sim_prot [1, N_lig], and max(axis=0) is
+   identical element-for-element -- so the already-completed DUD-E /
+   DEKOIS numbers are unaffected and do not need to be rerun.
 """
 import re
 import shutil

@@ -1,15 +1,18 @@
-"""LiTENCLIP 的 CASF 数据集漏了 mol_src_coord。
+"""LiTENCLIP's CASF dataset is missing mol_src_coord.
 
-现象：改用 mol_forward 之后仍然报
+Symptom: after switching to mol_forward, it still raises
     TypeError: mol_forward() missing 1 required positional argument: 'mol_src_coord'
 
-原因：CASF（pdbbind）那条 load_dataset 分支里，分子坐标 `coord_dataset` 明明
-已经建好、也做了 PrependAndAppend，却唯独没有塞进 net_input——
-口袋侧的 `pocket_src_coord` 塞了，分子侧漏了。而 LiTENCLIP 的分子塔要用坐标
-（它是 LiTEN 力场式的编码器，不像 UniMol 只吃距离矩阵）。
-其它分支（DUD-E/DEKOIS/LIT-PCBA/T3）都是全的，只有这条漏。
+Cause: in the CASF (pdbbind) branch of load_dataset, the molecule
+coordinates `coord_dataset` are already built and already have
+PrependAndAppend applied, but are the only ones never inserted into
+net_input -- the pocket side's `pocket_src_coord` is inserted, the molecule
+side is not. And LiTENCLIP's molecule tower needs coordinates (it is a
+LiTEN force-field-style encoder, unlike UniMol which consumes only a
+distance matrix). Every other branch (DUD-E/DEKOIS/LIT-PCBA/T3) has it;
+only this one is missing it.
 
-补一行即可，不动模型也不动数据。
+A one-line fix; touches neither the model nor the data.
 """
 import shutil
 

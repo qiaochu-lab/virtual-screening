@@ -1,16 +1,20 @@
-"""给 T1 三个基准准备 .pdb 结构 —— ConGLUDe 要，SPRINT 的 3Di 也要。
+"""Prepare .pdb structures for T1's three benchmarks -- needed by ConGLUDe,
+and by SPRINT's 3Di.
 
-来源分两种
+Two sources
 ----------
-· DUD-E：每个靶点目录里本来就有 receptor.pdb，直接软链，不下载
-· DEKOIS / LIT-PCBA：只有 lmdb，没有结构文件，按 dekois.json / PCBA.json
-  里的 PDB ID 从 RCSB 下
+· DUD-E: every target directory already has a receptor.pdb; symlink it
+  directly, no download needed
+· DEKOIS / LIT-PCBA: only lmdb is available, no structure file; fetch from
+  RCSB using the PDB ID in dekois.json / PCBA.json
 
-命名统一成 {UniProt}.pdb —— 和 T3 那边一致，保证同一个靶点在两套评测里
-用的是同一个标识，后面合表不会错位。
+Naming is unified to {UniProt}.pdb -- matching T3's convention, so the same
+target uses the same identifier across both eval sets and tables can be
+joined later without misalignment.
 
-⚠️ RCSB 的传统 PDB 格式对超大结构不提供（只有 mmCIF），拿不到的会记下来；
-ConGLUDe 只认 .pdb，这类靶点只能缺席，和 T3 的处理一致。
+⚠️ RCSB does not serve the legacy PDB format for very large structures
+(mmCIF only); unavailable ones are recorded. ConGLUDe only accepts .pdb, so
+these targets are simply absent, the same treatment T3 uses.
 """
 import json
 import os
@@ -57,7 +61,7 @@ def main():
                 continue
             src = dude_local(name) if bench == "DUDE" else None
             if src:
-                # 复制而不是软链：SPRINT 那边 foldseek 对软链偶尔挑剔
+                # copy rather than symlink: SPRINT's foldseek is occasionally picky about symlinks
                 open(dest, "wb").write(open(src, "rb").read())
                 local += 1
                 ok += 1
