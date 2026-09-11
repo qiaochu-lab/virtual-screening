@@ -296,26 +296,32 @@ already working in this area.
    749 complexes) moves AUROC by 0.002, every p-value above 0.9. Structure
    quality is not the limiting factor.
 
-   **Whether it is a shortlist-depth artefact is still open.** Every negative
-   rerank result above admits the objection that the shortlist held too few
-   actives to reorder (top-200 at L4 covers 22.6%). The run designed to close that
-   escape — 12 L4 targets, every missing active injected back so recall is 100% by
-   construction — **has not produced usable numbers yet, and the figures published
-   here on 09-11 are withdrawn.** They were computed on candidate sets that are
-   66–71% complete *per target*: the work was sharded by complex rather than by
-   target, so when shards crashed, every one of the 12 targets lost about a third
-   of its candidates and **not one target was complete**. A per-target AUROC or
-   P@5 over two thirds of that target's candidates is not the full-set value with
-   wider error bars; it is a different quantity. The missing scores are being
-   filled in — see [T6](tasks/T6-physics.md) for what is running and what will be
-   reported when it lands.
+   **And it is not a shortlist-depth artefact — that escape is now closed by
+   experiment.** Every negative rerank result above admits the objection that the
+   shortlist held too few actives to reorder (top-200 covers 22.6% of L4 actives
+   across the 68 subset targets; 25.0% across the 12 run here). So
+   Boltz-2 was re-run on 12 L4 targets with **every missing active injected back,
+   so recall is 100% by construction** — 3,747 complexes, all 12 targets scored to
+   completion. Scoring **only the injected actives against the decoys** asks the
+   cascade's real question: can physics recover what retrieval missed? It cannot.
+   Per-target AUROC runs **0.22 to 0.72, mean 0.522, 8 of 12 above chance**
+   (sign test p = 0.39, Wilcoxon p = 0.62) — indistinguishable from a coin flip.
+   **So the cascade does not fail because the shortlist was empty.**
 
-   ⚠️ One finding from that run does survive, because it is about the design and
-   not the data: **the retrieval arm is unusable by construction.** Injecting the
-   actives retrieval missed pins its AUROC at exactly 0 for 5 of the 12 targets,
-   so any "Boltz beats retrieval" line from this design is an artefact. The only
-   valid null here is random ordering of a set whose active fraction is known per
-   target. → [T6](tasks/T6-physics.md)
+   A second number matters more for screening than the AUROC. On the full pool
+   Boltz-2's AUROC is 0.559 against a 0.500 null, but its **P@5 (0.333) and P@10
+   (0.342) sit below the 0.438 a random draw returns** — point estimates, not
+   significant at n = 12 (4/12 targets, p = 0.27). Slightly better than chance at
+   ordering the list overall, no better at the very top, which is the only part a
+   screen uses. That is the same shape as finding 1's "AUROC flatters, EF does
+   not" — now reproduced on a pool where recall is 100%.
+
+   ⚠️ Two honest caveats. The retrieval arm of this design is unusable by
+   construction: injecting the actives retrieval missed pins its AUROC at exactly
+   0 on 5 of 12 targets (it comes out at 0.231), so **no "Boltz beats retrieval"
+   comparison from this run may be quoted at any coverage.** And the numbers first
+   published here on 09-11 were **withdrawn** — they were computed on candidate
+   sets only 66–71% complete per target. → [T6](tasks/T6-physics.md)
 
 11. **A co-folding model ranks affinity where retrieval cannot.** On the 16 FEP
    systems, same ligands and same metric, Boltz-2 reaches Spearman +0.615
