@@ -566,7 +566,7 @@ Two lines, in the wrong order. The fix re-checks after acquiring the slot:
 ```bash
 while [ "$(running)" -ge "$MAXJOBS" ]; do sleep 60; done
 if done_already "$M" "$RND"; then
-  say "跳过 $M round$RND（等待期间已完成）"; continue
+  say "skipping $M round$RND (already completed while waiting)"; continue
 fi
 ```
 
@@ -620,146 +620,180 @@ like it uses 39% of the available range when it actually uses 77%.
 
 38 metric tests pass after the change.
 
-## family_queue.sh 的空闲 GPU 检测匹配不上自己的进程名
+## family_queue.sh's idle-GPU detection doesn't match its own process name
 
-`family_queue.sh` 挑卡时先收集「已被本队列占用的卡」，模式写的是：
+When `family_queue.sh` picks a card, it first collects "cards already
+occupied by this queue"; the pattern it wrote was:
 
 ```bash
 grep -oE '[r]un_swap_fam\.sh [a-z_]+ ([0-9])'
 ```
 
-但实际起来的进程叫 `run_swap_fam_pocket.sh` / `run_swap_fam_seq.sh`
-（`run_swap_fam.sh` 只是个分发器，起完就退出）。模式匹配不上，`USED` 恒为空，
-选卡就只剩「利用率 <15%」这一条判据——而一个刚起来的任务要几十秒才把利用率
-拉上去，这段窗口里它看起来是空闲的。
+but the process that actually runs is called `run_swap_fam_pocket.sh` /
+`run_swap_fam_seq.sh` (`run_swap_fam.sh` is only a dispatcher that exits once
+it has launched them). The pattern never matches, so `USED` stays empty
+forever, and card selection is left with only the "utilization < 15%"
+criterion — and a job that has just started takes tens of seconds to push
+utilization up, so during that window it looks idle.
 
-2026-09-09 那轮的日志留了痕：
+The log from the 2026-09-09 round left a trace of this:
 
 ```
-[14:41] 起 drugclip round1 GPU0
-[14:42] 起 bindclip_randneg round1 GPU0   ← 同一张
-[14:43] 起 bindclip_hardneg round1 GPU1
-[14:47] 起 conglude round1 GPU1           ← 同一张
+[14:41] started drugclip round1 GPU0
+[14:42] started bindclip_randneg round1 GPU0   ← same card
+[14:43] started bindclip_hardneg round1 GPU1
+[14:47] started conglude round1 GPU1           ← same card
 ```
 
-**没有 OOM**（两个任务 8.3 GB + 5.6 GB，24 GB 的卡放得下），而且用掉的卡比
-4 张上限还少，所以那一轮结果是有效的。但这是运气：换两个显存大的模型就会崩。
+**No OOM occurred** (the two jobs are 8.3 GB + 5.6 GB, both fit on a 24 GB
+card), and the number of cards in use still stayed under the 4-GPU cap, so
+that round's results are valid. But this was luck — swap in two models with
+larger memory footprints and it would crash.
 
-修法是把模式改成匹配真实进程名：
+The fix is to change the pattern to match the real process name:
 
 ```bash
 grep -oE 'run_swap_fam(_pocket|_seq)?\.sh [a-z_0-9]+ ([0-9])'
 ```
 
-**同一类坑在本项目里出现过第二次。**上一次是 `swap_queue.sh` 的 `running()`
-用 `grep -cE 'run_swap_...'` 把自己的命令行也数了进去，四个槽实际只能跑三个，
-修法是用 `[r]un_swap` 这种字符类让 grep 不匹配自己。两次都是**进程名模式和
-实际进程对不上**，方向相反：一次多算，一次少算。
+**This is the second time the same kind of pitfall has shown up in this
+project.** Last time it was `swap_queue.sh`'s `running()`, which used
+`grep -cE 'run_swap_...'` and counted its own command line too, so four slots
+could actually only run three jobs; the fix was to use a character class like
+`[r]un_swap` so grep would not match itself. Both times the failure was
+**a process-name pattern that didn't match the actual process**, in opposite
+directions: once overcounting, once undercounting.
 
-写这类调度脚本时，模式改完先跑一次
-`ps -eo args --no-headers | grep -oE '<你的模式>'`
-看它到底抓到了什么，别靠读代码确认。
+When writing this kind of scheduling script, after changing the pattern run
+`ps -eo args --no-headers | grep -oE '<your-pattern>'` once and see what it
+actually catches — don't confirm it just by reading the code.
 
-## 四次索引错位有同一个数据结构根因：并行列表
+## Four index-misalignment bugs share the same underlying data-structure cause: parallel lists
 
-到 2026-09-09 为止，本项目出现过四次「下标对错了、但程序不报错」的 bug：
+As of 2026-09-09, this project has had four bugs where "the index was wrong
+but the program raised no error":
 
-| # | 在哪 | 表现 | 当时的检查 |
+| # | Where | Symptom | Check in place at the time |
 |---|---|---|---|
-| 1 | 模型读 lmdb vs 评测集 jsonl | 分子顺序字典序 vs 插入序 | 只比长度 |
-| 2 | `ligand_novelty.py` B 段 | 同上 | 只比长度 |
-| 3 | `prep_dock.py` | 同上 | 只比长度 |
-| 4 | `score_t2_v2.py` 的 `per_target` | `ups.append` 打了两次，`zip` 静默截断 | 无 |
+| 1 | model reads lmdb vs. eval-set jsonl | lexicographic molecule order vs. insertion order | length comparison only |
+| 2 | `ligand_novelty.py` part B | same as above | length comparison only |
+| 3 | `prep_dock.py` | same as above | length comparison only |
+| 4 | `per_target` in `score_t2_v2.py` | `ups.append` was called twice; `zip` silently truncated | none |
 
-四次的共同点不是「粗心」，是**数据结构**：分子顺序、打分、标签、靶点名被存成
-几个平行的数组或列表，靠**下标**对齐，而下标对齐是没有任何东西检查的。
+What the four have in common is not "carelessness" but the **data
+structure**: molecule order, scores, labels and target names were stored as
+several parallel arrays or lists, aligned by **index** — and index alignment
+is checked by nothing.
 
-### 两个层次的防御，缺一不可
+### Two layers of defense, and neither is optional
 
-**第一层：`zip(..., strict=True)`。** 长度不等立刻抛 `ValueError`，而不是截断到
-最短。第 4 次那个 bug 只要有这一行就会当场炸——`ups` 有 2N 条、`new_r` 有 N 条。
-Python 3.8 没有这个参数，3.10 有；服务器上是 3.10.20。仓库里所有拼并行列表的
-`zip` 都加了。
+**First layer: `zip(..., strict=True)`.** Unequal lengths immediately raise a
+`ValueError` instead of truncating to the shorter one. Bug #4 would have
+blown up on the spot with just this one line — `ups` had 2N entries, `new_r`
+had N. Python 3.8 doesn't have this parameter; 3.10 does, and the server runs
+3.10.20. Every `zip` in the repository that joins parallel lists now has it.
 
-**第二层：`strict=True` 挡不住第 1–3 次。** 那三次两个列表**长度完全相同**，
-只是顺序不同，`strict=True` 一样放行。要挡住只能**在读外部数据的边界上断言语义**：
+**Second layer: `strict=True` does not stop bugs #1–3.** In those three
+cases the two lists had **exactly the same length**, just a different order,
+and `strict=True` lets that straight through. The only way to catch it is to
+**assert semantics at the boundary where external data is read**:
 
 ```python
-# 不是「长度对不对」，是「标签为 1 的位置上，是不是真的是这个靶点的 active」
+# not "is the length right" but "at the positions where the label is 1, are
+# these really that target's actives"
 got = {seq[i] for i in range(n) if labels[i] == 1}
 return seq if got == act else None
 ```
 
-### 治本的那条
+### The fix that addresses the root cause
 
-**能合成一个 record 就别用并行列表。** 第 4 次如果一开始写成
+**Wherever a record can be composed, don't use parallel lists.** If bug #4
+had been written from the start as
 
 ```python
 rows.append({"uniprot": up, "spearman": r, "kendall": t, "n_actives": len(pairs)})
 ```
 
-重复 append 会立刻多出一整行、条数对不上，而且**每行内部永远自洽**——错位这种
-状态根本不可表示。并行列表把「同一个下标是同一个东西」这个不变量交给了程序员
-记忆，record 把它交给了数据结构。
+a duplicate append would immediately produce one extra whole row and the
+count would not match, and **every row is internally self-consistent by
+construction** — a misaligned state simply cannot be represented. Parallel
+lists hand the invariant "the same index is the same thing" over to the
+programmer's memory; a record hands it to the data structure instead.
 
-顺带一条同源的：**百分比是给人读的，倍数要从原始计数算。** §3a 那个相对富集
-一度报成 10.7×，因为拿四舍五入后的 3.2% / 0.3% 相除；从计数算是 12.6×。
-和「EF 取整必须用 ceil 不是 round」是同一类——展示用的取整不能进计算。
+A related note in the same vein: **percentages are for human reading; ratios
+must be computed from the raw counts.** The relative enrichment in §3a was at
+one point reported as 10.7×, because it divided the already-rounded 3.2% by
+0.3%; computed from the counts it is 12.6×. This is the same category of
+mistake as "enrichment cutoffs must use `ceil`, not `round`" — display-time
+rounding must never feed back into computation.
 
-## 追加日志里的结束标记不能当完成信号
+## A completion marker in an append-only log cannot be trusted as a completion signal
 
-挂在 Boltz-2 重排后面的汇总链在 2026-09-10 09:19 空跑了一次：它拿 **0 个分数**
-汇总，写出一个空结果，然后退出。
+The aggregation chain hanging off the Boltz-2 rerank ran empty once, at
+2026-09-10 09:19: it aggregated **0 scores**, wrote out an empty result, and
+exited.
 
-判据写的是「日志里有没有『四个 shard 全部结束』」。而
-`results/logs/boltz_rerank_sub.log` 是 **append** 模式：
+The criterion it checked was "does the log contain 'all four shards
+finished'". But `results/logs/boltz_rerank_sub.log` is in **append** mode:
 
 ```
-[09-09_21:51] 四个 shard 全部结束        ← 第一次（N=5）被杀掉后 wait 返回写的
-[09-09_21:53] shard_0 起在 GPU0 (N=1)   ← 第二次启动
+[09-09_21:51] all four shards finished        ← written when wait returned after the first run (N=5) was killed
+[09-09_21:53] shard_0 started on GPU0 (N=1)   ← the second launch
 ```
 
-链在 09-10 09:19 一 grep 就命中了 12 小时前那条陈旧标记。
+When the chain grepped at 09-10 09:19, it matched that stale marker from 12
+hours earlier.
 
-**追加日志里的标记只说明「某一次跑完了」，不说明「这一次跑完了」。** 想用它
-当信号，得要么每轮清空日志、要么把标记写成带轮次 ID 的文件、要么在启动行之后
-才开始找标记。三种都比「grep 一个固定串」麻烦。
+**A marker in an append-only log only tells you that "some run finished",
+not that "this run finished".** Using it as a signal requires either
+clearing the log every round, writing the marker to a file tagged with a
+round ID, or only starting to look for the marker after the launch line. All
+three are more work than "grep a fixed string".
 
-改成两个不依赖外部状态的判据：
+Changed to two criteria that don't depend on external state:
 
-- **出分数达标**（3,400 / 3,747，留出解析失败的余量）
-- **或停滞检测**：出分数 > 0 且连续 60 分钟没增长（跑完或卡死，都该汇总）
+- **score count reaches the target** (3,400 / 3,747, leaving margin for
+  parse failures)
+- **or stall detection**: score count > 0 and no increase for 60 consecutive
+  minutes (whether it finished or hung, it should be aggregated either way)
 
-### 这是同一个家族的第四次
+### The fourth occurrence of the same family
 
-前三次都是「用进程状态判完成」的变体（见上一条「并行列表」和
-family_queue 那条）：grep 匹配到自己的命令行、模式和实际进程名对不上、
-heredoc 里的脚本名被父进程的命令行带上。这次换成了日志标记，还是错的。
+The first three were all variants of "using process state to judge
+completion" (see the "parallel lists" item above and the family_queue item):
+grep matching its own command line, a pattern that didn't match the actual
+process name, a script name inside a heredoc carried over from the parent
+process's command line. This time it switched to a log marker, and it was
+still wrong.
 
-**共同点：把「一个可能陈旧或自指的外部信号」当成完成信号。**
-可靠的判据只有一类——**直接数这次任务该产出的东西**。
+**The common thread: treating "an external signal that may be stale or
+self-referential" as a completion signal.** There is only one reliable
+criterion — **directly count what this specific run is supposed to
+produce.**
 
-## n 小的时候三个汇总统计量各给一个答案，只有逐单位表是对的
+## When n is small, three summary statistics give three different answers — only the per-unit table is trustworthy
 
-不是代码 bug，是**读数方法的 bug**——但它和这一节其他条目一样，
-让我在公开文档里连着写错两版结论，所以放在这里。
+Not a code bug — a **reading-method bug**. But like the rest of this section
+it made me write two successive wrong conclusions into public documents, so
+it belongs here too.
 
-**场景**：Boltz 重排的性质对照。两组活性（检索找到的 vs 检索漏掉的）
-在七个分子性质上有没有系统差异？单位是靶点，**n=5**。
+**Setting**: the property control for the Boltz rerank. Do the two groups of
+actives (retrieval-found vs. retrieval-missed) differ systematically across
+seven molecular properties? The unit is the target, **n=5**.
 
-同一份数据，三个汇总判据给出三个不同答案：
+The same data, three summary criteria, three different answers:
 
-| 判据 | 给出的结论 | 为什么错 |
+| Criterion | Conclusion it gives | Why it's wrong |
 |---|---|---|
-| 配对后 p 变大 | 「效应消失，是构成效应」 | n 从 1,813 个分子压成 5 个靶点，p 必然崩。**n=5 时 Wilcoxon 双侧 p 的下界就是 2/2⁵ = 0.0625**，这个检验从一开始就够不到 0.05 |
-| pooled/paired 效应量收缩率 | 「MW 收缩 76% 是构成效应；新颖度只收缩 8%，组内真实存在」 | 收缩率是**比值**，和本项目退役掉的 EF 比值同一个坑。失效方式不是分母小（算过 pooled/SD，七维全部 ≥0.25 SD，拦不住），而是 **paired 中位数碰巧落在 pooled 附近**，掩盖单位间的异质 |
-| van Elteren 分层检验 | 重原子 Z=+3.59, **p=0.0003** | 想法本来是对的——配对中位数把 1,813 个分子压成 5 个数，扔掉的正是功效来源。但各层效应的无权均值是 **−0.001**，**权重一变符号就变**。分层检验的前提是各层效应同向，这里不满足 |
+| p grows larger after pairing | "the effect disappears — it was a composition effect" | n collapses from 1,813 molecules to 5 targets, so p necessarily blows up. **At n=5, the lower bound of a two-sided Wilcoxon p-value is 2/2⁵ = 0.0625** — this test could never reach 0.05 to begin with |
+| pooled/paired effect-size shrinkage ratio | "MW shrinking 76% is a composition effect; novelty shrinking only 8% is a real within-group effect" | the shrinkage is a **ratio**, the same trap as the EF ratio this project retired. It doesn't fail because the denominator is small (checked pooled/SD — all seven dimensions are ≥0.25 SD, which rules that out) but because the **paired median happens to land near the pooled value**, masking heterogeneity between units |
+| van Elteren stratified test | heavy atoms Z=+3.59, **p=0.0003** | the idea was right in principle — the paired median collapses 1,813 molecules down to 5 numbers, throwing away exactly where the power comes from. But the unweighted mean of the per-stratum effects is **−0.001**, and **the sign flips depending on the weighting**. A stratified test assumes the per-stratum effects point the same way, and that assumption fails here |
 
-**把五个靶点的数直接列出来，一眼就看见了：**
+**Listing the five targets' numbers directly makes it visible at a glance:**
 
 ```
-逐靶点 AUC = P(missed 的值 > found 的值)，0.5 = 该靶点内分不开
-靶点          MW    重原子   新颖度(亲和半)
+per-target AUC = P(missed value > found value), 0.5 = indistinguishable within that target
+Target        MW    heavy atoms   novelty (affinity half)
 O14578     0.619   0.608      0.094
 O42275     0.217   0.162      0.116
 P20648     0.500   0.478      0.648
@@ -767,48 +801,67 @@ Q8N1C3     0.848   0.845      0.508
 Q96DB2     0.448   0.400      0.470
 ```
 
-**七个维度没有一个在五个靶点上同向。**「8% 收缩」那个效应是 O14578 和 O42275
-两个靶点带的，P20648 反向，另外两个贴着 0.5。**没有共同效应可合并**——
-所以三个汇总统计量才会互相打架，它们都在回答「共同效应有多大」这个
-前提不成立的问题。
+**Not one of the seven dimensions points the same way across the five
+targets.** The "8% shrinkage" effect is carried by two targets, O14578 and
+O42275; P20648 goes the other way, and the other two sit right at 0.5.
+**There is no common effect to pool** — which is exactly why the three
+summary statistics fight each other: they are all answering the question
+"how large is the common effect", and that question's premise does not hold.
 
-**还有一个更基础的坑**：pooled 和 paired 必须用**同一批单位**。第一版拿
-12 个靶点的 pooled 去比 5 个靶点的 paired，那个比较本身就不成立
-（pooled 里混着三个在 paired 里根本没有的靶点）。
+**There is an even more basic pitfall here**: pooled and paired must use
+**the same set of units**. The first version compared a 12-target pooled
+figure against a 5-target paired one, and that comparison was invalid to
+begin with (the pooled set mixed in three targets that were not in the
+paired set at all).
 
-### 规则
+### Rules
 
-- **n ≤ 10 的比较，先列逐单位表，再决定要不要算汇总统计量。**
-  表和统计量打架就信表。
-- 报「效应存在/消失」之前先问：**各单位是不是同向？** 不同向就别用任何单一数字。
-- 配对会把 n 砍到单位数，**别把随之而来的 p 变大读成效应消失**。
-- n 小时把 Wilcoxon 的 p 下界 `2/2**n` 一起打印，提醒自己够不够得到 0.05。
-- 模板：[`physics/check_missed_vs_found_props.py`](physics/check_missed_vs_found_props.py)，
-  主输出就是逐单位表，pooled/paired 那张降级为次要输出并标了警告。
+- **For a comparison with n ≤ 10, list the per-unit table first, and only
+  then decide whether a summary statistic is worth computing.** When the
+  table and the statistic disagree, trust the table.
+- Before reporting "the effect exists / disappears", ask first: **do the
+  units point the same way?** If not, don't use any single number.
+- Pairing cuts n down to the number of units — **don't read the resulting
+  increase in p as the effect disappearing.**
+- When n is small, print the Wilcoxon lower bound `2/2**n` alongside the
+  p-value, as a reminder of whether it could ever reach 0.05.
+- Template: [`physics/check_missed_vs_found_props.py`](physics/check_missed_vs_found_props.py) —
+  its main output is the per-unit table; the pooled/paired figure is
+  demoted to a secondary output and carries a warning.
 
-### 为什么这条值得单独写：本项目 n 小的分析比 n 大的多
+### Why this deserves its own entry: this project has more small-n analyses than large-n ones
 
-L3 只有 19 个靶点、同家族 swap 的 L4 只有 7 对、T6-RE 的子集 n=11、
-对接完整靶点 n=5–9、FEP 16 个体系。**这些地方都适用。**
+L3 has only 19 targets, the homologous-family swap's L4 has only 7 pairs,
+the T6-RE subset has n=11, the fully-docked targets number n=5–9, and the
+FEP benchmark has 16 systems. **All of these apply here.**
 
-已经回查过一遍：上述几处的结论都是**否定式或弱陈述**
-（「没有显著下降」「无法显示它主动变差」），并且同家族 swap 已经写明
-「L4 那几行不能单独引用，结论主要靠 L1 的 32–34 对」。
-承载**正面**因果结论的两处（ConPLex/ConGLUDe 按类别反转）是 n=24 和 n=76，
-都做了逐靶点配对加 BH-FDR，**不在这个失效模式里**。
+A pass has already been made back through them: the conclusions in the
+places above are all **negative or weak statements** ("no significant
+decline", "cannot show it actively gets worse"), and the homologous-family
+swap already states that "the L4 rows cannot be cited on their own — the
+conclusion mainly rests on L1's 32–34 pairs." The two places carrying
+**positive** causal conclusions (the ConPLex/ConGLUDe class-based reversal)
+are at n=24 and n=76, both with per-target pairing plus BH-FDR — **they are
+not in this failure mode.**
 
-## 同一个比例在两个靶点集上有两个值，默认两个都写
+## The same proportion has two different values on two target sets — default to writing both
 
-今天出现频率最高的一类问题，三次：README 发现 9、T3 v2 的 242/222、
-以及这轮的 recall@200——我在 README 写「top-200 覆盖 25%」，那是**实际跑的
-12 个靶点**的数；**全 L4 的 68 个子集靶点是 22.6%**。两个都对，混着用就错。
+The single most frequent category of problem today, showing up three times:
+README finding 9, T3 v2's 242/222, and this round's recall@200 — I wrote
+"top-200 covers 25%" in the README, which is the figure for the **12 targets
+actually run**; **the full L4 350-quota subset's 68 targets give 22.6%**.
+Both are correct; mixing them up is the error.
 
-根因是这个项目有多层嵌套的靶点集：全量 → 350 配额子集（328 条 / 293 靶点）
-→ VSDS 对齐子集（242 条 / 222 靶点）→ 某一轮实际跑的那几个。
-**同一个比例在每一层都有一个不同的值**，而分母通常不写在数字旁边。
+The root cause is that this project has target sets nested across multiple
+layers: the full set → the 350-quota subset (328 entries / 293 targets) →
+the VSDS-matched subset (242 entries / 222 targets) → whichever targets a
+given round actually ran. **The same proportion has a different value at
+every layer**, and the denominator is usually not written next to the
+number.
 
-### 规则
+### Rule
 
-报覆盖率 / 召回率 / 命中率这类比例时，**默认写成
-「X%（12 个靶点）/ Y%（全 68 个）」**，不要先挑一个再等别人发现口径不对。
-只写一个值的时候，分母必须紧跟在后面。
+When reporting a coverage / recall / hit-rate proportion, **default to
+writing it as "X% (12 targets) / Y% (all 68)"** rather than picking one and
+waiting for someone else to notice the definition doesn't match. When only
+one value is given, the denominator must immediately follow it.
