@@ -102,9 +102,11 @@ Wilcoxon 双侧下界就是 2/2^5=0.0625，这个检验读方向不读显著性�
 补回活性把整池的活性占比抬到约 48%，P@5/P@10 的随机基线也是 0.48。
 这是构造集上的**排序**测试，不是富集测量。
 """
+import argparse
 import glob
 import json
 import os
+import random
 
 import numpy as np
 from scipy import stats
@@ -142,22 +144,54 @@ def metrics(lab, sc):
             auroc(sc[lab == 1], sc[lab == 0]))
 
 
-def consistency(vals, null):
-    """逐单位方向与汇总结论是否一致。
+def sign_test(vals, null):
+    """逐单位方向一致性：符号检验（双侧二项，p=0.5），平局剔除。
 
     ⚠️ 这是这轮最大教训的执行件（PATCHES.md「n 小的时候三个汇总统计量各给一个
     答案」）。七个性质维度上，五个靶点没有一个同向——**没有共同效应可合并**，
     三个汇总统计量于是互相打架，因为它们都在回答一个前提不成立的问题。
     不是 n 小的问题，是异质的问题；n 小只是让异质无法被检出。
 
-    所以凡是汇总行承载结论的地方，都要报「几个单位同向」，不同向就标仅供参考。
+    **为什么不是二值标记。** 第一版只标「同向/不同向」，队友指出那在纯随机数据上
+    必然触发——12 个靶点、中等效应，期望也就 8/12 或 9/12，**对真效应和无效应
+    都会亮，读者没法用它区分任何东西**。二值化丢掉了底层计数携带的信息，
+    和比值丢掉两个原始数是同一个形状的错。改成报 k/n 加它的精确二项 p。
+
+    **为什么数的是「高于零假设的个数」而不是「与均值同向的个数」。**
+    后者让数据自己挑方向，再检验这个方向，是轻度的双重浸渍（k 会被系统性抬高：
+    均值方向通常就是多数方向）。数「高于零假设」是方向固定的，
+    这就是标准的符号检验，零分布干净地是 Binomial(n, 0.5)。
+    代价是它测的是「多数在哪边」而不是「均值方向可不可信」——但正是前者
+    才回答「有没有共同效应」。
     """
     v = np.array([x for x in vals if np.isfinite(x)], dtype=float)
-    if len(v) == 0:
-        return 0, 0, False
-    side = np.sign(v.mean() - null)
-    same = int((np.sign(v - null) == side).sum())
-    return same, len(v), same == len(v)
+    v = v[v != null]                       # 平局剔除，符号检验的标准做法
+    n = len(v)
+    if n == 0:
+        return 0, 0, float("nan")
+    k = int((v > null).sum())
+    p = float(stats.binomtest(k, n, 0.5).pvalue)   # 双侧
+    return k, n, p
+
+
+def sign_note(k, n, p):
+    """一行：k/n + 二项 p + 该不该信这一行的汇总。
+
+    ⚠️ n 很小时符号检验**根本达不到 0.05**（n=5 时即使 5/5 也只有 0.0625）。
+    这种情况下「仅供参考」是**检验本身没功效**，不是「逐靶点异质」的证据——
+    两者读起来一样但含义完全相反，所以必须分开写，否则会把「测不了」
+    误读成「测了，是散的」。
+    """
+    if n == 0:
+        return "逐靶点方向：无可用单位"
+    best = 2 / 2 ** n
+    if best >= 0.05:
+        return (f"逐靶点高于零假设 {k}/{n}   二项 p={p:.4f}"
+                f"  ⚠️ n={n} 时符号检验最好也只有 p={best:.4f}，**够不到 0.05**——"
+                f"这一行仅供参考是因为**检验没功效**，不是因为方向散")
+    tag = ("  方向一致" if p < 0.05 else
+           "  ⚠️ **与抛硬币不可区分——这一行仅供参考，结论以逐靶点表为准**")
+    return f"逐靶点高于零假设 {k}/{n}   二项 p={p:.4f}{tag}"
 
 
 def floor_note(n):
@@ -203,12 +237,29 @@ def coverage_gate(man, aff):
 
 
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--smoke", action="store_true",
+                    help="烟雾测试：跳过完成度闸门，把缺的记录用随机分填满，"
+                         "只测所有输出路径跑不跑得通。**数字全无意义**，"
+                         "csv 改写到 /tmp，绝不碰真实结果路径。"
+                         "用途是别等跑完才发现汇总脚本崩了——"
+                         "上一轮就白等过半天。")
+    args = ap.parse_args()
+
     man = json.load(open(MAN))
     aff = load(f"{B}/boltz_rerank_sub_out")
+    if args.smoke:
+        random.seed(0)
+        for e in man["entries"]:
+            aff.setdefault(e["name"], random.uniform(-3, 3))
+        print("[烟雾测试] 已用随机分填满缺的记录——**数字无意义，只测代码路径**")
     tn = man["topn"]
     print(f"Boltz-2 出分 {len(aff):,} / {len(man['entries']):,}\n")
 
     bad = coverage_gate(man, aff)
+    if bad and args.smoke:
+        print(f"\n[烟雾测试] 跳过 {len(bad)} 个靶点的完成度闸门")
+        bad = []
     if bad:
         print(f"\n⛔ {len(bad)} 个靶点不完整，拒绝出主结论。")
         print("   原因见 coverage_gate() 的注释：按复合物切片时，缺失是每个靶点都缺，")
@@ -294,12 +345,11 @@ def main():
 
     p, w, n = wilcoxon_vs(a_missed, 0.5)
     v = np.array([x for x in a_missed if np.isfinite(x)])
-    same, tot, unanimous = consistency(a_missed, 0.5)
+    k_, n_, pb = sign_test(a_missed, 0.5)
     print(f"\n【汇总】missed vs 诱饵   AUROC 均值 {v.mean():.4f}   "
-          f"高于 0.5 的 {w}/{n}   p={p:.4f}")
+          f"高于 0.5 的 {w}/{n}   Wilcoxon p={p:.4f}")
     print(f"  {floor_note(n)}")
-    print(f"  逐靶点同向 {same}/{tot}"
-          + ("" if unanimous else "  ⚠️ **不同向——这一行仅供参考，以上表为准**"))
+    print(f"  {sign_note(k_, n_, pb)}")
     print(f"  （{n} 个靶点全可算：每个都有 >=11 个 missed 活性和 >=84 个诱饵）")
 
     print("\n" + "-" * 72)
@@ -321,9 +371,8 @@ def main():
               f"missed 更高的 {(d > 0).sum()}/{len(d)}")
         # ⚠️ n=5 的 Wilcoxon 双侧 p 下界是 2/2^5=0.0625，够不到 0.05。
         #    报一个注定不显著的 p 值会误导，所以把下界一起写出来。
-        same = int((np.sign(d) == np.sign(np.median(d))).sum())
-        print(f"  逐靶点同向 {same}/{len(d)}"
-              + ("" if same == len(d) else "  ⚠️ **不同向——汇总仅供参考，以逐靶点为准**"))
+        k_, n_, pb = sign_test(d, 0.0)
+        print(f"  {sign_note(k_, n_, pb)}")
         if len(d) >= 2:
             pw = stats.wilcoxon(d).pvalue if not np.allclose(d, 0) else float("nan")
             print(f"  Wilcoxon p={pw:.4f}（⚠️ {floor_note(len(d))}；看上表的逐靶点差）")
@@ -348,16 +397,16 @@ def main():
     for i, lab_, null in ((3, "AUROC", np.full(n_t, 0.5)), (0, "P@5", fa), (1, "P@10", fa)):
         d = V[:, i] - null
         p = stats.wilcoxon(d).pvalue if not np.allclose(d, 0) else float("nan")
-        same = int((np.sign(d) == np.sign(np.mean(d))).sum())
+        k_, n_, pb = sign_test(d, 0.0)
         print(f"  boltz {lab_:6} {V[:, i].mean():.3f} 对随机 {null.mean():.3f}   "
-              f"赢 {(d > 0).sum()}/{n_t}   p={p:.4f}   （{floor_note(n_t)}）")
-        print(f"    逐靶点同向 {same}/{n_t}"
-              + ("" if same == n_t else "  ⚠️ 不同向，汇总仅供参考")) 
+              f"赢 {(d > 0).sum()}/{n_t}   Wilcoxon p={p:.4f}   （{floor_note(n_t)}）")
+        print(f"    {sign_note(k_, n_, pb)}")
 
     print("\n⚠️ 不打印「对 retrieval」的配对检验：补回的活性按构造排在所有诱饵之后，")
     print("   12 个靶点里 5 个的检索 AUROC 是精确的 0。那个比较在任何覆盖率下都是假象。")
 
-    out = f"{B}/results/export/T6_rerank_subset.csv"
+    out = ("/tmp/_smoke_rerank.csv" if args.smoke
+           else f"{B}/results/export/T6_rerank_subset.csv")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     open(out, "w").write("\n".join(rows) + "\n")
     print(f"\n写入 {out}")
