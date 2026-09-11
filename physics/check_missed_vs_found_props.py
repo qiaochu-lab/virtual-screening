@@ -208,8 +208,60 @@ def main():
               % (k, pooled, paired, sh, pw, 2 / 2 ** len(d)))
     print(f"\n⚠️ n={len(use)} 时 Wilcoxon 双侧 p 下界 {2 / 2 ** len(use):.4f}，"
           "这个检验读方向不读显著性。")
-    print("⚠️ 出分之后要做的直接检验：把逐靶点的 Boltz AUROC 差（missed−found）")
-    print("   和上表的性质 AUC 做相关——那才是对题的，比性质上的边际比较强。")
+    join_auroc(use, store, keys)
+
+
+def join_auroc(use, store, keys):
+    """把逐靶点的 Boltz AUROC 差（missed−found）和性质 AUC 并排列出来。
+
+    **这是唯一直接对题的检验**：如果「补回的活性本身更难」成立，那么
+    missed 活性在性质上越极端的靶点，Boltz 的 missed−found 差就该越负。
+
+    ⚠️ **只列五个点，不报 r 和 p。** 理由不是「n=5 功效不足」，而是内在矛盾：
+    **n=5 上的相关系数本身就是个汇总统计量，正是本文件刚证明会骗人的那一类。**
+    用它来检验「汇总统计量会骗人」的结论会自相矛盾。让读者看五个点。
+
+    结果文件不存在时（重排还没跑完）跳过，不报错。
+    """
+    import csv
+    import os
+    f = f"{B}/results/export/T6_rerank_subset.csv"
+    if not os.path.exists(f):
+        print("\n[待办] 重排结果还没生成，出分后重跑本脚本会自动并表：")
+        print("   逐靶点 Boltz AUROC 差（missed−found） × 上表性质 AUC，只列五个点。")
+        return
+    diff = {}
+    for r in csv.DictReader(open(f)):
+        if r.get("method") != "boltz":
+            continue
+        try:
+            m, fo = float(r["auroc_missed_vs_decoy"]), float(r["auroc_found_vs_decoy"])
+        except (ValueError, KeyError):
+            continue
+        if np.isfinite(m) and np.isfinite(fo):
+            diff[r["target"]] = m - fo
+    rows = [(u, diff[u]) for u in use if u in diff]
+    if not rows:
+        print("\n[待办] 结果文件里没有可用的逐靶点 AUROC 差，跳过并表。")
+        return
+    print("\n" + "=" * 72)
+    print("并表：Boltz 的 missed−found 差 × 该靶点的性质 AUC（只列点，不报 r 和 p）")
+    print("=" * 72)
+    hdr = "%-10s%16s" % ("靶点", "Boltz missed−found")
+    for k in keys:
+        hdr += "%14s" % k[:12]
+    print(hdr)
+    print("-" * len(hdr))
+    order = {u: i for i, u in enumerate(use)}
+    for u, d in sorted(rows, key=lambda x: x[1]):
+        line = "%-10s%16.4f" % (u, d)
+        for k in keys:
+            v = store[k]
+            line += "%14.3f" % v[order[u]] if order[u] < len(v) else "%14s" % "-"
+        print(line)
+    print("-" * len(hdr))
+    print("读法：若「补回的活性本身更难」成立，性质 AUC 越极端的靶点，")
+    print("      Boltz 的 missed−found 差应越负。**五个点，自己看，不给 r 和 p。**")
 
 
 if __name__ == "__main__":
