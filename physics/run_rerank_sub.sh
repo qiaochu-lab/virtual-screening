@@ -35,4 +35,23 @@ for S in 0 1 2 3; do
   sleep 20
 done
 wait
-echo "[$(date '+%m-%d_%H:%M')] 四个 shard 全部结束" >> "$LOG/boltz_rerank_sub.log"
+# ⚠️ 成功和崩溃不能打同一行日志。上一轮四个 shard 里崩了三个
+# （FileNotFoundError: pre_affinity_*.npz），而 wait 返回后照样打「全部结束」，
+# 于是 GPU 空转了半天没人发现，而且 68% 的部分结果被当成完整结果读了一次。
+# 逐 shard 核对「亲和力产出数 == 输入数」，不等就在日志里显式报出来。
+ok=1
+for S in 0 1 2 3; do
+  want=$(ls "$B/boltz_rerank_sub/shard_$S"/*.yaml 2>/dev/null | wc -l)
+  got=$(find "$B/boltz_rerank_sub_out/shard_$S" -name 'affinity_*.json' 2>/dev/null | wc -l)
+  if [ "$got" -lt "$want" ]; then
+    echo "[$(date '+%m-%d_%H:%M')] ⚠️ shard_$S 未跑完：出分 $got / 输入 $want" \
+      >> "$LOG/boltz_rerank_sub.log"
+    ok=0
+  else
+    echo "[$(date '+%m-%d_%H:%M')] shard_$S 完成 $got/$want" >> "$LOG/boltz_rerank_sub.log"
+  fi
+done
+[ "$ok" = 1 ] && echo "[$(date '+%m-%d_%H:%M')] ✅ 四个 shard 全部完成" \
+  >> "$LOG/boltz_rerank_sub.log" \
+  || echo "[$(date '+%m-%d_%H:%M')] ❌ 有 shard 未跑完，结果不可用" \
+  >> "$LOG/boltz_rerank_sub.log"

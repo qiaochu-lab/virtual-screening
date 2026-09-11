@@ -400,56 +400,88 @@ but **the significance does not**. So the honest statement is weaker than the on
 we had: *docking rerank does not improve on retrieval, and we cannot show it
 actively hurts.*
 
-### Boltz-2 with recall fixed at 100%: indistinguishable from random
+### Boltz-2 with recall fixed at 100%: run in progress, first numbers withdrawn
 
 The docking run above cannot separate "physics does not help" from "the shortlist
-had nothing to find" — its top-200 holds only 22.6% of the actives. This run
-removes that confound: **every active not in the top-200 was injected back into
-the candidate set**, so recall is 100% by construction
+had nothing to find" — its top-200 holds only 22.6% of the actives. This run is
+designed to remove that confound: **every active not in the top-200 is injected
+back into the candidate set**, so recall is 100% by construction
 ([`physics/prep_rerank.py --inject-actives`](../physics/prep_rerank.py)).
 
 12 L4 targets from the 350-quota subset, 3,747 complexes, Boltz-2 at
 `--diffusion_samples 1` (the 1-vs-5 test above showed no difference), 30 hours on
-4 GPUs. **2,562 of 3,747 scored** — shards 0 and 2 crashed partway with
+4 GPUs in the first pass.
+
+#### ⚠️ Retraction: the 09-11 numbers were computed on incomplete candidate sets
+
+A table published here on 09-11 reported AUROC 0.565 vs a 0.500 random null
+(p = 0.27) with P@5 0.367 and P@10 0.342, and concluded that Boltz-2 orders a
+fully-recalled candidate set no better than chance. **Those numbers are
+withdrawn.** They were not wrong by a little; they were computed on the wrong
+thing.
+
+The first pass scored 2,562 of 3,747 complexes — shards crashed with
 `FileNotFoundError: pre_affinity_*.npz`, which Boltz raises in the affinity phase
-when a structure prediction for that record failed earlier.
+when a record's structure prediction failed earlier. I read that 68% as a coverage
+caveat and published with a limitation note. **That was the mistake: the work was
+sharded by complex, not by target.** Every shard carried a slice of all 12
+targets, so a crashed shard does not cost you whole targets — it takes a bite out
+of every target at once:
 
-⚠️ **The retrieval baseline is unusable in this design, and that is my error.**
-Injecting the actives retrieval missed guarantees they sit below every decoy in
-its ranking — for **5 of the 12 targets retrieval's AUROC is exactly 0.0000**,
-meaning its top-200 contained no actives at all. Any method that does not share
-retrieval's blind spot beats it trivially. The raw table shows
-"Boltz 0.565 vs retrieval 0.228, wins 11/12, p = 0.005"; **that number is an
-artefact of the injection and must not be quoted.**
+```
+靶点          设计   出分   完成率
+  O14578       236    167   70.8%
+  O42275       225    150   66.7%
+  ...
+完成率 中位 68.7%   范围 66.4%–70.8%   >= 95% 的靶点: 0 / 12
+每个 shard 覆盖的靶点数: {0: 12, 1: 12, 2: 12, 3: 12}
+```
 
-**The valid comparison is against random ordering**, since the candidate set's
-active fraction is known per target (median 41%, range 24–75%):
+**Not one of the 12 targets was complete.** A per-target AUROC over two thirds of
+that target's candidates is not the full-set AUROC with a wider confidence
+interval — it is a different quantity, and P@5 over a set missing a third of its
+members is not interpretable at all. There was no "68% result" to report. The
+right move was to finish the run, and that is what is happening.
 
-| | Boltz-2 | random | Δ | wins | p |
-|---|---|---|---|---|---|
-| AUROC | 0.565 | 0.500 | +0.065 | 8/12 | 0.266 |
-| P@5 | **0.367** | 0.437 | **−0.070** | 4/12 | 0.424 |
-| P@10 | **0.342** | 0.437 | **−0.095** | 3/12 | 0.274 |
+**What does survive is the design finding**, because it does not depend on the
+scores: **the retrieval baseline is unusable in this design, and that is my
+error.** Injecting the actives retrieval missed guarantees they sit below every
+decoy in its own ranking — for 5 of the 12 targets retrieval's AUROC came out
+exactly 0.0000, meaning its top-200 contained no actives at all. Any method that
+does not share retrieval's blind spot beats it trivially. **Any "Boltz beats
+retrieval, p = 0.005" line from this design is an artefact of the injection and
+must not be quoted, at any coverage.** The only valid null is random ordering of a
+set whose active fraction is known per target (median 41%, range 24–75%).
 
-(Paired Wilcoxon per target; the null for P@k is that target's own active
-fraction, which is what random selection returns.)
+#### The repair, and what will be reported
 
-> **Given a candidate set that contains every active, Boltz-2 orders it no better
-> than chance.** AUROC sits 0.065 above random and P@5/P@10 sit *below* it; none
-> of the three is significant at n = 12.
+The diagnosis on resume was better than the crash suggested: **the structure phase
+had actually finished on all four shards** (933 / 937 / 933 / 926 records, 100%).
+Only the affinity phase was partial — 626 / 937 / 75 / 924. So the expensive half
+of a 30-hour run is already banked, and the resume costs affinity only.
 
-**This is the result the docking run could not reach.** The earlier negative
-results were all open to "the shortlist was too shallow". With recall at 100%
-that escape is closed, and the answer does not change: on novel targets, physics
-rescoring does not recover actives that retrieval ranked poorly — not because it
-never sees them, but because it cannot tell them from decoys either.
+Two fixes made the resume possible:
 
-⚠️ **Three limits.** (1) n = 12 targets; a real effect smaller than ~0.15 AUROC
-would not be detectable. (2) 68% of the complexes scored; the missing third is
-whatever the two crashed shards had not reached, which is not a random subset.
-(3) The active fraction here (median 41%) is nothing like a screening deck — this
-is a *ranking* test on a constructed set, not an enrichment measurement, and the
-absolute numbers do not transfer.
+1. **Quarantine the poison pills.** 18 records produced no `pre_affinity_*.npz`
+   in the structure phase. Boltz's affinity phase does not skip them, it dies on
+   them, which is how one bad record kills a whole shard. `quarantine_rerank.sh`
+   moves them out of the shard directories before the rerun.
+2. **Verify per shard, not from the log.** The aggregation chain previously keyed
+   off a "四个 shard 全部结束" line in an append-mode log, which had been left
+   there by an earlier killed run. [`physics/run_rerank_sub.sh`](../physics/run_rerank_sub.sh)
+   now counts `affinity_*.json` against each shard's input count and refuses to
+   aggregate when any shard is short.
+
+Boltz skips existing predictions by default, so the resume re-runs only the
+missing affinity calls (~1,167 of 3,729 after quarantine).
+
+When it completes, the reported comparison will be Boltz-2 against **random
+ordering** on complete per-target candidate sets, paired per target. The
+limitations that stand regardless of the outcome: n = 12 targets, so a real effect
+smaller than roughly 0.15 AUROC is not detectable; and the active fraction here
+(median 41%) is nothing like a screening deck — this is a *ranking* test on a
+constructed set, not an enrichment measurement, so the absolute numbers do not
+transfer.
 
 ### Two limits on how far this reaches
 
