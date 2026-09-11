@@ -1,7 +1,10 @@
-"""fig4：每靶点 active 数的分布，以及它对 EF 精度的影响。
+"""fig4: the distribution of actives per target, and its effect on EF
+precision.
 
-左：四层的 active 数分布（对数横轴），标出 ≥10/20/30/50 四道门槛
-右：EF@1% 的步长随 active 数怎么变，为什么小靶点的 EF 是粗糙的
+Left: the actives-per-target distribution for the four layers (log x-axis),
+marking the >=10/20/30/50 thresholds
+Right: how EF@1%'s step size changes with the number of actives, and why EF
+is coarse on small targets
 """
 import csv
 import gzip
@@ -32,7 +35,7 @@ for r in rows:
 fig, (ax, ax2) = plt.subplots(1, 2, figsize=(9.2, 3.6),
                               gridspec_kw={"width_ratios": [1.45, 1]})
 
-# ---- 左：分布
+# ---- left: distribution
 bins = np.logspace(np.log10(10), np.log10(4000), 34)
 for L in LAYERS:
     ax.hist(by[L], bins=bins, histtype="step", lw=1.7, color=COL[L],
@@ -47,9 +50,9 @@ ax.set_ylabel("targets")
 ax.set_title("T3: actives per target span two orders of magnitude", fontsize=9.5, loc="left")
 ax.legend(fontsize=7, frameon=False)
 
-# ---- 右：EF 步长
+# ---- right: EF step size
 a = np.logspace(np.log10(10), np.log10(3000), 200)
-# 池子按 1:50 计，N = 51A；前 1% 有 k = ceil(N/100) 个位置
+# pool computed at 1:50, N = 51A; the top 1% has k = ceil(N/100) positions
 N = 51 * a
 k = np.ceil(N / 100)
 step = 1.0 / (k * a / N)

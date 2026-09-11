@@ -1,14 +1,15 @@
-"""HypSeek _vs 两个种子 vs 官方 _rk，T1 与 T3 并排。
+"""HypSeek _vs, two seeds, vs the official _rk, T1 and T3 side by side.
 
-种子结论只能靠 DUD-E / DEKOIS：LIT-PCBA 只有 15 个靶点，两个种子在那档
-差 17.6%，本身就说明该基准的噪声量级。
+The seed conclusion can only rely on DUD-E / DEKOIS: LIT-PCBA has only 15
+targets, and the two seeds differ by 17.6% there, which by itself tells you
+the noise level of that benchmark.
 """
 import csv, json, os
 B = "/data/work/vs"
 out = f"{B}/results/export/T1_T3_hypseek_seeds.csv"
 os.makedirs(os.path.dirname(out), exist_ok=True)
 
-T1 = {  # 手工录入自 score_ligunity.py 的输出（作者基准列不在本表内）
+T1 = {  # manually entered from score_ligunity.py output (the author's reference column is not in this table)
     "hypseek_rk":    {"DUDE": 56.39, "DEKOIS": 28.83, "PCBA": 8.34},
     "hypseek_vs_s1": {"DUDE": 43.29, "DEKOIS": 23.32, "PCBA": 4.44},
     "hypseek_vs_s2": {"DUDE": 42.03, "DEKOIS": 22.63, "PCBA": 5.22},

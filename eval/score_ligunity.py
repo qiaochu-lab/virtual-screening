@@ -1,20 +1,23 @@
-"""读 LigUnity 推理的原始输出，用我们的统一指标层算分。
+"""Read LigUnity's raw inference output and score it with our unified metric
+layer.
 
-LigUnity 的输出布局（见 unimol/tasks/test_task.py）：
+LigUnity's output layout (see unimol/tasks/test_task.py):
 
     {results_path}/{DUDE|PCBA|DEKOIS}/{target}/
         saved_labels.npy         1=active, 0=decoy
         saved_mols_embed.npy     (n_mol, dim)
         saved_target_embed.npy   (n_pocket, dim)
-        saved_preds.npy          回归架构才有；有则直接用
+        saved_preds.npy          only present for regression architectures; used directly when present
 
-打分方式与官方 ensemble_result.py 一致：
-``(pocket_reps @ mol_reps.T).max(axis=0)``——同一靶点有多个口袋时取最大相似度。
+Scoring matches the official ensemble_result.py:
+``(pocket_reps @ mol_reps.T).max(axis=0)`` — takes the max similarity when a
+target has multiple pockets.
 
-用法：
+Usage:
     python score_ligunity.py <results_path> [--bootstrap]
 
-输出逐靶点指标 + 汇总平均，并与 docs/paper-reference-values.md 的基准值对比。
+Prints per-target metrics plus the aggregate mean, and compares against the
+reference values in docs/paper-reference-values.md.
 """
 import argparse
 import json
@@ -26,32 +29,39 @@ import numpy as np
 
 from metrics import bedroc, bootstrap_ci, enrichment_factor, roc_auc, top_k_recall
 
-# 来自 LigUnity 仓库 results/VS_results/*.csv 的作者基准值（逐靶点平均）。
+# Author reference values from the LigUnity repo's results/VS_results/*.csv
+# (per-target average).
 #
-# 重要：CSV 里有两列不能混用——
-#   "LigUnity"       = 论文最终数值，是 transformer + H-GNN 的 **ensemble** 结果
-#   "LigUnity(seq)"  = 序列塔单模型，对应 arch=protein_ranking
-# 因此 protein_ranking 的原始输出应对标 LigUnity(seq)；
-# 只有跑完 HGNN + ensemble_result.py 之后才能对标 LigUnity。
+# Important: the CSV has two columns that must not be conflated —
+#   "LigUnity"       = the paper's final number, the transformer + H-GNN
+#                       **ensemble** result
+#   "LigUnity(seq)"  = the single sequence-tower model, corresponding to
+#                       arch=protein_ranking
+# So protein_ranking's raw output should be compared against LigUnity(seq);
+# only after running HGNN + ensemble_result.py can it be compared against
+# LigUnity.
 REFERENCE = {
-    "ensemble": {   # "LigUnity" 列
+    "ensemble": {   # "LigUnity" column
         "DUDE":   {"n": 102, "EF1": 52.0421, "BEDROC": 0.7886, "AUROC": 0.9310},
         "DEKOIS": {"n": 81,  "EF1": 28.2123, "BEDROC": 0.8487, "AUROC": 0.9409},
         "PCBA":   {"n": 15,  "EF1": 7.3592,  "BEDROC": 0.0889, "AUROC": 0.5895},
     },
-    "seq": {        # "LigUnity(seq)" 列
+    "seq": {        # "LigUnity(seq)" column
         "DUDE":   {"n": 102, "EF1": 36.8838, "BEDROC": 0.5746, "AUROC": 0.8872},
         "DEKOIS": {"n": 81,  "EF1": 27.1297, "BEDROC": 0.7848, "AUROC": 0.9246},
         "PCBA":   {"n": 15,  "EF1": 6.2208,  "BEDROC": 0.0746, "AUROC": 0.5630},
     },
-    "drugclip": {   # "DrugCLIP" 列
+    "drugclip": {   # "DrugCLIP" column
         "DUDE":   {"n": 102, "EF1": 31.9905, "BEDROC": 0.4997, "AUROC": 0.8070},
         "DEKOIS": {"n": 81,  "EF1": 17.8579, "BEDROC": 0.5040, "AUROC": 0.7906},
         "PCBA":   {"n": 15,  "EF1": 5.5481,  "BEDROC": 0.0624, "AUROC": 0.5717},
     },
-    # BindCLIP 论文 (arXiv 2602.15236) Table 1/2，原文以百分数给出，此处换算为小数。
-    # 注意：同一篇论文里重跑的 DrugCLIP 基线是 EF1=30.52 / AUROC=0.7929，
-    # 与 DrugCLIP 自己论文的 31.99 / 0.8070 差 4.8%——正是"抄论文数字不可比"的实例。
+    # BindCLIP paper (arXiv 2602.15236) Table 1/2; the original gives
+    # percentages, converted to decimals here.
+    # Note: the DrugCLIP baseline rerun within that same paper is EF1=30.52 /
+    # AUROC=0.7929, a 4.8% difference from DrugCLIP's own paper (31.99 /
+    # 0.8070) — exactly the kind of case that makes "copying numbers from
+    # papers" not comparable.
     "bindclip": {
         "DUDE": {"n": 102, "EF1": 32.16, "BEDROC": 0.4973, "AUROC": 0.8014},
         "PCBA": {"n": 15,  "EF1": 6.26,  "BEDROC": 0.0788, "AUROC": 0.5915},
@@ -60,7 +70,7 @@ REFERENCE = {
 
 
 def load_target(target_dir):
-    """读一个靶点的打分与标签。返回 (scores, labels)，读不到则返回 None。"""
+    """Read one target's scores and labels. Returns (scores, labels), or None if unreadable."""
     labels_p = os.path.join(target_dir, "saved_labels.npy")
     if not os.path.exists(labels_p):
         return None
@@ -76,14 +86,14 @@ def load_target(target_dir):
             return None
         mol_reps = np.load(mol_p)
         pocket_reps = np.load(poc_p)
-        # 与官方一致：多口袋取最大
+        # matches the official implementation: take the max across multiple pockets
         scores = (pocket_reps @ mol_reps.T).max(axis=0)
 
     return np.asarray(scores, dtype=float).ravel(), np.asarray(labels).ravel()
 
 
 def score_benchmark(bench_dir, with_ci=False):
-    """算一个 benchmark 下所有靶点的指标。"""
+    """Compute metrics for every target under one benchmark."""
     targets = sorted(
         d for d in os.listdir(bench_dir) if os.path.isdir(os.path.join(bench_dir, d))
     )
@@ -103,7 +113,7 @@ def score_benchmark(bench_dir, with_ci=False):
             "target": t,
             "n_mol": int(len(labels)),
             "n_active": int(labels.sum()),
-            # EF0.1% 是官方实现没有、PPT 要求的那一档
+            # EF0.1% is the tier the official implementation lacks but the PPT requires
             "EF0.1": enrichment_factor(scores, labels, 0.001),
             "EF0.5": enrichment_factor(scores, labels, 0.005),
             "EF1": enrichment_factor(scores, labels, 0.01),

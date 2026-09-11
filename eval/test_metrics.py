@@ -1,7 +1,8 @@
-"""metrics.py 的单元测试。
+"""Unit tests for metrics.py.
 
-用理论边界值验证实现正确性：完美排序、随机排序、全并列等。
-真实数据上的校准由 calibrate_against_ligunity.py 负责。
+Verifies correctness against theoretical boundary values: perfect ranking,
+random ranking, all-tied, etc. Calibration against real data is handled by
+calibrate_against_ligunity.py.
 """
 import numpy as np
 import pytest
@@ -15,7 +16,7 @@ from metrics import (bedroc, bootstrap_ci, enrichment_factor, pr_auc,
 # ---------- enrichment factor ----------
 
 def test_ef_perfect_ranking():
-    """10 个 active 全排最前，EF@10% 应等于理论上限 1/0.1 = 10。"""
+    """All 10 actives ranked first; EF@10% should equal the theoretical ceiling 1/0.1 = 10."""
     scores = np.arange(100, 0, -1, dtype=float)
     labels = np.zeros(100)
     labels[:10] = 1
@@ -23,7 +24,7 @@ def test_ef_perfect_ranking():
 
 
 def test_ef_uniform_ranking_is_about_one():
-    """active 均匀散布时 EF 应接近随机基线 1。"""
+    """When actives are evenly spread out, EF should be close to the random baseline of 1."""
     scores = np.arange(100, 0, -1, dtype=float)
     labels = np.zeros(100)
     labels[::10] = 1
@@ -31,7 +32,7 @@ def test_ef_uniform_ranking_is_about_one():
 
 
 def test_ef_worst_ranking_is_zero():
-    """所有 active 排最后，前 10% 一个都没有 → EF = 0。"""
+    """All actives ranked last, none in the top 10% -> EF = 0."""
     scores = np.arange(100, 0, -1, dtype=float)
     labels = np.zeros(100)
     labels[-10:] = 1
@@ -39,7 +40,7 @@ def test_ef_worst_ranking_is_zero():
 
 
 def test_ef_handles_ties():
-    """全部同分时不应崩溃，结果落在合法区间内。"""
+    """Should not crash when all scores are tied; result should fall within the valid range."""
     scores = np.ones(100)
     labels = np.zeros(100)
     labels[:10] = 1
@@ -54,7 +55,7 @@ def test_ef_no_actives_returns_nan():
 
 
 def test_ef_small_fraction_rounds_to_at_least_one():
-    """EF@0.1% 在只有 100 个分子时，前 N 名至少取 1 个，不能除零。"""
+    """EF@0.1% with only 100 molecules: the top N must be at least 1, avoiding division by zero."""
     scores = np.arange(100, 0, -1, dtype=float)
     labels = np.zeros(100)
     labels[0] = 1
@@ -77,7 +78,7 @@ def test_roc_auc_inverted_is_zero():
 
 
 def test_roc_auc_all_tied_is_half():
-    """全并列时 AUC 应正好是 0.5。"""
+    """AUC should be exactly 0.5 when everything is tied."""
     scores = np.ones(10)
     labels = np.array([1, 1, 1, 1, 1, 0, 0, 0, 0, 0])
     assert roc_auc(scores, labels) == pytest.approx(0.5)
@@ -100,7 +101,7 @@ def test_bedroc_worst_is_near_zero():
 
 
 def test_bedroc_in_unit_interval():
-    """随机排序下 BEDROC 仍应落在 [0,1]。"""
+    """BEDROC should still fall within [0,1] under random ranking."""
     rng = np.random.default_rng(0)
     scores = rng.random(1000)
     labels = np.zeros(1000)
@@ -113,7 +114,7 @@ def test_bedroc_in_unit_interval():
 # ---------- top-k recall ----------
 
 def test_top_k_recall():
-    """前 10 名里有 5 个 active，总共 10 个 active → recall = 0.5。"""
+    """5 actives among the top 10, 10 actives total -> recall = 0.5."""
     scores = np.arange(100, 0, -1, dtype=float)
     labels = np.zeros(100)
     labels[:5] = 1
@@ -131,7 +132,7 @@ def test_top_k_recall_full():
 # ---------- bootstrap ----------
 
 def test_bootstrap_ci_brackets_point_estimate():
-    """置信区间应包含点估计值。"""
+    """The confidence interval should bracket the point estimate."""
     from functools import partial
 
     rng = np.random.default_rng(0)
@@ -163,25 +164,26 @@ def test_bootstrap_ci_is_deterministic_given_seed():
 # ---------------------------------------------------------------- PR-AUC
 
 def test_pr_auc_perfect():
-    """所有 active 排最前面 → AP = 1。"""
+    """All actives ranked first -> AP = 1."""
     scores = [9, 8, 7, 3, 2, 1]
     labels = [1, 1, 1, 0, 0, 0]
     assert abs(pr_auc(scores, labels) - 1.0) < 1e-12
 
 
 def test_pr_auc_worst():
-    """所有 active 排最后 → AP 取最小可能值。"""
+    """All actives ranked last -> AP takes its minimum possible value."""
     scores = [9, 8, 7, 3, 2, 1]
     labels = [0, 0, 0, 1, 1, 1]
-    # 只有走到最后才开始命中：precision 依次是 1/4, 2/5, 3/6
+    # hits only start appearing at the very end: precision is 1/4, 2/5, 3/6 in turn
     expect = (1/3) * (1/4) + (1/3) * (2/5) + (1/3) * (3/6)
     assert abs(pr_auc(scores, labels) - expect) < 1e-12
 
 
 def test_pr_auc_random_baseline():
-    """随机排序下 AP 的期望 ≈ active 占比（不是 0.5）。
+    """Under random ranking, the expected AP ~= the active fraction (not 0.5).
 
-    这是判读 PR-AUC 的基准线，与 ROC-AUC 的 0.5 不同，必须钉住。
+    This is the baseline for reading PR-AUC, distinct from ROC-AUC's 0.5, and
+    must be pinned down explicitly.
     """
     rng = np.random.default_rng(0)
     n, n_act = 2000, 40
@@ -194,16 +196,17 @@ def test_pr_auc_random_baseline():
 
 
 def test_pr_auc_ties_handled_as_group():
-    """全部并列 → 退化为 active 占比，与随机基线一致。"""
+    """All tied -> degenerates to the active fraction, matching the random baseline."""
     labels = [1, 0, 1, 0, 0, 0, 0, 0, 0, 0]
     scores = [5] * 10
     assert abs(pr_auc(scores, labels) - 0.2) < 1e-12
 
 
 def test_pr_auc_matches_sklearn():
-    """与 sklearn 的 average_precision_score 逐例一致。
+    """Matches sklearn's average_precision_score case by case.
 
-    sklearn 是这个指标事实上的参考实现；对不上就是我们错了。
+    sklearn is the de facto reference implementation of this metric; a
+    mismatch means we are wrong.
     """
     sk = pytest.importorskip("sklearn.metrics")
     rng = np.random.default_rng(7)
@@ -212,7 +215,7 @@ def test_pr_auc_matches_sklearn():
         labels = (rng.random(n) < rng.uniform(0.02, 0.4)).astype(int)
         if labels.sum() in (0, n):
             continue
-        # 掺入重复分数，专门考并列的处理
+        # mix in repeated scores, specifically to test tie handling
         scores = np.round(rng.normal(size=n), 1)
         ours = pr_auc(scores, labels)
         theirs = sk.average_precision_score(labels, scores)

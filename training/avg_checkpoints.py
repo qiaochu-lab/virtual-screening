@@ -1,14 +1,18 @@
-"""按官方口径平均第 41–50 轮的权重。
+"""Average the weights of epochs 41-50, matching the official convention.
 
-为什么必须做这一步
+Why this is necessary
 ------------------
-官方发布的权重文件名就是 `checkpoint_avg_41-50_rk.pt`——**它是后十轮的平均**，
-而我们评测用的是单个 best checkpoint。权重平均（SWA 类做法）通常带来可观提升，
-不消掉这个差异就把「我们的 _vs 43.3 vs 官方 _rk 56.4」当成
-「虚筛目标不如排序目标」，是把两个变量混在一起。
+The officially released weight file is literally named
+`checkpoint_avg_41-50_rk.pt` — **it is an average of the last ten epochs**,
+whereas our evaluation used a single best checkpoint. Weight averaging
+(an SWA-style technique) typically brings a sizeable improvement on its own;
+without removing that difference, reading "our _vs 43.3 vs the official _rk
+56.4" as "the screening objective is worse than the ranking objective"
+conflates two separate variables.
 
-平均只对浮点张量做；整型/布尔（如 num_updates 之类的计数）取第一个，
-否则会得到无意义的小数。
+Averaging is only applied to floating-point tensors; integer/boolean entries
+(such as counters like num_updates) keep the first checkpoint's value,
+otherwise they'd end up as meaningless fractions.
 """
 import argparse
 import os

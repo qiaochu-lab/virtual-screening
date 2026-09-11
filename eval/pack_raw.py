@@ -1,9 +1,11 @@
-"""把逐分子的原始打分打包，让合作者能重算这里的每一个指标。
+"""Pack the raw per-molecule scores so collaborators can recompute every
+metric here themselves.
 
-每个模型一个 .npz：键是 "<task>/<layer>/<uniprot>/preds" 和 ".../labels"。
-打分转 float32（原始是 float64，指标算下来完全一样），标签转 int8。
+One .npz per model: keys are "<task>/<layer>/<uniprot>/preds" and
+".../labels". Scores are cast to float32 (the originals are float64, and the
+metrics come out identical either way), labels to int8.
 
-用法：python pack_raw.py [输出目录]
+Usage: python pack_raw.py [output_dir]
 """
 import json, os, sys
 import numpy as np

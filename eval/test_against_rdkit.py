@@ -1,14 +1,17 @@
-"""交叉验证：我们的 metrics.py 与 RDKit 的实现是否口径一致。
+"""Cross-check: does our metrics.py agree with RDKit's implementation?
 
-为什么必须做这一步
+Why this is necessary
 ------------------
-LigUnity 官方的 ``ensemble_result.py`` 用的是
-``rdkit.ML.Scoring.Scoring`` 的 ``CalcBEDROC / CalcAUC / CalcEnrichment``。
-横评要求所有模型走同一套指标代码，而我们自建的 eval/ 要能替代官方实现，
-就必须先证明二者在同样输入下给出同样的数。
+LigUnity's official ``ensemble_result.py`` uses
+``rdkit.ML.Scoring.Scoring``'s ``CalcBEDROC / CalcAUC / CalcEnrichment``.
+The head-to-head comparison requires every model to go through the same
+metric code, and for our own eval/ to stand in for the official
+implementation, we first have to prove the two give the same numbers on the
+same input.
 
-对不上不一定是我们错——也可能是定义差异（如并列名次、取整规则）。
-但差异必须被查明并记录，不能糊过去。
+A mismatch is not necessarily our error — it could also be a definitional
+difference (e.g. tie-breaking, rounding rule). But any difference must be
+identified and recorded, not glossed over.
 """
 import numpy as np
 import pytest
@@ -18,29 +21,32 @@ from metrics import bedroc, enrichment_factor, roc_auc
 
 
 def _rdkit_input(scores, labels):
-    """RDKit 要求：按分数降序排列的 [[score, label], ...]。"""
+    """RDKit requires: [[score, label], ...] sorted by descending score."""
     arr = np.column_stack([np.asarray(scores, float), np.asarray(labels, float)])
     return arr[arr[:, 0].argsort()[::-1]]
 
 
 def _cases():
-    """构造多组规模/活性比例各异的随机数据。
+    """Build several batches of random data with varying sizes and active
+    ratios.
 
-    ⚠️ 必须包含 ``n * fraction`` 非整数的规模。早期版本只用了 300/500/1000/2000，
-    这些数配 0.5%/1%/2%/5% 全是整数，掩盖了 round 与 ceil 的差异——
-    直到在真实 DUD-E 数据（靶点分子数 2343、9448、52056…）上才暴露出来。
+    Must include sizes where ``n * fraction`` is not an integer. An earlier
+    version only used 300/500/1000/2000, all of which give integers at
+    0.5%/1%/2%/5%, masking the difference between round and ceil — it only
+    surfaced on real DUD-E data (target molecule counts of 2343, 9448,
+    52056...).
     """
     out = []
     for seed, n, n_act in [
         (0, 500, 25), (1, 1000, 10), (2, 2000, 100), (3, 300, 3),
-        # 以下规模会让 n*fraction 落在非整数上，专门覆盖取整分歧
+        # the following sizes make n*fraction land on a non-integer, specifically to cover the rounding disagreement
         (4, 2343, 40), (5, 9448, 158), (6, 1207, 37), (7, 4247, 13),
     ]:
         rng = np.random.default_rng(seed)
         labels = np.zeros(n)
         labels[:n_act] = 1
         rng.shuffle(labels)
-        # 让分数与标签弱相关，模拟真实模型输出
+        # make scores weakly correlated with labels, to simulate real model output
         scores = rng.random(n) + labels * 0.6
         out.append((f"n={n},act={n_act}", scores, labels))
     return out

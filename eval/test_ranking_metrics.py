@@ -1,7 +1,9 @@
-"""T2 排序指标的测试。
+"""Tests for the T2 ranking metrics.
 
-上次的教训：合成数据若只覆盖「好情况」，等于没测。
-这里刻意包含完美/反向/并列/全同/单点等边界，以及与 scipy 的交叉验证。
+Lesson from last time: synthetic data that only covers the "happy path" is
+equivalent to not testing at all. This deliberately includes edge cases —
+perfect / inverted / tied / all-identical / single-point — plus cross-checks
+against scipy.
 """
 import numpy as np
 import pytest
@@ -22,7 +24,7 @@ def test_spearman_inverted():
 
 
 def test_spearman_monotonic_invariance():
-    """Spearman 对单调变换不敏感——这是它相对 Pearson 的关键性质。"""
+    """Spearman is insensitive to monotonic transforms — this is its key property relative to Pearson."""
     true = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     pred = np.array([0.1, 0.5, 0.9, 2.0, 9.0])
     assert spearman(pred, true) == pytest.approx(spearman(np.exp(pred), true))
@@ -44,17 +46,18 @@ def test_spearman_degenerate_returns_nan():
 # ---------- R² ----------
 
 def test_r2_is_squared_pearson_not_regression_r2():
-    """确认 R² 用的是 Pearson r 的平方，而非 1 - SS_res/SS_tot。
+    """Confirm R^2 uses the square of Pearson r, not 1 - SS_res/SS_tot.
 
-    模型输出的相似度分数与实测亲和力量纲不同，回归式 R² 会得到大负数，
-    这里必须是前者。
+    Model output similarity scores are on a different scale from measured
+    affinities; the regression form of R^2 would produce large negative
+    numbers, so it must be the former here.
     """
     true = np.array([1.0, 2.0, 3.0, 4.0])
-    pred = true * 100 + 50          # 完全线性但量纲差 100 倍
+    pred = true * 100 + 50          # perfectly linear but on a 100x different scale
     assert r2_score(pred, true) == pytest.approx(1.0)
     ss_res = ((true - pred) ** 2).sum()
     ss_tot = ((true - true.mean()) ** 2).sum()
-    assert 1 - ss_res / ss_tot < -1000        # 回归式 R² 在此场景毫无意义
+    assert 1 - ss_res / ss_tot < -1000        # the regression form of R^2 is meaningless in this scenario
 
 
 def test_r2_in_unit_interval():
@@ -75,16 +78,16 @@ def test_pairwise_perfect_and_inverted():
 
 
 def test_pairwise_counts_all_pairs():
-    """4 个配体应有 C(4,2)=6 对；预测把最后两个排反 → 5/6。"""
+    """4 ligands should give C(4,2)=6 pairs; the prediction swaps the last two -> 5/6."""
     true = [1.0, 2.0, 3.0, 4.0]
     pred = [1.0, 2.0, 4.0, 3.0]
     assert pairwise_accuracy(pred, true) == pytest.approx(5 / 6)
 
 
 def test_pairwise_tol_skips_indistinguishable_pairs():
-    """tol 之内的配体对应被跳过，而不是算作错误。"""
-    true = [1.0, 1.2, 5.0]        # 前两个差 0.2，在 tol=0.5 内
-    pred = [2.0, 1.0, 9.0]        # 前两个预测反了
+    """Ligand pairs within tol should be skipped, not counted as errors."""
+    true = [1.0, 1.2, 5.0]        # the first two differ by 0.2, within tol=0.5
+    pred = [2.0, 1.0, 9.0]        # the first two are predicted in reversed order
     assert pairwise_accuracy(pred, true, tol=0.0) == pytest.approx(2 / 3)
     assert pairwise_accuracy(pred, true, tol=0.5) == pytest.approx(1.0)
 
@@ -104,7 +107,7 @@ def test_kendall_matches_scipy(seed):
 
 
 def test_kendall_equals_pairwise_when_no_ties():
-    """无并列时，Kendall τ 与 pairwise accuracy 满足 τ = 2*acc - 1。"""
+    """With no ties, Kendall tau and pairwise accuracy satisfy tau = 2*acc - 1."""
     rng = np.random.default_rng(3)
     true = rng.normal(size=20)
     pred = rng.normal(size=20)

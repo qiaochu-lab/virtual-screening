@@ -1,16 +1,21 @@
-"""把 LigUnity 打包的 casf.lmdb 拆成 HypSeek 训练时验证集要的三个文件。
+"""Split LigUnity's packed casf.lmdb into the three files HypSeek's training
+validation set expects.
 
-为什么要拆
+Why the split is needed
 ----------
-HypSeek 的 CASF 验证分支读 `valid_lig.lmdb` / `valid_prot.lmdb` /
-`valid_label_seq.json` 三个文件，而 LigUnity 把 CASF 打包成一个 casf.lmdb
-（每条记录同时含配体和口袋字段）。两边只是打包方式不同，数据是同一份。
+HypSeek's CASF validation branch reads three files — `valid_lig.lmdb` /
+`valid_prot.lmdb` / `valid_label_seq.json` — while LigUnity packs CASF into a
+single casf.lmdb (each record holds both ligand and pocket fields together).
+The two are just different packaging of the same underlying data.
 
-用 CASF 作验证集是必须的：它决定了 best checkpoint 按 `valid_bedroc` 选，
-也就是"虚筛权重" _vs 的选法。若改用 FEP 验证集，选出来的就是已公开的 _rk。
+Using CASF as the validation set is required: it is what determines the best
+checkpoint by `valid_bedroc`, which is exactly how the "screening weight" _vs
+is selected. Using the FEP validation set instead would select the already
+public _rk.
 
-拆的时候保持 pocket 名去重：口袋 lmdb 每个蛋白一条，配体 lmdb 每个复合物一条，
-与 HypSeek 的 load_pockets_dataset / load_mols_dataset 的预期一致。
+When splitting, pocket names are de-duplicated: the pocket lmdb gets one
+entry per protein, the ligand lmdb one entry per complex, matching what
+HypSeek's load_pockets_dataset / load_mols_dataset expect.
 """
 import json
 import os
@@ -50,7 +55,7 @@ def main():
         env.close()
         print(f"写入 {p}（{len(recs)} 条）")
 
-    # 标签文件内容与 casf_label_seq.json 完全相同，做个软链避免两份不同步
+    # the label file's content is identical to casf_label_seq.json; symlink it to avoid the two drifting out of sync
     src = f"{OUT}/casf_label_seq.json"
     dst = f"{OUT}/valid_label_seq.json"
     if not os.path.exists(dst):

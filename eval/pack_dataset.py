@@ -1,14 +1,16 @@
-"""把 T3 时间外推数据集打包成可发布的形式。
+"""Pack the T3 time-split dataset into a publishable form.
 
-原始 eval jsonl 有 955 MB，因为跨靶点诱饵是从同一个池子抽的，同一个分子的
-SMILES + InChIKey 在几百个靶点里各存了一份。这里拆成规范化的三张表：
+The raw eval jsonl is 955 MB, because cross-target decoys are drawn from a
+shared pool, so the same molecule's SMILES + InChIKey get stored once for
+each of hundreds of targets. This splits it into three normalized tables:
 
-  molecules.csv.gz   全局唯一分子表：mol_id, smiles, inchikey
-  targets.csv.gz     靶点表：uniprot, layer, n_actives, n_decoys, ratio
+  molecules.csv.gz   global unique-molecule table: mol_id, smiles, inchikey
+  targets.csv.gz     target table: uniprot, layer, n_actives, n_decoys, ratio
   actives.csv.gz     uniprot, layer, mol_id, paff
   decoys.csv.gz      uniprot, layer, mol_id
 
-3D 构象不打包（17 GB，且可以用 RDKit 从 SMILES 重新生成）。口袋单独打包。
+3D conformers are not packed (17 GB, and can be regenerated from SMILES with
+RDKit). Pockets are packed separately.
 """
 import csv, gzip, json, os, sys
 
@@ -25,7 +27,7 @@ dec_rows = []
 
 
 def intern(smi, ikey):
-    """同一个分子只存一次。没有 inchikey 的退回用 smiles 做键。"""
+    """Store each molecule only once. Molecules without an inchikey fall back to using smiles as the key."""
     key = ikey or f"SMI:{smi}"
     i = mol_id.get(key)
     if i is None:

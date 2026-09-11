@@ -1,8 +1,11 @@
-"""Benchmark 的三张图。用 dock 环境（唯一装了 matplotlib 的）。
+"""Three figures for the benchmark. Uses the dock environment (the only one
+with matplotlib installed).
 
-fig1  T3 各层 AUROC 衰减        —— 主发现：时间外推下所有模型一致衰减
-fig2  T1 模型 x 基准 EF1% 热图  —— 训练数据分层比架构更能区分性能
-fig3  T6 物理方法重排对比        —— 两种物理方法都没带来收益
+fig1  T3 AUROC decay across layers      -- main finding: all models decay
+      consistently under time-split extrapolation
+fig2  T1 model x benchmark EF1% heatmap -- training-data grouping separates
+      performance better than architecture
+fig3  T6 physics rerank comparison      -- neither physics method gave a benefit
 """
 import csv, os
 from collections import defaultdict
@@ -27,7 +30,7 @@ NICE = {"hypseek_rk": "HypSeek", "ligunity_protein_ranking": "LigUnity-protein",
         "bindclip_hardneg": "BindCLIP-hardneg", "conglude": "ConGLUDe",
         "conplex": "ConPLex", "sprint": "SPRINT",
         "ligunity_pocket": "LigUnity-pocket", "ligunity_protein": "LigUnity-protein"}
-# 训练数据分组：PocketAffDB 一组，DrugCLIP set 一组，其余各自
+# training-data grouping: PocketAffDB as one group, the DrugCLIP set as another, everything else on its own
 POCKETAFF = {"hypseek_rk", "hypseek", "ligunity_pocket_ranking", "ligunity_protein_ranking",
              "ligunity_pocket", "ligunity_protein", "litenclip"}
 DRUGCLIPSET = {"drugclip", "bindclip_randneg", "bindclip_hardneg"}
@@ -47,7 +50,7 @@ for m in sorted(by, key=lambda x: -by[x].get("L1", 0)):
     c = "#2a5d9f" if m in POCKETAFF else ("#c0632a" if m in DRUGCLIPSET else "#7a7f8a")
     ax.plot(range(4), y, "o-", color=c, lw=1.6, ms=4, alpha=.9)
     labs.append([y[3], NICE.get(m, m), c])
-# 标签互相顶开，避免重叠：自上而下扫一遍，间距不足就往下推
+# push labels apart to avoid overlap: sweep top-to-bottom, nudge down when spacing is too tight
 labs.sort(key=lambda t: -t[0])
 GAP = 0.023
 for i in range(1, len(labs)):
@@ -96,8 +99,11 @@ fig.savefig(f"{OUT}/fig2_t1_heatmap.pdf", bbox_inches="tight"); plt.close(fig)
 
 # ---------------- fig 3: T6 physics
 def agg(path, mcol, metric):
-    """所有靶点都用。部分覆盖（超时）只影响绝对水平，不影响同一批配体上
-    两种排序方式的相对比较——而这张图比的正是相对差。完整靶点数另外标注。"""
+    """Uses every target. Partial coverage (from timeouts) affects only the
+    absolute level, not the relative comparison between two ranking methods
+    on the same batch of ligands — and that relative difference is exactly
+    what this figure compares. The count of complete targets is annotated
+    separately."""
     rows = rd(path); d = defaultdict(list); n_part = 0
     for r in rows:
         d[r[mcol]].append(float(r[metric]))

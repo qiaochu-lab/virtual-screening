@@ -1,14 +1,17 @@
-"""统一评测指标。所有被评测模型共用，保证横评可比。
+"""Unified evaluation metrics. Shared by every model under evaluation, so the
+head-to-head comparison stays comparable.
 
-约定
+Conventions
 ----
-- ``labels``：1 = active，0 = inactive/decoy
-- ``scores``：越大表示越可能是 active
-- 并列名次统一用「平均秩」处理，避免因各家排序实现不同产生偏差
+- ``labels``: 1 = active, 0 = inactive/decoy
+- ``scores``: higher means more likely to be active
+- Ties are always broken with "average rank", to avoid bias from
+  implementation differences across models' own ranking code
 
-这套实现的正确性由两层保证：
-1. ``test_metrics.py`` 的单元测试（理论边界值）
-2. 在 LigUnity 官方输出上复现 Patterns 论文数值（见 calibrate_against_ligunity.py）
+Correctness of this implementation rests on two layers:
+1. ``test_metrics.py`` unit tests (theoretical boundary values)
+2. Reproducing the Patterns paper's numbers on LigUnity's official output
+   (see calibrate_against_ligunity.py)
 """
 import math
 
@@ -17,29 +20,36 @@ from scipy.stats import rankdata
 
 
 def _ranks(scores):
-    """返回 1-based 排名，分数越高排名越靠前；并列取平均秩。"""
+    """Return 1-based ranks, higher score ranks first; ties get the average rank."""
     return rankdata(-np.asarray(scores, dtype=float), method="average")
 
 
 def enrichment_factor(scores, labels, fraction):
-    """EF@fraction：前 fraction 比例中 active 的富集倍数。
+    """EF@fraction: the enrichment factor of actives within the top fraction.
 
-    EF = (前 N 名中的 active 数 / N) / (总 active 数 / 总数)
+    EF = (actives in the top N / N) / (total actives / total)
 
-    理论上限是 ``min(1/fraction, n_total/n_active)``——**不是 1/fraction**。
-    在 1:50 的活性:诱饵比例下，活性只占 1/51，所以 EF@1% 最高只能到 51 而非 100。
-    早先的注释写成 1/fraction，会让人以为 39 只用掉了量程的 39%，实际是 77%。
+    The theoretical ceiling is ``min(1/fraction, n_total/n_active)`` — **not
+    1/fraction**. At a 1:50 active:decoy ratio, actives are only 1/51 of the
+    pool, so EF@1% can reach at most 51, not 100. An earlier comment wrote
+    the ceiling as 1/fraction, which made 39 look like it used only 39% of
+    the available range, when it actually used 77%.
 
-    取整规则用 **ceil**，与 RDKit ``CalcEnrichment`` 一致
-    （其源码为 ``numPerFrac = [math.ceil(numMol * f) for f in fractions]``）。
-    这一点很容易搞错：改用 round 会在 ``n * fraction`` 非整数时产生偏差，
-    实测 DUD-E 上 102 个靶点有 37 个受影响，均值差 0.2%。
+    Rounding uses **ceil**, matching RDKit's ``CalcEnrichment``
+    (whose source has ``numPerFrac = [math.ceil(numMol * f) for f in
+    fractions]``). This is easy to get wrong: switching to round introduces
+    bias whenever ``n * fraction`` is not an integer — measured on DUD-E, 37
+    of 102 targets are affected, with a 0.2% difference in the mean.
 
-    并列按**期望值处理**：跨越截断线的并列组，只计入按比例应得的那部分活性。
-    之前用平均秩 ``labels[ranks <= n_top]``，一个横跨截断线的大并列组会被
-    **整组**计入，于是 ``n_active_top`` 可能超过 ``n_top``、EF 超过理论上限——
-    纯配体基线（Tanimoto 取值离散、并列极多）实测报出 51.13，上限是 51.00。
-    对真实模型的连续分数几乎无影响（实测最大差 0.04，即 0.1%）。
+    Ties are handled by **expected value**: a tie group that straddles the
+    cutoff only contributes the proportional share of actives it is due. The
+    earlier approach used average rank (``labels[ranks <= n_top]``), which
+    counted a large tie group straddling the cutoff **in full**, so
+    ``n_active_top`` could exceed ``n_top`` and EF could exceed its
+    theoretical ceiling — the ligand-only baseline (whose Tanimoto values are
+    discrete, so ties are extremely common) measured 51.13 against a ceiling
+    of 51.00. Real models' continuous scores are barely affected (largest
+    observed difference 0.04, i.e. 0.1%).
     """
     labels = np.asarray(labels)
     scores = np.asarray(scores, dtype=float)
@@ -62,7 +72,7 @@ def enrichment_factor(scores, labels, fraction):
         if size <= left:
             got += act
             left -= size
-        else:                      # 并列组跨过截断线，按比例计入
+        else:                      # tie group straddles the cutoff, counted proportionally
             got += act * left / size
             left = 0
         i = j
@@ -71,7 +81,7 @@ def enrichment_factor(scores, labels, fraction):
 
 
 def roc_auc(scores, labels):
-    """ROC AUC。用 Mann-Whitney U 的等价形式，天然正确处理并列。"""
+    """ROC AUC. Uses the Mann-Whitney U equivalent form, which handles ties correctly by construction."""
     labels = np.asarray(labels)
     n_active = int(labels.sum())
     n_decoy = len(labels) - n_active
@@ -83,10 +93,12 @@ def roc_auc(scores, labels):
 
 
 def bedroc(scores, labels, alpha=80.5):
-    """BEDROC，Truchon & Bayly (2007) 定义。
+    """BEDROC, as defined by Truchon & Bayly (2007).
 
-    alpha=80.5 是虚筛领域惯例，对应「80% 的权重集中在前 2%」。
-    返回值归一化到 [0, 1]，1 表示完美早期富集。
+    alpha=80.5 is the virtual-screening convention, corresponding to "80% of
+    the weight concentrated in the top 2%".
+    The return value is normalised to [0, 1], where 1 means perfect early
+    enrichment.
     """
     labels = np.asarray(labels)
     n_total = len(labels)
@@ -97,12 +109,12 @@ def bedroc(scores, labels, alpha=80.5):
     ranks = _ranks(scores)
     ratio = n_active / n_total
 
-    # RIE = 观测到的指数加权富集 / 随机排序的期望值
+    # RIE = observed exponentially-weighted enrichment / expected value under random ranking
     rie_sum = np.exp(-alpha * ranks[labels == 1] / n_total).sum()
     rie_random = ratio * (1 - np.exp(-alpha)) / (np.exp(alpha / n_total) - 1)
     rie = rie_sum / rie_random
 
-    # 归一化到 [0,1]
+    # normalise to [0,1]
     rie_max = (1 - np.exp(-alpha * ratio)) / (ratio * (1 - np.exp(-alpha)))
     rie_min = (1 - np.exp(alpha * ratio)) / (ratio * (1 - np.exp(alpha)))
 
@@ -110,23 +122,31 @@ def bedroc(scores, labels, alpha=80.5):
 
 
 def pr_auc(scores, labels):
-    """PR-AUC（average precision）。
+    """PR-AUC (average precision).
 
-    为什么在这个 benchmark 里需要它：EF@fraction 卡在一个截断位置上，命中数
-    只能取整数，所以它的取值被 active 数量化成台阶——每靶点只有 10 个 active
-    时，EF@1% 的步长约 8.5，而各层均值才 8–39。跨靶点平均时，这种粗糙测量和
-    精细测量被等权对待。PR-AUC 用整个排序、不卡截断，没有这个量化问题；
-    同时它以正类为中心，对 1:50 这样的不平衡比 ROC-AUC 敏感得多
-    （ROC-AUC 在重度不平衡下容易虚高）。
+    Why this benchmark needs it: EF@fraction is pinned to a single cutoff
+    position, and the hit count can only be an integer, so its value is
+    quantised into steps by the number of actives — with only 10 actives per
+    target, EF@1%'s step size is about 8.5, while the per-layer means are
+    only 8-39. Averaging across targets treats this coarse measurement and a
+    fine one with equal weight. PR-AUC uses the whole ranking rather than a
+    single cutoff, so it does not have this quantisation problem; it is also
+    centred on the positive class, making it far more sensitive to an
+    imbalance like 1:50 than ROC-AUC (which tends to look inflated under
+    heavy imbalance).
 
-    用 average precision 形式：AP = Σ (R_n − R_{n−1}) · P_n，即 sklearn 的
-    ``average_precision_score``。这是阶梯求和而非梯形插值——梯形法在 PR 曲线
-    上会高估。
+    Uses the average-precision form: AP = Sum (R_n - R_{n-1}) * P_n, i.e.
+    sklearn's ``average_precision_score``. This is a step-function sum, not
+    trapezoidal interpolation — trapezoidal integration overestimates on a
+    PR curve.
 
-    并列分数按「同一组内一起进入」处理：组内所有样本共享该组结束处的
-    precision/recall，避免因排序实现不同产生偏差（与本模块其他指标一致）。
+    Tied scores are handled as "entering together as one group": all samples
+    in a group share the precision/recall at the point where that group
+    ends, avoiding bias from implementation differences in ranking
+    (consistent with the other metrics in this module).
 
-    随机排序的期望值等于 active 占比，所以判读时要跟那个比，不是跟 0.5 比。
+    The expected value under random ranking equals the active fraction, so
+    read this metric against that baseline, not against 0.5.
     """
     scores = np.asarray(scores, dtype=float)
     labels = np.asarray(labels)
@@ -138,10 +158,10 @@ def pr_auc(scores, labels):
     s_sorted = scores[order]
     y_sorted = labels[order]
 
-    # 并列分数归为一组，组内一起计入
+    # tied scores are grouped together, counted as one group
     tp = np.cumsum(y_sorted)
     fp = np.cumsum(1 - y_sorted)
-    # 每组最后一个位置的下标
+    # index of the last position in each group
     group_end = np.r_[np.nonzero(np.diff(s_sorted))[0], len(s_sorted) - 1]
 
     tp_g = tp[group_end]
@@ -149,13 +169,13 @@ def pr_auc(scores, labels):
     precision = tp_g / (tp_g + fp_g)
     recall = tp_g / n_active
 
-    # AP = Σ (R_n − R_{n−1}) · P_n，R_0 = 0
+    # AP = Sum (R_n - R_{n-1}) * P_n, R_0 = 0
     d_recall = np.diff(np.r_[0.0, recall])
     return float((d_recall * precision).sum())
 
 
 def top_k_recall(scores, labels, k):
-    """前 k 名中召回的 active 占全部 active 的比例。"""
+    """Fraction of all actives recalled within the top k."""
     labels = np.asarray(labels)
     n_active = int(labels.sum())
     if n_active == 0:
@@ -166,15 +186,15 @@ def top_k_recall(scores, labels, k):
 
 
 def bootstrap_ci(fn, scores, labels, n=1000, seed=0, ci=0.95):
-    """对任意指标做 bootstrap 置信区间。
+    """Bootstrap confidence interval for any metric.
 
-    参数
+    Parameters
     ----
-    fn : 形如 ``fn(scores, labels) -> float`` 的可调用对象。
-         带额外参数的指标先用 functools.partial 固定，例如
-         ``partial(enrichment_factor, fraction=0.01)``。
+    fn : a callable of the form ``fn(scores, labels) -> float``.
+         For metrics with extra arguments, fix them first with
+         functools.partial, e.g. ``partial(enrichment_factor, fraction=0.01)``.
 
-    返回 (下界, 上界)。
+    Returns (lower bound, upper bound).
     """
     rng = np.random.default_rng(seed)
     scores = np.asarray(scores, dtype=float)
@@ -196,16 +216,17 @@ def bootstrap_ci(fn, scores, labels, n=1000, seed=0, ci=0.95):
 
 
 # ============================================================================
-# T2 亲和力排序指标（PPT slide 11：Spearman ρ / R² / pairwise accuracy）
+# T2 affinity ranking metrics (PPT slide 11: Spearman rho / R^2 / pairwise accuracy)
 #
-# 与 T1 的区别：T1 是「从大库里捞出活性分子」（二分类富集），
-# T2 是「同一靶点内，活性强的能否排在活性弱的前面」（连续值排序）。
-# 因此这里的 y_true 是实测亲和力（如 pIC50 / ΔG），不是 0/1 标签。
+# Difference from T1: T1 is "pulling active molecules out of a large pool"
+# (binary-classification enrichment); T2 is "within one target, do the more
+# potent ligands rank ahead of the weaker ones" (continuous-value ranking).
+# So y_true here is a measured affinity (e.g. pIC50 / dG), not a 0/1 label.
 # ============================================================================
 
 
 def spearman(pred, true):
-    """Spearman 秩相关。对单调变换不敏感，是排序任务的主指标。"""
+    """Spearman rank correlation. Insensitive to monotonic transforms, the primary metric for ranking tasks."""
     pred = np.asarray(pred, dtype=float)
     true = np.asarray(true, dtype=float)
     if len(pred) < 2 or np.all(pred == pred[0]) or np.all(true == true[0]):
@@ -214,7 +235,7 @@ def spearman(pred, true):
 
 
 def pearson(pred, true):
-    """Pearson 线性相关。"""
+    """Pearson linear correlation."""
     pred = np.asarray(pred, dtype=float)
     true = np.asarray(true, dtype=float)
     if len(pred) < 2 or np.all(pred == pred[0]) or np.all(true == true[0]):
@@ -223,22 +244,27 @@ def pearson(pred, true):
 
 
 def r2_score(pred, true):
-    """决定系数 R²。
+    """Coefficient of determination R^2.
 
-    ⚠️ 注意：这里用的是 **Pearson r 的平方**，不是回归意义上的
-    ``1 - SS_res/SS_tot``。虚筛模型输出的是相似度分数而非绝对亲和力，
-    量纲不同，用后者会得到无意义的大负数。
-    文献中报告 protein-ligand 排序的 R² 通常也指前者，但两者必须区分清楚。
+    Note: this uses the **square of Pearson r**, not the regression
+    definition ``1 - SS_res/SS_tot``. Virtual-screening models output
+    similarity scores rather than absolute affinities — the units differ,
+    and using the regression form produces meaningless large negative
+    numbers. The literature reporting R^2 for protein-ligand ranking usually
+    also means the former, but the two must be kept distinct.
     """
     r = pearson(pred, true)
     return float("nan") if np.isnan(r) else r * r
 
 
 def pairwise_accuracy(pred, true, tol=0.0):
-    """成对排序准确率：任取两个配体，预测的强弱关系与实测一致的比例。
+    """Pairwise ranking accuracy: for any two ligands, the fraction where the
+    predicted stronger/weaker relationship agrees with the measured one.
 
-    ``tol``：实测值差异小于该阈值的配体对视为「无法区分」而跳过，
-    避免实验误差范围内的配体对稀释指标（FEP 数据常用 tol=0.5 kcal/mol）。
+    ``tol``: ligand pairs whose measured difference is below this threshold
+    are treated as "indistinguishable" and skipped, so pairs within
+    experimental error don't dilute the metric (FEP data commonly uses
+    tol=0.5 kcal/mol).
     """
     pred = np.asarray(pred, dtype=float)
     true = np.asarray(true, dtype=float)
@@ -259,7 +285,7 @@ def pairwise_accuracy(pred, true, tol=0.0):
 
 
 def kendall_tau(pred, true):
-    """Kendall τ-b。与 pairwise accuracy 同源，但对并列有标准处理。"""
+    """Kendall tau-b. Related to pairwise accuracy, but with a standard treatment of ties."""
     from scipy.stats import kendalltau
     pred = np.asarray(pred, dtype=float)
     true = np.asarray(true, dtype=float)
