@@ -105,8 +105,14 @@ def main():
     if direction:
         from math import comb
         k = sum(direction)
-        sign = 2 * sum(comb(len(direction), i)
-                       for i in range(k, len(direction) + 1)) / 2 ** len(direction)
+        # ⚠️ 必须双侧。原来写的是 2*P(X>=k)，那只检测「实验结构更好」这一个方向：
+        # 如果反过来（k < n/2），这个式子返回 >1 的数，检测不到「预测结构显著更好」。
+        # 这次 k=8/10、10/10 都在 k>n/2 一侧，两式恰好相等，**已发布的数不受影响**，
+        # 但换一批数据就会静默失效。队友在 paired_vs_mw.py 上踩到过同一个坑，
+        # 他那版还 clamp 到 1，把「显著更差」读成了「没有差别」。
+        _n = len(direction)
+        _pk = [comb(_n, i) for i in range(_n + 1)]
+        sign = min(1.0, sum(x for x in _pk if x <= _pk[k]) / 2 ** _n)
         print(f"L4 方向性：{k}/{len(direction)} 个模型实验结构更好，符号检验 p={sign:.3f}")
 
     seq = [r for r in rows[1:] if r[9] == 1 and r[1] == "L4"]
