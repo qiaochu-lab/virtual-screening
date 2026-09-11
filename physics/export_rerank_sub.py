@@ -40,6 +40,35 @@ csv 里仍然保留 retrieval / rank_fusion 的行，只为留档；脚本不再
 
 **次分析：整池对随机。** 只回答「Boltz 有没有任何信号」，门槛很低，作参考。
 
+## ⚠️ found 这一列只有 5 个靶点能算
+
+逐靶点的 found 活性数不是「倾斜」，是**双峰**——检索在一个 L4 靶点上要么基本管用，
+要么几乎全废，中间几乎没有：
+
+    O14578 116  Q8N1C3 100  O42275 91  P20648 77  Q96DB2 60   ← recall@200 49.8%–84.5%
+    P14060   5  Q08828   3  Q13233  1  Q13574  1              ← recall@200 0.2%–6.8%
+    O88634   0  O60427   0  P52429  0                         ← 精确为 0，AUROC 无定义
+
+所以：**missed 那一列 12 个靶点全报**（每个靶点都有 ≥11 个 missed 活性和 ≥84 个诱饵）；
+**found/missed 的对比只在 found>=10 的 5 个靶点上做**，并且 n=5 的 Wilcoxon
+**双侧 p 的下界是 2/2^5 = 0.0625**，本来就够不到 0.05——所以那 5 对直接逐个列出来，
+不靠一个够不到显著的 p 值说事。
+
+总体 recall@200 = 25.0%（454 / 1,813），但这个数是两群靶点的混合，单独看没有意义。
+**「一半以上的 L4 靶点，检索 top-200 里的活性少于 5 个」比任何 AUROC 都更直白地
+说明召回天花板。**
+
+## missed 比 found 低，能不能用「补回的活性本身更难」解释
+
+不能——已经查过了。混合起来看两组差别很大（MW 中位 482 vs 422，p=3.3e-23；
+重原子 34 vs 29，p=5.4e-19），但**逐靶点配对之后全部消失**：在 AUROC 真正可估的
+那 5 个靶点上，MW 中位差 +13.0（p=1.000）、重原子 +0.0（p=0.875）、
+logP/TPSA/可旋转键 p=0.438–1.000。**混合比较那个 p=3e-23 是靶点构成效应**
+（检索失败的靶点碰巧整体配体更大），不是同一靶点内部的分子差异。
+
+⚠️ 这条控制自身的限制：能配对的靶点**按构造是检索部分成功的那批**。
+检索完全失败的靶点上，missed 活性有没有系统差异，测不了。
+
 ## ⚠️ 绝对指标不可与前四轮或全库 EF 比
 
 补回活性把整池的活性占比抬到约 48%，P@5/P@10 的随机基线也是 0.48。
@@ -137,6 +166,10 @@ def main():
     by = {}
     for e in man["entries"]:
         by.setdefault(e["uniprot"], []).append(e)
+    n_found = {up: sum(1 for e in v if e["label"] == 1 and e["rank"] < tn)
+               for up, v in by.items()}
+    n_missed = {up: sum(1 for e in v if e["label"] == 1 and e["rank"] >= tn)
+                for up, v in by.items()}
 
     rows = ["target,n_shortlist,n_decoy,n_active_found,n_active_missed,"
             "method,p_at_5,p_at_10,mean_active_rank,auroc,"
@@ -172,23 +205,58 @@ def main():
                            int(is_missed.sum()), name, *m, *extra))
 
     n_t = len(a_missed)
+    ups = sorted(by)
+
     print("=" * 72)
+    print("召回结构：检索在 L4 上是接近「全有或全无」的")
+    print("=" * 72)
+    print("%-10s%8s%8s%9s%12s" % ("靶点", "found", "missed", "活性总数", "recall@200"))
+    for up in sorted(ups, key=lambda u: -n_found[u]):
+        a = n_found[up] + n_missed[up]
+        print("%-10s%8d%8d%9d%11.1f%%"
+              % (up, n_found[up], n_missed[up], a, 100 * n_found[up] / a if a else 0))
+    tf, tm = sum(n_found.values()), sum(n_missed.values())
+    print(f"\n  总体 recall@200 = {tf / (tf + tm):.1%}（{tf} / {tf + tm}）"
+          "——但这是两群靶点的混合，单独看没有意义")
+    print(f"  top-200 里活性 <5 个的靶点：{sum(v < 5 for v in n_found.values())}/{n_t}"
+          f"；精确为 0 的：{sum(v == 0 for v in n_found.values())}/{n_t}")
+    print("  ⚠️ 这比任何 AUROC 都更直白地说明召回天花板。")
+
+    print("\n" + "=" * 72)
     print("主分析：检索漏掉的活性，Boltz 捞不捞得回来（对诱饵算 AUROC，零假设 0.5）")
     print("=" * 72)
-    for lab_, vals in (("补回的活性（检索漏掉）vs 诱饵", a_missed),
-                       ("top-200 内的活性（检索找到）vs 诱饵", a_found),
-                       ("全部活性 vs 诱饵", a_all)):
-        p, w, n = wilcoxon_vs(vals, 0.5)
-        v = np.array([x for x in vals if np.isfinite(x)])
-        print(f"  {lab_:34} AUROC {v.mean():.4f}   高于 0.5 的 {w}/{n}   p={p:.4f}")
+    p, w, n = wilcoxon_vs(a_missed, 0.5)
+    v = np.array([x for x in a_missed if np.isfinite(x)])
+    print(f"  补回的活性（检索漏掉）vs 诱饵    AUROC {v.mean():.4f}   "
+          f"高于 0.5 的 {w}/{n}   p={p:.4f}")
+    print(f"  （{n} 个靶点全可算：每个都有 >=11 个 missed 活性和 >=84 个诱饵）")
 
-    m_, f_ = np.array(a_missed), np.array(a_found)
-    ok = np.isfinite(m_) & np.isfinite(f_)
-    if ok.sum() >= 5:
-        p = stats.wilcoxon(m_[ok], f_[ok]).pvalue
-        print(f"\n  配对差 missed − found = {(m_[ok] - f_[ok]).mean():+.4f}   "
-              f"missed 更高的 {(m_[ok] > f_[ok]).sum()}/{ok.sum()}   p={p:.4f}")
+    print("\n" + "-" * 72)
+    print("对照：检索找到的活性，Boltz 排得动吗——**只有 found>=10 的靶点能算**")
+    print("-" * 72)
+    idx = [i for i, up in enumerate(ups) if n_found[up] >= 10]
+    skip = [up for up in ups if n_found[up] < 10]
+    print(f"  可算的 {len(idx)}/{n_t} 个：{[ups[i] for i in idx]}")
+    print(f"  排除的 {len(skip)} 个（top-200 里活性 <10，found AUROC 估不出来）：{skip}")
+    if idx:
+        m_ = np.array([a_missed[i] for i in idx])
+        f_ = np.array([a_found[i] for i in idx])
+        print(f"\n  {'靶点':10}{'found 数':>9}{'AUROC found':>13}{'AUROC missed':>14}{'差':>9}")
+        for j, i in enumerate(idx):
+            print("  %-10s%9d%13.4f%14.4f%+9.4f"
+                  % (ups[i], n_found[ups[i]], f_[j], m_[j], m_[j] - f_[j]))
+        d = m_ - f_
+        print(f"\n  配对差 missed − found 中位 {np.median(d):+.4f}   "
+              f"missed 更高的 {(d > 0).sum()}/{len(d)}")
+        # ⚠️ n=5 的 Wilcoxon 双侧 p 下界是 2/2^5=0.0625，够不到 0.05。
+        #    报一个注定不显著的 p 值会误导，所以把下界一起写出来。
+        if len(d) >= 5:
+            pw = stats.wilcoxon(d).pvalue if not np.allclose(d, 0) else float("nan")
+            print(f"  Wilcoxon p={pw:.4f}（⚠️ n={len(d)} 时双侧 p 的下界是 "
+                  f"{2 / 2 ** len(d):.4f}，这个检验本来就够不到 0.05，看上表的逐靶点差）")
         print("  （missed ≪ found ⇒ 物理和检索的盲区重合，级联加这一级补不上什么）")
+        print("  分子性质已排除：逐靶点配对后 missed/found 在 MW、重原子、logP、"
+              "TPSA、可旋转键上都分不开（见本文件开头）。")
 
     print("\n" + "=" * 72)
     print("次分析：整池排序对随机（门槛很低，只答「有没有信号」）")
