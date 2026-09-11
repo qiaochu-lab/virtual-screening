@@ -273,6 +273,65 @@ An earlier version of this section concluded that the effect held only for the
 PocketAffDB-trained models. That was an artifact of the shared novelty cache and
 is **withdrawn**.
 
+### The trivial baseline: how far does molecular weight alone get?
+
+A collaborator raised this control against the AIMNet2 pipeline. It applies to us
+just as much, and we had never run it on ourselves.
+
+Physics scores and measured affinity both grow with molecular size, so a "model"
+that reads nothing but molecular weight can post a positive within-target Spearman
+for free. Same protocol as the rest of T2 — within target, actives only,
+Spearman(score, pAff), paired per target
+([`timesplit/analysis/paired_vs_mw.py`](../timesplit/analysis/paired_vs_mw.py)
+→ [`results/T2_vs_mw_baseline.txt`](../results/T2_vs_mw_baseline.txt)).
+
+⚠️ `p` is an **exact two-sided** binomial sign test. The first version computed
+only `P(X ≥ k)`, which tests "the model wins" and returns p = 1 when molecular
+weight wins — silently reading "the model is significantly *worse*" as "no
+difference". Significance below is **BH-FDR over all 20 tests** (α = 0.05), not
+nominal p; 5 of 20 are rejected.
+
+| Model | L1 ρ | MW ρ | model wins | | L4 ρ | MW ρ | model wins | |
+|---|---|---|---|---|---|---|---|---|
+| HypSeek `_rk` | **+0.264** | +0.116 | **68.7%** | ✅ 1.6e-09 | +0.100 | +0.137 | 42.0% | 0.034 ✗BH |
+| LigUnity-protein | **+0.234** | +0.117 | **62.4%** | ✅ 7.3e-05 | +0.089 | +0.137 | 44.7% | 0.166 |
+| LigUnity-pocket | **+0.226** | +0.117 | **60.1%** | ✅ 0.0013 | +0.078 | +0.137 | 43.6% | 0.093 |
+| LiTENCLIP | +0.176 | +0.117 | 57.2% | 0.023 ✗BH | +0.040 | +0.137 | 41.0% | 0.016 ✗BH |
+| DrugCLIP | +0.083 | +0.111 | 46.2% | 0.226 | +0.012 | +0.138 | 37.8% | ⚠️ **0.00098 MW wins** |
+
+Three readings, and only three:
+
+1. **At L1 the three strongest models beat molecular weight outright** — the
+   ranking ability reported in this task is real there, not a size artefact.
+2. **At L4 no model beats molecular weight.** All five sit below it on *both* the
+   mean and the win rate; DrugCLIP is significantly worse after BH. So the L4
+   collapse is not "ranking gets weak" — it is "ranking stops being
+   distinguishable from a single descriptor, in the direction that favours the
+   descriptor".
+3. **DrugCLIP never beats molecular weight at any layer**, and loses to it
+   significantly at L2 (0.0033) and L4 (0.00098).
+
+⚠️ **LiTENCLIP L4 is a knife-edge**: p = 0.01587 against a BH threshold of
+0.0150. It fails by 0.0009. Read it as unresolved, not as "no effect" — the same
+care the reverse case would need.
+
+**Same control on the AIMNet2 reconstruction** — where the question was raised —
+gives a weaker answer ([`results/T2_aimnet_mw_baseline.txt`](../results/T2_aimnet_mw_baseline.txt)):
+
+| Layer | AIMNet2 composite | MW | paired p | AIMNet2 wins |
+|---|---|---|---|---|
+| L3 | +0.217 | +0.117 | 0.43 | 13/23 |
+| L4 | +0.117 | +0.194 | 0.66 | 9/21 |
+
+All four layers are non-significant (p = 0.42–0.66). The only statement the data
+supports is the weak one: **on novel targets, molecular weight and the physics
+score cannot be told apart.** It does *not* support "MW is higher" (L4, p = 0.66),
+and it does not support the claim an earlier commit title made — that half of
+AIMNet2's L3/L4 signal is a size artefact — since at L3 AIMNet2 is visibly above
+MW. The weak statement is enough for the argument it is needed for: physics scores
+correlate strongly with molecular size, so reading MW as an independent "blind-spot
+signal" does not hold.
+
 ### On FEP data
 
 | Model | Spearman | Pearson | Systems with correct direction |
