@@ -493,7 +493,8 @@ tasks own no code of their own: T2 re-scores arrays that T1 and T3 already
 produced, and T5 is the T3 pipeline re-run at other pocket cutoffs.
 
 ```
-WALKTHROUGH-zh.md   从零理解整个项目（中文）— 无需背景知识的完整导览
+WALKTHROUGH-zh.md   Understand the whole project from scratch (Chinese) — a
+               complete walkthrough that assumes no prior background
 
 MODELS_TRAINING.md  ⚠️ our attempt to train HypSeek's screening weight: two runs
                that never updated a parameter, then two that did — and what the

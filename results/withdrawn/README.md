@@ -1,21 +1,30 @@
-# 撤回的结果
+# Withdrawn results
 
-放在这里的文件**不是结果**，是留档。每个文件对应一次已经撤回的发布，
-保留原样是为了让「撤回了什么」可查，不是为了让人引用里面的数字。
+The files here are **not results** — they're kept for the record. Each file
+corresponds to a release that has already been withdrawn, kept as-is so
+"what was withdrawn" stays checkable, not so anyone cites the numbers in
+them.
 
 ## `T6_rerank_subset_2026-09-11_WITHDRAWN.{csv,txt}`
 
-Boltz-2 召回补满重排的第一版输出，2026-09-11 发布，同日撤回。
+The first version of the Boltz-2 recall-backfill rerank output, published on
+2026-09-11 and withdrawn the same day.
 
-**为什么不能用：** 这轮按**复合物**切 shard，不是按靶点。四个 shard 每个都覆盖
-全部 12 个靶点，所以 shard 崩掉不是丢掉几个完整靶点，而是**每个靶点都被咬掉
-三分之一**——逐靶点完成率中位 68.7%、范围 66.4%–70.8%、**没有一个靶点是完整的**。
-在一个靶点三分之二的候选上算出来的 AUROC 不是「全集 AUROC 加宽的误差棒」，
-是另一个量；缺了三分之一成员的候选集上的 P@5 更是没法解释。
+**Why it can't be used:** this run split shards by **complex**, not by
+target. Each of the four shards covers all 12 targets, so a shard crashing
+didn't drop a few complete targets — it bit **a third off of every
+target**: per-target completion rate had a median of 68.7%, a range of
+66.4%–70.8%, and **not a single target was complete**. An AUROC computed on
+two-thirds of a target's candidates isn't "the full-set AUROC with wider
+error bars" — it's a different quantity; P@5 on a candidate set missing a
+third of its members is even less interpretable.
 
-**另外，这个设计里的检索臂本身就不可用**（补回的正是检索漏掉的活性，12 个靶点
-里 5 个的检索 AUROC 被钉死在精确的 0）。所以 csv 里 `retrieval` 那些行，
-**即使覆盖率补到 100% 也不能引用**。唯一有效的零假设是随机排序。
+**On top of that, the retrieval arm in this design is unusable on its own
+terms** (what got backfilled was exactly the actives retrieval had missed —
+retrieval AUROC was pinned at exactly 0 for 5 of the 12 targets). So the
+`retrieval` rows in the csv **can't be cited even once coverage is backfilled
+to 100%**. The only valid null hypothesis is random ranking.
 
-完整说明见 [`tasks/T6-physics.md`](../../tasks/T6-physics.md) 的
-「Retraction: the 09-11 numbers were computed on incomplete candidate sets」。
+Full explanation in [`tasks/T6-physics.md`](../../tasks/T6-physics.md),
+section "Retraction: the 09-11 numbers were computed on incomplete candidate
+sets".

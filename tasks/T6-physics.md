@@ -289,10 +289,11 @@ same time:
 **Complete: 20 of 20 targets docked.** Nine had enough actives inside the
 top-200 to score.
 
-⚠️ **下面这张表已被取代。** 它跑在**全量 L4** 上，20 个靶点里只有 5 个
-落在最终的 350 子集里。在正确的靶点集上重跑的结果见本页
-「T6-RE: re-docked on the final subset」一节——方向一样，**但显著性没了**。
-保留这张表只为记录，不要引用它的 p 值。
+⚠️ **The table below has been superseded.** It ran on **the full L4 set**,
+where only 5 of the 20 targets land in the final 350-target subset. For the
+re-run on the correct target set, see the "T6-RE: re-docked on the final
+subset" section on this page — same direction, **but the significance is
+gone**. This table is kept only for the record; don't cite its p-values.
 
 
 | Ranking | P@10 | P@20 | mean active rank | AUROC |

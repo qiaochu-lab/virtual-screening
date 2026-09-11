@@ -497,7 +497,7 @@ weakest, sequence-based models move the way contamination would predict, and by
 a few points. L3 and L4 are identical in both columns — those layers have zero
 contaminated pairs, which is the built-in self-check that the filter works.
 
-⚠️ **One口径 difference from a true rebuild.** We delete indices from the scored
+⚠️ **One protocol difference from a true rebuild.** We delete indices from the scored
 arrays rather than regenerate the eval set and re-run inference. Removing actives
 shifts the active:decoy ratio slightly away from 1:50, so EF's denominator moves
 a little. A genuine rebuild would require re-running all nine models; the cost is
