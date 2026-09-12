@@ -865,3 +865,91 @@ When reporting a coverage / recall / hit-rate proportion, **default to
 writing it as "X% (12 targets) / Y% (all 68)"** rather than picking one and
 waiting for someone else to notice the definition doesn't match. When only
 one value is given, the denominator must immediately follow it.
+
+## A nested heredoc dropped the quotes from a patch, and the job launched anyway
+
+Not a bug in the analysis code — a bug in how a patch was applied to it. It
+belongs in this list because the failure shape is the one this project keeps
+hitting: **the command reported success and the wrong thing ran.**
+
+The intent was to add one model to a hardcoded list on the compute host, then
+start the job that reads it:
+
+```bash
+ssh host '
+  python - <<EOF
+p = "$B/export_t3_clean.py"
+s = open(p).read()
+old = \'"litenclip", "hypseek_rk", "conglude", "conplex", "sprint"]\'
+...
+EOF
+  setsid nohup python "$B/export_t3_clean.py" > log 2>&1 &
+'
+```
+
+The heredoc delimiter was written as `<<EOF`, not `<<'EOF'`, inside a
+single-quoted `ssh` argument. The shell therefore expanded and quote-stripped
+the body before handing it to Python, so the string literal arrived as bare
+tokens:
+
+```
+old=litenclip, hypseek_rk, conglude, conplex, sprint]
+                                                    ^ SyntaxError: unmatched ']'
+```
+
+**The patch did not apply. The launch on the next line ran regardless**, because
+it was a separate statement rather than chained with `&&`. The job spent its
+first minutes computing the old model list — the exact gap the patch existed to
+close — and would have written a plausible-looking CSV with the new weight
+missing.
+
+### What caught it
+
+Only that the same command printed both the SyntaxError and, further down,
+`grep` finding nothing for the new model name. Had the script been quieter, the
+output would have been indistinguishable from a clean run.
+
+### Rules
+
+- **Never nest an unquoted heredoc inside a quoted remote command.** Use
+  `<<'EOF'` so the body is passed through verbatim.
+- **Better: do not send code through a heredoc at all.** Edit the file locally,
+  where it is under version control and syntax-checkable, then ship the whole
+  file — `sed 's#local#remote#g' file | ssh host 'cat > dest'`. That is how the
+  fix was finally applied, and it has the side benefit of keeping the two copies
+  provably identical.
+- **Chain the patch and the launch with `&&`,** so a failed patch cannot be
+  followed by a run. A patch that fails open is worse than one that fails shut.
+- **Verify the patch landed before trusting the run** — `grep` for the new value
+  on the remote copy, as a separate assertion, not as a line of output nobody
+  reads.
+
+### Same family
+
+`recompute_all.sh` would have silently reverted the checkpoint switch because its
+model list was stale; a completion marker in an append-only log reported a run
+that had been killed; three process-name greps matched their own command line.
+All four share the signature: **exit status 0, and the wrong inputs.**
+
+### The self-matching grep, found alive four more times
+
+Cleaning up afterwards turned up four background waiters that had been looping
+for up to three days:
+
+```bash
+until ! pgrep -f score_t2_v2.py >/dev/null; do sleep 10; done; <payload>
+```
+
+The waiter's own command line contains the string `score_t2_v2.py`, so `pgrep -f`
+always matches the waiter itself, the condition is never false, and the payload
+never runs. Two of the four were waiting on work that had finished days earlier;
+their payloads — a summary invariant check and a subset re-export — simply never
+executed, and nothing reported that.
+
+The diagnostic written to investigate them fell into the same trap: it passed the
+process names as literals, so `pgrep -f` matched the diagnostic's own shell and
+reported the very processes it was checking for. The bracket idiom
+(`pgrep -f "[s]core_t2_v2.py"`) defeats this, because the pattern text no longer
+matches itself — but the durable fix is not to identify work by its command line
+at all. Wait on a **file** the job produces, or on a PID captured at launch.
+
