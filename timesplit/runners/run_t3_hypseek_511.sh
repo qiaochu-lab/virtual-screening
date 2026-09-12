@@ -5,7 +5,13 @@
 # 别的模型没有——这是我们自己引入的不一致，必须消掉才能横向比。
 # HypSeek 在 T3 上跑。$1=GPU
 # 用的是**排序权重** checkpoint_avg_41-50_rk.pt —— 官方只公开了这个，
-# 虚筛权重 _vs.pt 未上传（HuggingFace THU-ATOM/HypSeek-AIRDD 里只有 _rk）。
+# NOTE (2026-09-08): outdated. The author has since released BOTH weights
+# via Google Drive in https://github.com/jianhuiwemi/HypSeek/issues/4 ->
+#   ckpt/hypseek/official_checkpoint_avg_41-50_{vs,rk}.pt
+# `_rk` is byte-identical (md5) to the HuggingFace one used here. Screening
+# tasks should use `_vs`; `_rk` is checkpoint-selected on benchmarks, so
+# scoring DUD-E / LIT-PCBA with it carries a selective-leakage risk.
+# Results for all five variants: results/T1_hypseek_official.md
 # 这恰恰是最该跑 T2 的权重：其余七个模型用的都是虚筛导向权重，
 # 亲和力排序全部接近零；HypSeek 的排序权重能区分
 # 「短板来自架构」还是「来自训练目标与 checkpoint 选择」。
