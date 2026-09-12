@@ -425,6 +425,20 @@ re-running it as-is would silently produce unvalidated numbers. Fixed (`97e0f06`
 
 ### 3a. Exact overlap (InChIKey)
 
+`timesplit/analysis/exact_overlap.py` → `results/T3_exact_overlap.csv`
+
+⚠️ **This table had no committed script until 2026-09-12** — the section pointed at
+`ligand_novelty.py`, which only computes Tanimoto and never touched InChIKeys. The same
+reproducibility gap `finding18_permutation.py` closed for finding 18. The script now
+exists and was validated by **reproducing every published affinity-half cell exactly**
+(5,479/17,066, 31,566/853,300, 19/102,005, 110/4,358, 1,042/32,774). The structure-half
+column reproduces to within 4 molecules per cell (541 vs 542 L1 actives, 2,140 vs 2,144
+L1 decoys, 60 vs 64 L4 actives) and its key set to within one (12,554 vs 12,555). The
+sizes are consistent with a single training compound whose InChIKey differs under the
+current RDKit — one molecule can account for several T3 rows, since the same molecule is
+an active for more than one target — but that was not traced, so it is a plausible cause,
+not a verified one. Percentages and every ratio below are unchanged either way.
+
 | Layer | Actives that appear in the training set | Decoys (background) |
 |---|---|---|
 | **L1** | **32.1%** (5,479/17,066) | 3.7% |
@@ -457,20 +471,44 @@ the structure half's 13,590 (→ 12,555 InChIKeys):
 ⚠️ **"3.2% against 32.1%" cannot be read as "the structure half has no exact leakage".**
 It must be compared against **its own decoy background** — the training ligand pool is
 31.6× smaller, and the decoy background falls correspondingly from 3.70% to 0.25%. **The
-relative enrichment is the same on both sides, and if anything higher for the structure
-half** (12.6× vs 8.7×).
+relative enrichment is the same order on both sides** (12.6× vs 8.7× on the full set).
+
+#### On the 350-quota subset the paper reports
+
+`--subset results/T3_vsds_matched.csv` → `results/T3_exact_overlap_subset.csv`
+
+| | Affinity half | Structure half |
+|---|---|---|
+| L1 actives | **29.2%** (2,248/7,710) | **1.85%** (143/7,710) |
+| L1 decoys (background) | 3.67% | 0.25% |
+| **L1 actives/decoys** | **8.0×** | **7.3×** |
+| L2 actives | 0.01% (4/59,783) | 0.01% |
+| L3 actives | 1.70% (60/3,533) | 0.17% |
+| L4 actives | 2.73% (510/18,664) | 0.13% |
+| L4 decoys | 3.70% | 0.25% |
+| **L4 actives/decoys** | **0.74×** | **0.53×** |
+
+Every conclusion holds: L1 exact overlap far above background on both sides, L2/L3/L4 at
+or below it. ⚠️ **One clause does not hold.** The full set puts the structure half's
+relative enrichment *higher* than the affinity half's (12.6× vs 8.7×); on the subset it
+is slightly *lower* (7.3× vs 8.0×). The defensible statement across both conventions is
+that **the two are the same order of magnitude** — which is all the argument below needs,
+since it turns on "relative bias exists in both groups", not on which is larger. Whichever
+way that comparison falls, the absolute contrast is untouched: **29.2% against 1.85%.**
 
 So the accurate statement takes two sentences, and neither can be dropped:
 
 > **In relative terms**, L1 actives in both groups are more likely to be training-set
-> molecules than the decoy background is (8.7× / 12.6×) — an inherent property of the
-> time split, regardless of which training set is used; at L4 both groups sit near 1
-> (0.86× / 0.8×), i.e. genuinely no exact leakage.
+> molecules than the decoy background is — 8.0× / 7.3× on the subset, 8.7× / 12.6× on
+> the full set, the same order either way — an inherent property of the time split,
+> regardless of which training set is used; at L4 both groups sit at or below 1
+> (0.74× / 0.53× on the subset, 0.86× / 0.73× on the full set), i.e. genuinely no
+> exact leakage.
 >
-> **In absolute terms**, a third of L1 actives are the same molecules for the
-> affinity-half group, versus only 3% for the structure-half group. **So "L1 is
-> essentially a memorisation test" holds only for the former** — for the latter it is
-> "relatively biased, small in absolute magnitude".
+> **In absolute terms**, 29% of L1 actives are the same molecules for the affinity-half
+> group, versus 1.9% for the structure-half group (32% vs 3.2% on the full set). **So
+> "L1 is essentially a memorisation test" holds only for the former** — for the latter
+> it is "relatively biased, small in absolute magnitude".
 
 This, together with §3c (structure-half L1 retrieved-into-very-close tier 16.1% vs. pool
 9.0%, 1.8×), §4 (tiered enrichment, L1 very-close/novel 2.6×), and §2c (CMP residual
@@ -495,6 +533,23 @@ Computing the maximum Tanimoto against the training set's 428,767 deduplicated l
 **At L1, more than half the actives are near-copies of training molecules. L2/L3/L4
 actives are even more novel than the decoys** — a strong endorsement of the cross-target
 real-active decoy design.
+
+On the **350-quota subset the paper reports** (`--subset results/T3_vsds_matched.csv` →
+`results/T3_ligand_novelty_subset.csv`) the shape is identical and the L1 leakage is
+marginally *milder*:
+
+| Layer | Active median | Novel <0.35 | Distant .35–.5 | Close .5–.7 | Very close ≥0.7 |
+|---|---|---|---|---|---|
+| **L1** | **0.710** | 2.5% | 13.1% | 32.5% | **51.9%** |
+| L2 | 0.415 | 24.8% | 46.8% | 25.4% | 3.0% |
+| L3 | 0.360 | 43.3% | 39.5% | 12.5% | 4.6% |
+| L4 | 0.380 | 34.4% | 47.9% | 11.6% | 6.2% |
+| *Decoys* | *0.418–0.419* | *23.5–23.8%* | *45.3%* | *22.2–22.4%* | *8.6–8.8%* |
+
+Every qualitative claim survives: L1 above half in the very-close tier, L2/L3/L4 actives
+more novel than their own decoys, decoys flat across layers. L3 gets *more* novel on the
+subset (37.8% → 43.3% in the novel tier) because the ≥50-actives floor drops its
+smallest, most congeneric targets.
 
 ⚠️ **The reference set for this entire table is the affinity half's 428,767 ligands, and
 it only holds for those four models.** Measuring the same L1 actives against the
@@ -535,10 +590,35 @@ section for the two DrugCLIP rows.**
 | DrugCLIP | L4 | 0.415 | 22.8% | 7.5% |
 | *(L4 pool composition)* | | *0.380* | *35.5%* | *6.4%* |
 
-**Models systematically favour retrieving chemistry they've seen.** HypSeek's retrieved
-actives at L1 have a median similarity of **0.969** — near-copies of training ligands —
-against a pool median of only 0.727. At L4, 35.5% of the pool is novel molecules, but the
-model retrieves only 22%.
+**Models systematically favour retrieving chemistry they've seen.** HypSeek `_rk`'s
+retrieved actives at L1 have a median similarity of **0.969** — near-copies of training
+ligands — against a pool median of only 0.727. At L4, 35.5% of the pool is novel
+molecules, but the model retrieves only 22%.
+
+On the **350-quota subset** (`results/T3_ligand_novelty_subset.csv`) the preference holds
+but the headline number is softer — this is the one place in the leakage audit where the
+convention change moves a number more than a couple of points:
+
+| Model | Layer | Retrieved median | Novel <0.35 | Very close ≥0.7 |
+|---|---|---|---|---|
+| HypSeek `_rk` | **L1** | **0.859** | 2.4% | **70.4%** |
+| LigUnity-protein | L1 | 0.769 | 2.0% | 60.7% |
+| DrugCLIP | L1 | 0.786 | 4.5% | 64.2% |
+| *(L1 pool composition)* | | *0.710* | *2.5%* | *51.9%* |
+| HypSeek `_rk` | L4 | 0.482 | 17.4% | 15.7% |
+| LigUnity-protein | L4 | 0.489 | 18.3% | 18.9% |
+| DrugCLIP | L4 | 0.406 | 22.8% | 9.4% |
+| *(L4 pool composition)* | | *0.380* | *34.4%* | *6.2%* |
+
+**0.969 → 0.859 is the number to quote with care.** The direction and the gap against the
+pool are unchanged (0.859 vs a pool median of 0.710; 70.4% very-close against a pool 51.9%),
+but "near-copies of training ligands" is a fair description of 0.969 and an overstatement
+of 0.859. The subset figure is the paper's convention.
+
+⚠️ Section B skips any target whose molecule order fails validation rather than guessing
+(see the correction above): **12 of 56 targets at L1 and 13 of 75 at L4** on the subset.
+That is a pre-existing property of the raw score directories, not of the subset — but it
+means these rows rest on ~44 and ~62 targets, not the full cells.
 
 ### ⚠️ The reference set for the two DrugCLIP rows is wrong; the preference is much weaker after recomputing
 
@@ -561,6 +641,29 @@ in the table above — those were measured against someone else's training set.
 **At L4 the preference is essentially gone**: the very-close tier goes from 16.1% →
 0.6%, level with the pool's 0.6%, leaving only the "under-retrieving the novel tier"
 effect (65.9% vs. 80.1%).
+
+On the **350-quota subset** (`results/T3_ligand_novelty_Agroup_subset.csv`), all three
+structure-half models, not just DrugCLIP:
+
+| Model | Layer | Retrieved median | Novel <0.35 | Very close ≥0.7 |
+|---|---|---|---|---|
+| DrugCLIP | **L1** | 0.432 | 24.2% | **10.5%** |
+| BindCLIP-randneg | L1 | 0.418 | 28.2% | 10.6% |
+| BindCLIP-hardneg | L1 | 0.407 | 31.3% | 8.6% |
+| *(L1 pool)* | | *0.353* | *48.6%* | *6.2%* |
+| DrugCLIP | L4 | 0.307 | 61.1% | 0.5% |
+| BindCLIP-randneg | L4 | 0.354 | 48.7% | 1.0% |
+| BindCLIP-hardneg | L4 | 0.388 | 37.2% | 1.5% |
+| *(L4 pool)* | | *0.291* | *80.7%* | *0.4%* |
+
+The subset says the same thing with slightly smaller numbers: DrugCLIP's L1 very-close
+lift is **1.7×** (10.5% against 6.2%) where the full set gave 1.8× (16.1% against 9.0%),
+and the novel-tier under-retrieval is 24.2% against a 48.6% pool. **All three models
+behave alike**, which the full-set table could not show — it only had DrugCLIP.
+
+⚠️ At L4 the very-close tier is at or barely above the pool for all three (0.5–1.5% vs
+0.4%), but these are counts of a few molecules out of 667–1,075 and should not be read
+as a ranking among the three.
 
 This points the same way as §2c's CMP residual and §4's tiered enrichment re-run under
 the A reference set (L1 very-close/novel 2.6×) in all three places: **the preference is
@@ -1147,9 +1250,20 @@ difference in magnitude comes from the different estimator; direction and patter
 
 ---
 
-## 7. Not yet done
+## 7. Done since — this section's two open items are closed
 
-- **Per-model layering**: re-cut L1–L4 for DrugCLIP/BindCLIP against A and for ConPLex
-  against C respectively, and compute each one's own decay. The data all exists — it's
-  just a matter of re-aggregating under different labels
-- Replace L1/L2's binary scaffold-seen/unseen boundary with continuous Tanimoto tiers
+Both items this section listed as outstanding were completed elsewhere in this document
+and the list was never updated. Recorded here so the section is not read as a live TODO:
+
+- **Per-model layering** — re-cut L1–L4 for DrugCLIP/BindCLIP against A and ConPLex
+  against C, each with its own decay → **§6**
+  ([`per_model_layers.py`](../timesplit/analysis/per_model_layers.py)). It also
+  overturned the premise the item was written under: the training sets are nested, not
+  parallel.
+- **Replace L1/L2's binary scaffold-seen/unseen boundary with continuous Tanimoto
+  tiers** → **§3b** ([`ligand_novelty.py`](../timesplit/analysis/ligand_novelty.py)),
+  with the enrichment consequences in **§4**.
+
+Nothing in the leakage audit is outstanding. §3a's exact-overlap table, the last one in
+this document without a committed script, now has one, and §3a/§3b/§3c carry both the
+full 1,144-target set and the 350-quota subset the paper reports.

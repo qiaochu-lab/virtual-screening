@@ -158,7 +158,7 @@ already working in this area.
    draws each. Not degraded: indistinguishable from a coin flip. Every one of
    the seven pocket models drops by 19–42% with p < 2e-4. This is what rules out
    the reading that finding 2 invites — the models are *not* ignoring the
-   protein. The dependence scales with capability: HypSeek falls 0.918 → 0.570
+   protein. The dependence scales with capability: HypSeek `_rk` falls 0.918 → 0.570
    at L1, while SPRINT, whose correct-target AUROC barely clears chance to begin
    with (0.584/0.516), does not significantly degrade at L1 at all (p = 0.22),
    and ConPLex does not at L4 (p = 0.28). **Weak models are not more robust;
@@ -177,8 +177,8 @@ already working in this area.
    JAK2→JAK3) — costs essentially nothing. Against the 19–42% AUROC collapse and
    93.5–99.3% EF collapse an unrelated protein causes, a homologue moves AUROC by
    **−4.1% to +9.8%** and EF@1% by **−18% to +12%**, and **not one of the ten
-   models degrades significantly**. HypSeek's L1 AUROC goes 0.918 → 0.570 on an
-   unrelated target and 0.918 → 0.907 on a relative.
+   models degrades significantly**. HypSeek `_rk`'s L1 AUROC goes 0.918 → 0.570
+   on an unrelated target and 0.918 → 0.907 on a relative.
 
    So the protein signal is real — finding 4 stands — but **its resolution stops
    at the family**. For screening that means a model transfers within a family
@@ -190,22 +190,35 @@ already working in this area.
    [`results/T3_target_swap_family.csv`](results/T3_target_swap_family.csv)
 
 5. **Ligand-side leakage is confined to L1 — and only for the four models
-   trained on the affinity half.** Against that half's 428,767 ligands, 32.1% of
-   L1 actives are exact InChIKey matches to a training ligand (decoy background:
-   3.7%), median Tanimoto 0.727 with 53.9% above 0.7, while L2/L3/L4 actives are
-   *more* novel than the decoys (median 0.37–0.42 vs 0.419). Those four models
-   also preferentially retrieve the familiar: HypSeek's top-1% actives at L1 have
-   median similarity **0.969**.
+   trained on the affinity half.** Against that half's 428,767 ligands, **29.2%**
+   of L1 actives are exact InChIKey matches to a training ligand (decoy
+   background: 3.7%, so an **8.0×** enrichment), median Tanimoto **0.710** with
+   **51.9%** above 0.7, while L2/L3/L4 actives are *more* novel than the decoys
+   (median 0.36–0.42 vs 0.418) and their exact-match rate sits at or **below** the
+   decoy background (L4 2.7% against 3.7%, 0.74×) — genuinely no exact leakage
+   outside L1. Those four models also preferentially retrieve the familiar:
+   HypSeek `_rk`'s top-1% actives at L1 have median similarity **0.859** against a
+   pool median of 0.710.
+   ⚠️ All of the above is the 350-quota subset. The full 1,144-target set gives
+   32.1% / 8.7× / median 0.727 / 53.9% and a retrieved median of 0.969 — same
+   shape, but 0.969 supports "near-copies of training ligands" and 0.859 does not,
+   so that phrase is not used here.
 
    **Measured against the structure half's own 13,590 ligands the same L1 actives
-   look completely different — median 0.371, only 9.0% above 0.7, and 42.2%
-   outright novel.** So "L1 is close to a memorisation test" is a statement about
-   the affinity-trained models, and it is part of why the two groups differ
-   roughly twofold at L1: half of L1 is chemistry one group has seen and the
-   other has not. The preference itself survives the correction for the
-   structure-only models, but weakly — DrugCLIP's retrieved L1 actives sit at
-   16.1% above 0.7 against a 9.0% pool, a 1.8× lift that is gone by L4.
-   → [Leakage audit](tasks/T3-leakage.md)
+   look completely different — 1.9% exact matches, median Tanimoto 0.353, only
+   6.2% above 0.7, and 48.6% outright novel.** So "L1 is close to a memorisation
+   test" is a statement about the affinity-trained models, and it is part of why
+   the two groups differ roughly twofold at L1: half of L1 is chemistry one group
+   has seen and the other has not. ⚠️ The 1.9% still sits **7.3× above its own
+   decoy background** of 0.25%, so the structure half is relatively biased too —
+   small in absolute magnitude, not absent. The retrieval preference survives the
+   correction for the structure-only models, but weakly — DrugCLIP's retrieved L1
+   actives sit at 10.5% above 0.7 against a 6.2% pool, a **1.7×** lift that is
+   gone by L4 (full set: 16.1% against 9.0%, 1.8×).
+   → [Leakage audit](tasks/T3-leakage.md),
+   [`results/T3_exact_overlap_subset.csv`](results/T3_exact_overlap_subset.csv),
+   [`results/T3_ligand_novelty_subset.csv`](results/T3_ligand_novelty_subset.csv),
+   [`results/T3_ligand_novelty_Agroup_subset.csv`](results/T3_ligand_novelty_Agroup_subset.csv)
 
 6. **The L3/L4 split had a fall-through bug: 24% of L4 targets were never
    checked.** Family membership came from a precomputed CD-HIT file, and a target
@@ -285,7 +298,16 @@ already working in this area.
 
 8. **Model ranking reverses by target class.** Sequence-only models win on
    kinases; geometry-aware models win on other enzymes. Reporting only the
-   overall mean is misleading. → [T3](tasks/T3-time-split.md)
+   overall mean is misleading.
+
+   ⚠️ **This is the one finding that can only be stated on the full 1,144-target
+   set, not on the 350-quota subset the rest of the paper reports.** The ≥50
+   actives requirement keeps the large classes at roughly their original share
+   (enzymes 28%→31%, kinases 26%→28%) but leaves transporters at 3 targets,
+   nuclear receptors at 6 and P450 at 2 — the classes the reversal is *about*
+   are gone, so the comparison has nothing left to compare. Reported as a
+   property of the full set, and deliberately not restated on the subset.
+   → [T3](tasks/T3-time-split.md#actives-per-target-does-the-floor-drive-anything)
 
 9. **Mildly sensitive to structure source, extremely sensitive to pocket
    definition.** Moving the pocket cutoff off the 6 Å the models were trained on
@@ -392,9 +414,11 @@ already working in this area.
    → [T3](tasks/T3-time-split.md)
 
 13. **Training data explains performance tiers better than architecture.** The
-   models trained on PocketAffDB all land at L1 EF1% 32–39; the three on
-   DrugCLIP's data all land at 17–19 — across differences in retrieval
-   augmentation and molecular encoder. The same split holds on DUD-E, where the
+   models trained on PocketAffDB all land at L1 EF1% **31.9–40.1**; the three on
+   DrugCLIP's data all land at **17.1–19.3** — across differences in retrieval
+   augmentation and molecular encoder. (350-quota subset; the full 1,144-target
+   set gives 32.1–39.3 against 17.8–19.1 — the same two tiers with no overlap
+   either way.) The same split holds on DUD-E, where the
    four PocketAffDB models take the top four places. Visible directly in
    [`figures/`](figures/) fig 1 and fig 2, which are coloured by training set
    rather than architecture. → [T3](tasks/T3-time-split.md)

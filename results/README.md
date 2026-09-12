@@ -34,7 +34,12 @@
 | `T3_seq_vs_pocket_per_target_subset.csv` | LigUnity's two branches, paired per target, on the subset |
 | `T3_ligand_only_subset.csv` | the chemical-series oracle ceiling on the 350-quota subset, per layer |
 | `T3_normalized_by_ceiling.csv` | model EF1% divided by that ceiling |
-| `T3_ligand_novelty.csv` | novelty tiers: pool composition and what models retrieve |
+| `T3_ligand_novelty_subset.csv` | novelty tiers on the 350-quota subset: pool composition and what models retrieve |
+| `T3_ligand_novelty.csv` | the same on the full 1,144-target set — auxiliary check |
+| `T3_exact_overlap_subset.csv` | exact InChIKey overlap with both training halves, on the subset |
+| `T3_exact_overlap.csv` | the same on the full set — reproduces the published §3a table |
+| `T3_ligand_novelty_Agroup_subset.csv` | novelty tiers against the structure half's own 13,590 ligands, on the subset |
+| `T3_ligand_novelty_Agroup.csv` | the same on the full set — the table §3c's correction rests on |
 | `T3_novelty_tiered_ef.csv` | enrichment computed separately per novelty tier |
 | `T3_target_mirroring.csv` | each T3 target's closest training-set homologue (mmseqs, cov ≥50%) |
 | `T3_target_redundancy.csv` | all-vs-all identity within the subset (pairs ≥20%) |

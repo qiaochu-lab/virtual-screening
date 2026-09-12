@@ -1,0 +1,9 @@
+layer,group,n,n_in_affinity_half,pct_in_affinity_half,n_in_structure_half,pct_in_structure_half
+L1,actives,17066,5479,32.10,541,3.17
+L1,decoys,853300,31566,3.70,2140,0.25
+L2,actives,102005,19,0.02,17,0.02
+L2,decoys,5079529,188492,3.71,12703,0.25
+L3,actives,4358,110,2.52,15,0.34
+L3,decoys,217900,8265,3.79,561,0.26
+L4,actives,32774,1042,3.18,60,0.18
+L4,decoys,1638700,60875,3.71,4112,0.25

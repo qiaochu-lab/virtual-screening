@@ -123,16 +123,22 @@ def main():
     ap.add_argument("--workers", type=int, default=24)
     ap.add_argument("--cache", default=f"{B}/data/t3/ligand_novelty.json")
     ap.add_argument("--out", default=f"{B}/results/export/T3_ligand_novelty.csv")
+    ap.add_argument("--subset", help="restrict to a (layer, uniprot) subset CSV — "
+                                     "the 350-quota list is the paper's convention")
     args = ap.parse_args()
 
     # ---------- training-set fingerprints ----------
-    lab = json.load(open(args.train_label))
-    tsmi = sorted({l["smi"] for a in lab for l in (a.get("ligands") or [])
-                   if isinstance(l, dict) and l.get("smi")})
-    print(f"训练集去重 SMILES {len(tsmi):,}，建指纹…", flush=True)
-    with ProcessPoolExecutor(args.workers) as ex:
-        tfps = [f for f in ex.map(fp, tsmi, chunksize=1000) if f is not None]
-    print(f"训练集指纹 {len(tfps):,}", flush=True)
+    # Only needed on a cache miss; building 426k fingerprints costs minutes, and
+    # every re-run after the first one (e.g. --subset) is a cache hit.
+    def train_fps():
+        lab = json.load(open(args.train_label))
+        tsmi = sorted({l["smi"] for a in lab for l in (a.get("ligands") or [])
+                       if isinstance(l, dict) and l.get("smi")})
+        print(f"训练集去重 SMILES {len(tsmi):,}，建指纹…", flush=True)
+        with ProcessPoolExecutor(args.workers) as ex:
+            out = [f for f in ex.map(fp, tsmi, chunksize=1000) if f is not None]
+        print(f"训练集指纹 {len(out):,}", flush=True)
+        return out
 
     # ---------- novelty of T3's unique molecules ----------
     recs = {L: [json.loads(x) for x in open(f"{args.eval_dir}/{L}.jsonl")]
@@ -152,7 +158,7 @@ def main():
     else:
         nov = {}
         with ProcessPoolExecutor(args.workers, initializer=_init,
-                                 initargs=(tfps,)) as ex:
+                                 initargs=(train_fps(),)) as ex:
             for i, (s, v) in enumerate(zip(smis, ex.map(max_sim, smis,
                                                         chunksize=200),
                                            strict=True)):
@@ -161,6 +167,19 @@ def main():
                     print(f"  {i+1:,}/{len(smis):,}", flush=True)
         json.dump(nov, open(args.cache, "w"))
         print(f"  写入 {args.cache}")
+
+    # The subset filter is applied **after** the cache, on purpose: novelty is a
+    # property of a molecule, not of a target, so the cache stays the full T3
+    # molecule set and a --subset run can never write a partial cache that a
+    # later full run would silently reuse.
+    if args.subset:
+        import csv as _csv
+        keep = {(r["layer"], r["uniprot"])
+                for r in _csv.DictReader(open(args.subset))}
+        recs = {L: [r for r in rs if (L, r["uniprot"]) in keep]
+                for L, rs in recs.items()}
+        print(f"子集：{sum(len(v) for v in recs.values())} 条（靶点×层），"
+              f"{len({r['uniprot'] for v in recs.values() for r in v})} 个唯一靶点")
 
     # ---------- A. distribution ----------
     print("\n" + "=" * 78)
