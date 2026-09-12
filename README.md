@@ -399,8 +399,10 @@ already working in this area.
    the official weight makes the comparison sound.
    → [`results/T1_hypseek_official.md`](results/T1_hypseek_official.md)
 
-   A collaborator's paper-faithful `_vs` reproduction also trails it at
-   L1→L4 decay is indifferent to which weight is used (−50% vs −54%).
+   A collaborator's paper-faithful `_vs` reproduction, run through our pipeline,
+   trails it at every T3 layer — EF@1% 30.70 vs 36.63 at L1, 5.75 vs 7.34 at L4
+   — while the L1→L4 decay is indifferent to which weight is used: AUROC −50%
+   vs −54%, EF@1% −82% vs −84% (both excess-over-random).
    ⚠️ An earlier version of this finding said retraining the screening weight
    makes a model *worse*; that was a deficit in our own training (a contrastive
    negative pool of 4 against the official 24) and is retracted.
