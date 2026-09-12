@@ -534,6 +534,9 @@ env/           per-model environment construction, with the version traps
 results/       machine-readable CSVs
 ├── T1_main.csv                 10 models × 3 standard benchmarks × 4 metrics
 ├── T3_main.csv                 10 models × 4 layers × 5 metrics
+│                                (11 model rows: HypSeek appears twice — `_vs`
+│                                 is the benchmark row, `_rk` is kept alongside
+│                                 for the checkpoint comparison. See MODELS.md.)
 ├── T3_main_clean.csv           the same, with training-set contamination removed
 ├── T3_main_ci.csv              bootstrap confidence intervals
 ├── T3_targets.csv              per-target detail (class, layer, structure source)
