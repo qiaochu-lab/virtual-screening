@@ -50,10 +50,21 @@ explicit `--models` list and names anything missing
 Nothing reaches significance at L3, where the predicted group is only 18 targets.
 
 **What this supports, stated carefully.** Four models differ at L4 with p < 0.05,
-all favouring experimental structures, and **9 of 11 point that way** (sign test
-p = 0.065). But across all 22 comparisons **only ConGLUDe survives BH-FDR**
-(threshold 0.0023 against its 0.0017). So this is a consistent direction with one
+all favouring experimental structures, and **8 of 10 point that way** (sign test
+p = 0.109). But across all 20 comparisons **only ConGLUDe survives BH-FDR**
+(threshold 0.0025 against its 0.0017). So this is a consistent direction with one
 firmly established case, not four.
+
+⚠️ **The count is over ten models, not the eleven rows in the CSV.**
+[`results/T5_structure_source.csv`](../results/T5_structure_source.csv) carries
+both HypSeek checkpoints — `_vs`, the screening row, and `_rk`, kept for the
+analyses that predate the switch — but they are one architecture from one
+training run, differing only in which epoch window was selected. They are not
+independent replicates, so counting both is pseudo-replication. Doing so is what
+briefly moved this line to "9 of 11, p = 0.065" and the subset to "11 of 11,
+p = 0.001"; the added unit was the second checkpoint, not a second model. Only
+`_vs` enters the model-level sign test and the BH family — the same rule
+`train_set_crossover.py` applies to finding 18.
 
 **The negative controls behave correctly, and that is what makes it interesting.**
 Targets with crystal structures are not a random sample — well-studied targets
@@ -196,7 +207,7 @@ re-inferred.
 | Control | Full set (1,144) | **Subset (328)** | Verdict |
 |---|---|---|---|
 | **Pocket cutoff 4/6/8 Å** | 6 Å wins 12/12, −31…−75% | **6 Å wins 12/12** | ✅ unchanged, still the strongest effect |
-| **Structure source** | 9/11 direction, sign p=0.065; 5 individually significant; 1 survives BH | **11/11 direction, sign p=0.001**; 2 individually significant; **0 survive BH** | ⚠️ direction now unanimous, per-model significance gone |
+| **Structure source** | 8/10 direction, sign p=0.109; 4 individually significant; 1 survives BH | **10/10 direction, sign p=0.002**; 2 individually significant; **0 survive BH** | ⚠️ direction now unanimous, per-model significance gone |
 | **holo vs apo** | 45 targets | **18 targets** | ❌ under-powered, demote to appendix |
 
 ### Structure source on the subset
@@ -204,8 +215,8 @@ re-inferred.
 Per-target counts drop from 65–89 to **25–35 (holo) / 30–34 (predicted)**, so the
 per-model effect sizes are no longer estimable — only LigUnity-pocket (p = 0.019)
 and SPRINT (p = 0.023) stay individually significant, and nothing survives BH-FDR
-across the 11 comparisons. What *strengthens* is the direction: **all 11 models
-favour experimental structures (sign test p = 0.001)**, up from 9/11 (p = 0.065).
+across the 10 comparisons. What *strengthens* is the direction: **all 10 models
+favour experimental structures (sign test p = 0.002)**, up from 8/10 (p = 0.109).
 
 **The negative control is weaker than an earlier version of this page claimed.**
 It read: *"the two sequence-only models, which never read a structure, show no
@@ -218,9 +229,9 @@ too small to resolve. Target difficulty cannot be ruled out as cleanly as
 "p = 0.50 and 0.80" implied.
 
 **Correct phrasing for the subset:** *the direction is unanimous
-(11/11, sign test p = 0.001), but individual effect sizes are not estimable at
+(10/10, sign test p = 0.002), but individual effect sizes are not estimable at
 25–35 targets per arm — only LigUnity-pocket (p = 0.019) and SPRINT (p = 0.023)
-reach nominal significance and neither survives BH-FDR across the eleven
+reach nominal significance and neither survives BH-FDR across the ten
 comparisons.*
 
 ### apo control on the subset
