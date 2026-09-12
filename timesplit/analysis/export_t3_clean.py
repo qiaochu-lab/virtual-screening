@@ -40,7 +40,13 @@ from metrics import bedroc, enrichment_factor, roc_auc  # noqa: E402
 
 MODELS = ["drugclip", "bindclip_randneg", "bindclip_hardneg",
           "ligunity_pocket_ranking", "ligunity_protein_ranking",
-          "litenclip", "hypseek_rk", "conglude", "conplex", "sprint"]
+          "litenclip", "hypseek_rk", "hypseek_official_vs", "conglude", "conplex",
+          "sprint"]
+# Both HypSeek weights are listed on purpose: the main table carries both
+# (`_vs` for screening since 2026-09-12, `_rk` kept for the analyses derived
+# before the switch), so the clean table has to be readable against it
+# row for row. Dropping `_rk` here would leave those derived analyses with
+# no clean counterpart.
 
 
 def train_pairs():
