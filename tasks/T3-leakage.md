@@ -144,17 +144,22 @@ on the same set of targets:
 
 | Model | L1 | L2 | L3 | L4 |
 |---|---|---|---|---|
-| LigUnity-protein | **76%** | 63% | 39% | **19%** |
-| LigUnity-pocket | 68% | 55% | 29% | 18% |
-| HypSeek | 65% | 51% | 25% | 16% |
-| LiTENCLIP | 64% | 45% | 18% | 18% |
-| DrugCLIP | 33% | 26% | 18% | 16% |
-| ConGLUDe | 26% | 13% | 14% | 11% |
-| ConPLex | 11% | 6% | 7% | 4% |
-| SPRINT | 5% | 4% | 3% | 4% |
+| LigUnity-protein | **79%** | 63% | 38% | **17%** |
+| LigUnity-pocket | 69% | 54% | 29% | 16% |
+| LiTENCLIP | 64% | 45% | 16% | 18% |
+| HypSeek `_vs` | 63% | 45% | 21% | 15% |
+| DrugCLIP | 34% | 24% | 17% | 16% |
+| ConGLUDe | 25% | 13% | 13% | 10% |
+| ConPLex | 12% | 7% | 7% | 4% |
+| SPRINT | 5% | 4% | 3% | 3% |
 
-**One sentence for the whole of T3**: the best model extracts 76% of the available
-signal on familiar targets, and only 19% on entirely novel ones.
+**One sentence for the whole of T3**: the best model extracts 79% of the available
+signal on familiar targets, and only 17% on entirely novel ones.
+
+⚠️ Regenerated 2026-09-12 from the current subset table; the previous version of this
+table predated both the EF tie-handling fix and the `_vs` switch. HypSeek's row is the
+screening weight, as everywhere else on the screening side — on `_rk` it reads
+68 / 50 / 25 / 15.
 
 ---
 

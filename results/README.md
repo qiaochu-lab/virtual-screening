@@ -17,6 +17,7 @@
 | File | What |
 |---|---|
 | `T3_ligand_only.csv` | per-target **chemical-series oracle ceiling** — no protein, but conditioned on that target's known actives |
+| `T3_ligand_only_subset.csv` | the chemical-series oracle ceiling on the 350-quota subset, per layer |
 | `T3_normalized_by_ceiling.csv` | model EF1% divided by that ceiling |
 | `T3_ligand_novelty.csv` | novelty tiers: pool composition and what models retrieve |
 | `T3_novelty_tiered_ef.csv` | enrichment computed separately per novelty tier |

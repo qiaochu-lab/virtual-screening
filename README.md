@@ -91,7 +91,7 @@ already working in this area.
    It reframes the decay: the ceiling is flat across layers while models fall from 38
    to 9, so **what the models lose on novel targets is access to a memorisable
    chemical series**, not chemistry ability. Normalised against that ceiling, the
-   best model extracts **76% of the available signal at L1 and 19% at L4**.
+   best model extracts **79% of the available signal at L1 and 17% at L4**.
 
    The matching *lower* bound closes the argument. A classifier that sees only
    ECFP4 and never learns which target it is scoring (GroupKFold by uniprot —

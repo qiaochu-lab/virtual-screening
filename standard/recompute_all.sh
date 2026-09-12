@@ -12,7 +12,12 @@ P=/data/work/envs/ligunity/bin/python
 S=${1:-$B/results/export/T3_vsds_matched.csv}
 E=$B/results/export
 L=$B/results/logs
-MODELS='drugclip bindclip_randneg bindclip_hardneg ligunity_pocket_ranking ligunity_protein_ranking litenclip hypseek_rk conglude conplex sprint'
+# Both HypSeek weights belong in summary.json: `_vs` is the screening row the main
+# tables have carried since 2026-09-12, `_rk` is kept because the analyses derived
+# before that switch still reference it. Step 1 REWRITES summary.json from this list,
+# so dropping either one here silently removes it from every downstream table.
+# Ranking analyses exclude `_rk` themselves (EXCLUDE_MODELS) so they still rank ten.
+MODELS='drugclip bindclip_randneg bindclip_hardneg ligunity_pocket_ranking ligunity_protein_ranking litenclip hypseek_official_vs hypseek_rk conglude conplex sprint'
 mkdir -p "$E" "$L"
 cd "$B"
 say(){ echo "[$(date '+%H:%M')] $*"; }
@@ -48,7 +53,7 @@ $P timesplit/analysis/target_redundancy.py --targets "$S" \
 
 say "⑨ 新颖度分档 EF"
 $P timesplit/analysis/novelty_tiered_ef.py --subset "$S" \
-   --models ligunity_protein_ranking ligunity_pocket_ranking hypseek_rk litenclip drugclip conglude \
+   --models ligunity_protein_ranking ligunity_pocket_ranking hypseek_official_vs litenclip drugclip conglude \
    --out "$E/T3_novelty_tiered_ef.csv" > "$L/rc_novelty_ef.log" 2>&1; say "   exit=$?"
 
 say "⑩ 纯配体基线 + 归一化（从逐靶点 CSV 重新汇总，不重算指纹）"
