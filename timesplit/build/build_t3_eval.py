@@ -55,9 +55,28 @@ def load_clusters():
 
 
 def main():
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--out", default=OUT)
+    ap.add_argument("--subset", help="restrict to a (layer, uniprot) subset CSV")
+    ap.add_argument("--no-scaffold-exclusion", action="store_true",
+                    help="keep decoys that share a Bemis-Murcko scaffold with one of the "
+                         "target's actives. The main set excludes them, which is why the "
+                         "chemical-series oracle scores as high as it does; this switch "
+                         "measures how much of that ceiling the rule itself creates.")
+    args = ap.parse_args()
+    out_dir = args.out
+    keep_set = None
+    if args.subset:
+        import csv as _csv
+        keep_set = {(r["layer"], r["uniprot"]) for r in _csv.DictReader(open(args.subset))}
+        print(f"子集：{len(keep_set)} 条（靶点×层）")
+    if args.no_scaffold_exclusion:
+        print("⚠ 骨架排除已关闭：诱饵可以与该靶点的活性共享骨架")
+
     rng = random.Random(SEED)
     clust = load_clusters()
-    os.makedirs(OUT, exist_ok=True)
+    os.makedirs(out_dir, exist_ok=True)
 
     # ---------- Read every layer ----------
     rows_by_layer = {}
@@ -87,7 +106,7 @@ def main():
             except (TypeError, ValueError):
                 pass
 
-        out_path = f"{OUT}/{L}.jsonl"
+        out_path = f"{out_dir}/{L}.jsonl"
         n_t, n_small, n_short, ratios = 0, 0, 0, []
         with open(out_path, "w") as fo:
             for up, acts in sorted(by_t.items()):
@@ -96,6 +115,8 @@ def main():
                 for r in acts:
                     uniq.setdefault(r["inchikey"], r)
                 acts = list(uniq.values())
+                if keep_set is not None and (L, up) not in keep_set:
+                    continue
                 if len(acts) < MIN_ACTIVES:
                     n_small += 1
                     continue
@@ -111,7 +132,8 @@ def main():
                         continue
                     if my_cl and my_cl in pool_clust.get(ik, ()):   # ligand of a same-cluster target
                         continue
-                    if pool_scaf.get(ik) in act_scaf:               # scaffold collision
+                    if (not args.no_scaffold_exclusion
+                            and pool_scaf.get(ik) in act_scaf):     # scaffold collision
                         continue
                     cands.append(ik)
                 rng.shuffle(cands)
@@ -139,10 +161,12 @@ def main():
               flush=True)
 
     json.dump({"paff_cut": PAFF_CUT, "ratio": RATIO, "min_actives": MIN_ACTIVES,
-               "decoy_scheme": "cross-target (mmseqs 40% cluster + scaffold exclusion)",
+               "decoy_scheme": "cross-target (mmseqs 40% cluster"
+                              + ("" if args.no_scaffold_exclusion else " + scaffold exclusion")
+                              + ")",
                "seed": SEED, "layers": summary},
-              open(f"{OUT}/manifest.json", "w"), indent=1)
-    print(f"\n已写入 {OUT}/")
+              open(f"{out_dir}/manifest.json", "w"), indent=1)
+    print(f"\n已写入 {out_dir}/")
 
 
 if __name__ == "__main__":
