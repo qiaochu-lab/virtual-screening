@@ -110,8 +110,9 @@ already working in this area.
 3. **On genuinely novel chemistry against a novel target, the best model
    enriches 4.5-fold — not the 9.4 the main table reports.** Splitting each
    layer's actives by their Tanimoto distance to the training set and computing
-   enrichment per tier: at L4, LigUnity-protein reaches **27.1 on chemistry it
-   has seen (≥0.7) and 4.5 on chemistry it has not (<0.35)** — both tiers cut
+   enrichment per tier: at L4, LigUnity-protein reaches **39.6 on chemistry it
+   has seen (≥0.7) and 4.9 on chemistry it has not (<0.35)** on the 350-quota
+   subset — an eightfold span; the full 1,144-target set gives 27.1 against 4.5 — both tiers cut
    against the affinity half, which is LigUnity-protein's own training set.
    (An earlier version added "DrugCLIP falls below random on the novel tier at
    L3"; that tier was cut against somebody else's ligands. Against DrugCLIP's own
@@ -210,10 +211,14 @@ already working in this area.
 
    **Splitting each target's actives by ligand novelty changes what that decay
    means.** Paired within target, familiar chemistry (max Tanimoto to training
-   ≥ 0.5) against novel (< 0.5): at L1 the three strongest models score +0.16 to
-   +0.28 on the familiar half and **+0.01 to +0.08 on the novel half**
-   (p = 0.0001–0.0013, surviving BH-FDR over 14 tests). At L4 **every** model has
-   p > 0.19 — the effect is gone because the familiar half has fallen to meet the
+   ≥ 0.5) against novel (< 0.5): at L1 the familiar half runs +0.16 to +0.24 and
+   the novel half −0.10 to +0.04, in the same direction for every model. The
+   family is seven models × L1/L4. On the 350-quota subset the paper reports,
+   **one of those fourteen tests survives BH-FDR** — LigUnity-protein at L1,
+   p = 0.00097 — with LiTENCLIP (0.019) and HypSeek (0.044) nominal but not
+   corrected, at n = 27–29 per test. The full 1,144-target set, where n is
+   78–81, rejects three. At L4
+   **every** model has p > 0.45 on the subset and p > 0.19 on the full set — the effect is gone because the familiar half has fallen to meet the
    novel one. The novel half does not decay from L1 to L4 (+0.01…+0.08 →
    +0.05…+0.09): **it is already at floor at L1**. So the layer-wise decay in T2
    is the familiar-chemistry half falling, not ranking ability degrading with
@@ -358,10 +363,18 @@ already working in this area.
    Paired per target, the sequence branch wins DEKOIS and T3's L1/L2 (60–69% of
    decided targets, p ≤ 0.02), the pocket branch wins **LIT-PCBA on every
    early-enrichment metric** (10 of 10 decided targets on EF1%, p = 0.005), and
-   DUD-E is a tie under pairing despite a 5.89 EF1% gap in the means. On novel
-   targets (L4) the two are indistinguishable — 48–50%, p ≥ 0.53. This is
+   DUD-E is a tie under pairing despite a 5.89 EF1% gap in the means. This is
    finding 3 one level down: not only does model ranking reverse by benchmark,
    so does the ranking of two branches of one model.
+
+   **At L4 the two conventions disagree, and the disagreement is metric-specific.**
+   On the full 1,144-target set the branches are indistinguishable there — 48.1%
+   of decided targets on EF@1%, 49.1% on AUROC. On the 350-quota subset the paper
+   reports, EF@1% stays a tie (52.1%, p = 0.62) but **AUROC favours the sequence
+   branch, 63.2% of decided targets, p = 0.024**. So on novel targets the sequence
+   branch orders the whole list better while neither branch is ahead at the top of
+   it — the same split between AUROC and EF that finding 1 turns on.
+   → [`results/T3_seq_vs_pocket_per_target_subset.csv`](results/T3_seq_vs_pocket_per_target_subset.csv)
    → [T3](tasks/T3-time-split.md)
 
 13. **Training data explains performance tiers better than architecture.** The

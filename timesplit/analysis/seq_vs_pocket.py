@@ -72,12 +72,22 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--raw", default="raw_scores", help="存放 npz 的目录")
     ap.add_argument("--out", default="seq_vs_pocket_per_target.csv")
+    ap.add_argument("--subset", help="restrict to a (layer, uniprot) subset CSV — "
+                                     "the 350-quota list is the paper's convention")
     args = ap.parse_args()
 
     P = load(args.raw, POCKET)
     S = load(args.raw, SEQ)
     common = sorted(set(P) & set(S))
     print(f"两个权重都跑过的靶点: {len(common)}")
+    if args.subset:
+        import csv as _csv
+        keep = {(r["layer"], r["uniprot"]) for r in _csv.DictReader(open(args.subset))}
+        def _in(t):
+            parts = t.split("/")
+            return (parts[1] if len(parts) > 2 else "?", parts[-1]) in keep
+        common = [t for t in common if _in(t)]
+        print(f"限定到子集后: {len(common)}（{len(keep)} 条清单）")
 
     rows = [["target", "layer", "n_molecules", "n_actives", "metric",
              "pocket", "sequence", "diff"]]

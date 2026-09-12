@@ -137,6 +137,43 @@ But it gives a sharper explanation for T3's decay:
 > **The decay is not the model "getting dumber" — it's the model losing the memorisable
 > chemical series.**
 
+### Is the ceiling an artefact of our own decoy rule?
+
+The decoy builder refuses any candidate sharing a Bemis-Murcko scaffold with one
+of the target's actives (`build_t3_eval.py`). That rule makes the pool easier to
+separate by fingerprint, so part of the oracle's ~99% could be something we wrote
+into the construction rather than something we found. The way to settle it is to
+turn the rule off and rebuild.
+
+Rebuilt on the 350-quota targets with `--no-scaffold-exclusion`, the oracle
+barely moves ([`results/T3_ligand_only_noscaf.csv`](../results/T3_ligand_only_noscaf.csv)):
+
+| Layer | EF@1% with the rule | without it | % of the 51.00 ceiling |
+|---|---|---|---|
+| L1 | 50.77 | 50.43 | 99.6% → 98.9% |
+| L2 | 50.86 | 50.77 | 99.7% → 99.5% |
+| L3 | 50.97 | 50.97 | 99.9% → 99.9% |
+| L4 | 50.91 | 50.81 | 99.8% → 99.6% |
+
+AUROC is unchanged to three decimals at every layer. **So the ceiling is not an
+artefact of the rule** — but the reason matters, and it is not "scaffold
+collisions are harmless".
+
+**The rule is close to vacuous.** Counting, in the rebuilt sets, how many decoys
+actually share a scaffold with one of that target's actives: a median of **7 out
+of ~5,000 at L1 (0.12%), and exactly zero at L2, L3 and L4**. Cross-target
+actives almost never share a Bemis-Murcko scaffold with a given target's actives,
+so the filter had nothing to remove. What holds the ceiling up is the other fact
+— a target's own actives are a congeneric series, which leave-one-out maximum
+Tanimoto reads directly.
+
+⚠️ One thing this comparison does *not* isolate. Decoys are sampled at random
+from the candidate pool, so turning the rule off and resampling replaces 94–97%
+of them regardless. The stability above is therefore across two nearly disjoint
+random draws as well as across the rule — reassuring for the ceiling being a
+property of the actives, but it means the rule's own contribution is pinned down
+by the 0.12% collision count, not by the difference between the two runs.
+
 ### Normalised metric
 
 `results/T3_normalized_by_ceiling.csv`. Model EF1% ÷ the chemical-series oracle ceiling
@@ -617,6 +654,16 @@ First looking at LigUnity-protein alone:
   **1.9×** drop
 - Changing only the chemistry (within L4): 27.1 → 4.5, a **6.0×** drop
 - The same change in chemistry costs 2.0× at L1 but 6.0× at L4 — amplified **3.1×**
+
+⚠️ **These are the full 1,144-target numbers, and this particular comparison cannot be
+repeated on the 350-quota subset the paper otherwise reports.** The L4 half transfers and
+gets stronger there — 39.6 on chemistry the model has seen against **4.9** on chemistry it
+has not, an eightfold span rather than sixfold
+([`results/T3_novelty_tiered_ef_subset.csv`](../results/T3_novelty_tiered_ef_subset.csv)).
+The L1 half does not: the subset's "novel <0.35" tier at L1 holds **7 targets**, and reads
+50.8 — above its own "very close" tier, which is not a result but a seven-target
+fluctuation. The amplification ratio needs both layers, so it stays a full-set statement,
+and the tier table is the reason rather than an afterthought.
 
 ⚠️ **This amplification only holds for this one model.** An earlier version of this
 document wrote, on this basis, "when the target is novel, the cost of ligand novelty is
