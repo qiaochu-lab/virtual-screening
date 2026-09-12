@@ -350,6 +350,9 @@ gives a weaker answer ([`results/T2_aimnet_mw_baseline.txt`](../results/T2_aimne
 | L3 | +0.217 | +0.117 | 0.43 | 13/23 |
 | L4 | +0.117 | +0.194 | 0.66 | 9/21 |
 
+⚠️ Full-set convention — the AIMNet2 target list barely intersects the subset (30 of
+93); see the head-to-head section below.
+
 All four layers are non-significant (p = 0.42–0.66). The only statement the data
 supports is the weak one: **on novel targets, molecular weight and the physics
 score cannot be told apart.** It does *not* support "MW is higher" (L4, p = 0.66),
@@ -720,6 +723,13 @@ The Boltz-2 comparison above runs on 16 FEP systems, which are not T3 targets. A
 collaborator's AIMNet2 pipeline (`xianyang123-bit/aimnet_score_pipelines`) scored
 **93 T3 targets** directly — every one of them in our eval set — which allows the
 comparison the FEP table cannot make: same targets, same layers.
+
+⚠️ **Full-set convention, and it cannot be restated on the 350-quota subset the rest
+of the paper reports.** Only **30 of those 93 targets** are in the subset — L1 3,
+L2 12, L3 7, L4 8 — and three targets cannot carry a paired test. So this is
+inherently a full-set statement, the same situation as the target-class reversal in
+[T3](T3-time-split.md#actives-per-target-does-the-floor-drive-anything). Quote it as
+such; the fix is more ligands per target, not re-cutting the target list.
 
 ⚠️ **What that pipeline is.** Its README states it plainly: *"a reconstruction of
 the composite energy expression using public checkpoints, **not an official

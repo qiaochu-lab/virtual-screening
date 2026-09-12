@@ -18,6 +18,14 @@ Conventions
   tells whether to read jsonl_pos or lmdb_pos; targets marked FAIL are
   dropped outright (not guessed)
 - Per-target paired Wilcoxon test
+
+⚠️ Full set only, and it cannot be moved to the 350-quota subset
+-----------------------------------------------------------------
+AIMNet2 scored 93 targets; only **30** of them are in the subset, and per
+layer that is L1 3, L2 12, L3 7, L4 8. Three targets cannot carry a paired
+test, so this comparison is inherently a full-set statement -- the same
+situation as the target-class reversal in tasks/T3-time-split.md. Label it
+that way wherever it is quoted; do not add --subset here expecting an answer.
 """
 import csv, gzip, json, os, collections
 import numpy as np
@@ -27,6 +35,10 @@ RDLogger.DisableLog("rdApp.*")
 
 B = "/data/work/vs-benchmark"
 FZ = f"{B}/results/frozen"
+# The collaborator's per-ligand scores. This used to read /tmp/aimnet_t3_ligands.csv,
+# which stops existing the moment /tmp is cleaned; the committed copy is the one
+# every published number came from.
+AIMNET_CSV = os.environ.get("AIMNET_CSV", f"{B}/results/T2_aimnet_t3_ligands.csv")
 MODELS = ["hypseek_rk", "ligunity_protein_ranking", "ligunity_pocket_ranking",
           "litenclip", "drugclip", "conglude"]
 
@@ -45,7 +57,7 @@ def ikey(smi, cache={}):
 
 # ---- AIMNet2 side ----
 ai = collections.defaultdict(list)          # (layer, up) -> [(ikey, paff, -composite, -smina)]
-for r in csv.DictReader(open("/tmp/aimnet_t3_ligands.csv")):
+for r in csv.DictReader(open(AIMNET_CSV)):
     k = ikey(r["smiles"])
     if not k:
         continue
