@@ -268,9 +268,9 @@ already working in this area.
 
    | | full L3+L4 | **350 subset, L4** |
    |---|---|---|
-   | models worse on predicted | 8 of 10, sign test p = 0.109 | **10 of 10, p = 0.0020** |
-   | individually significant | 4 of 20 comparisons; 1 survives BH-FDR (ConGLUDe) | 2 of 10; **none survives BH** |
-   | largest drop | LigUnity-pocket −46% | LigUnity-pocket **−69%** (15.10 → 4.72) |
+   | models worse on predicted | 9 of 11, sign test p = 0.065 | **11 of 11, p = 0.001** |
+   | individually significant | 5 of 22 comparisons; 1 survives BH-FDR (ConGLUDe) | 2 of 11; **none survives BH** |
+   | largest drop | ConGLUDe −58% (6.40 → 2.66) | LigUnity-pocket **−69%** (15.10 → 4.72) |
 
    The direction is unanimous on the published subset and the effect is larger
    there, so this is not a case of a result weakening under the stricter set.

@@ -351,6 +351,12 @@ targets measured a hundred times more precisely
 **Tested by raising the floor to 20, 30 and 50**
 ([`results/T3_actives_gradient.csv`](results/T3_actives_gradient.csv)):
 
+⚠️ That table covers eight models and shows HypSeek on **`_rk`**, not the `_vs`
+the screening tables use. It is built from the `raw_release` score archive
+rather than from `summary.json`, and `_vs` is not in that archive — so this one
+cannot follow the checkpoint switch without re-packing the raw scores. Read its
+HypSeek row against other `_rk` figures, not against the main tables.
+
 - The **L1→L4 decay is stable** — every model stays within a few points of its
   ≥10 value, DrugCLIP drifting most (68% → 59%). The headline finding survives.
 - **L1, L2 and L4 absolute levels are flat**; **L3 is not.** It drops ~17% the

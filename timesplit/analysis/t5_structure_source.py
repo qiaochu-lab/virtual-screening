@@ -39,7 +39,7 @@ from _subset import add_subset_arg, load_subset
 B = "/data/work/vs"
 ALL = ["drugclip", "bindclip_randneg", "bindclip_hardneg",
        "ligunity_pocket_ranking", "ligunity_protein_ranking", "litenclip",
-       "hypseek_rk", "conglude", "conplex", "sprint"]
+       "hypseek_official_vs", "hypseek_rk", "conglude", "conplex", "sprint"]
 # Models that don't use structure, used as a negative control
 SEQ_ONLY = {"conplex", "ligunity_protein_ranking"}
 
