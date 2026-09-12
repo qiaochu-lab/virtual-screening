@@ -92,16 +92,31 @@ Full table: [`results/T3_main.csv`](../results/T3_main.csv). EF1%:
 
 | Model | L1 | L2 | L3 | L4 | decay (excess) | decay (raw) |
 |---|---|---|---|---|---|---|
-| LigUnity-protein | 39.18 | 30.20 | 17.81 | 8.83 | −79% | −77% |
-| HypSeek (`_rk`) | 36.63 | 23.61 | 13.56 | 7.34 | −82% | −80% |
-| LigUnity-pocket | 35.24 | 26.39 | 13.90 | 8.39 | −78% | −76% |
+| LigUnity-protein | 39.28 | 30.22 | 17.81 | 8.86 | −79% | −77% |
+| LigUnity-pocket | 35.30 | 26.42 | 14.04 | 8.40 | −78% | −76% |
 | LiTENCLIP | 32.37 | 23.06 | 12.94 | 8.46 | −76% | −74% |
-| BindCLIP-randneg | 19.12 | 12.86 | 8.21 | 5.68 | −74% | −70% |
-| DrugCLIP | 18.80 | 12.56 | 6.42 | 6.78 | **−68%** | −64% |
-| BindCLIP-hardneg | 17.81 | 12.57 | 7.90 | 6.00 | −70% | −66% |
+| HypSeek (`_vs`) | 32.11 | 20.95 | 12.40 | 7.07 | −80% | −78% |
+| BindCLIP-randneg | 19.13 | 12.86 | 8.21 | 5.71 | −74% | −70% |
+| DrugCLIP | 18.84 | 12.58 | 6.57 | 6.79 | **−68%** | −64% |
+| BindCLIP-hardneg | 17.83 | 12.58 | 7.90 | 6.01 | −70% | −66% |
 | ConGLUDe | 13.63 | 7.75 | 5.36 | 3.87 | −77% | −72% |
-| ConPLex | 7.66 | 3.80 | 3.24 | 2.04 | **−84%** | −73% |
+| ConPLex | 7.67 | 3.78 | 3.26 | 2.04 | **−84%** | −73% |
 | SPRINT | 2.52 | 1.84 | 1.32 | 1.37 | −76% | −46% |
+
+**HypSeek's row is the official `_vs`**, the screening-selected weight, for the
+reason given in [T1](T1-enrichment.md): scoring a screening benchmark with a
+ranking-selected checkpoint is the practice the selective-leakage objection
+targets. T3 is the one place where that objection does *not* strictly apply —
+it is post-cutoff data no released checkpoint could have been selected on — so
+the switch here is for consistency with T1, not because T3 is at risk. `_rk`
+reads 36.63 / 23.61 / 13.56 / 7.34 (−82% excess), i.e. **the decay is the same
+to within two points either way**; the ten-model range stays 68–84%. Both
+weights: [`results/T3_hypseek_official.csv`](../results/T3_hypseek_official.csv).
+
+⚠️ The analyses further down this page that pre-date the switch — bootstrap
+CIs, the contamination-removed decay, recall@k, the 256-vs-511 pocket-cap check
+— were computed with `_rk` and are labelled where they appear. They are not
+re-run here; their conclusions do not turn on which HypSeek weight is used.
 
 **Two decay columns, because the choice of baseline matters.** EF@1% has a floor
 at 1.0 — a random ranking scores 1, not 0 — so a raw ratio `(L1−L4)/L1`
@@ -513,6 +528,10 @@ so a fifth of HypSeek's T3 targets were seen through a partially cropped pocket
 that no other model had to deal with.
 
 Re-run at 511 ([`../timesplit/runners/run_t3_hypseek_511.sh`](../timesplit/runners/run_t3_hypseek_511.sh)):
+
+⚠️ Measured on **`_rk`** (this check predates the switch to `_vs` for the main
+table), so its EF1% values are `_rk` values. The question it answers — whether
+the pocket-atom cap changed anything — is internal to that weight.
 
 | Layer | AUROC 256 → 511 | EF1% 256 → 511 |
 |---|---|---|

@@ -246,9 +246,16 @@ at 40%.
 
 | | Full set (1,144 entries) | New subset, original layers | New subset, corrected layers |
 |---|---|---|---|
-| LigUnity-protein L4 | 8.83 | 12.38 | **9.38** |
-| HypSeek L4 | 7.34 | 9.91 | **7.85** |
-| EF decay range | −68 ~ −84% | −48 ~ −72% | −43 ~ −80% |
+| LigUnity-protein L4 | 8.86 | 12.38 | **9.38** |
+| HypSeek L4 (`_vs`) | 7.07 | 9.27 | **7.85** |
+| EF decay range | −68 ~ −84% | −51 ~ −77% | −56 ~ −83% |
+
+⚠️ Two things about this table's numbers. HypSeek's row is the official `_vs`
+(the screening weight the main tables now use); on `_rk` the same three cells
+read 7.34 / 9.08 / 7.62. And the decay ranges are recomputed from the current
+[`results/T3_main_vsds_subset.csv`](../results/T3_main_vsds_subset.csv) — the
+values printed here before this update came from the retired 250-quota subset
+and no longer matched the shipped file.
 
 **L4 gets easier on the new subset**: class balancing removes a large number
 of "unclassified" targets (41 → 4 within L4), and that batch happened to be

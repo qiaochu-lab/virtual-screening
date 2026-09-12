@@ -168,7 +168,8 @@ between models, and that asymmetry is worth seeing in one place.
 | LigUnity-pocket | screening (`_vs`) | ✅ | ✅ (T3 + FEP + CASF) | ✅ | — | shortlist source |
 | LigUnity-protein | screening (`_vs`) | ✅ | ✅ (T3 + FEP + CASF) | ✅ | — | shortlist source |
 | LiTENCLIP | screening (`best_valid_bedroc`) | ✅ | ✅ (T3 + FEP + CASF) | ✅ | — | — |
-| **HypSeek `_rk`** | **FEP ranking** | ✅ | ✅ | ✅ | ✅ (256 vs 511 cap) | — |
+| **HypSeek `_vs`** (official) | **screening** | ✅ | — | ✅ main table | — | — |
+| **HypSeek `_rk`** (official) | **FEP ranking** | — | ✅ | ✅ derived analyses | ✅ (256 vs 511 cap) | — |
 | HypSeek `_vs` (collaborator) | screening | ✅ | ✅ | ✅ | — | — |
 | HypSeek `_vs` (ours, deficient) | screening | ✅ | — | ✅ | — | — |
 | ConGLUDe | undisclosed | ✅ | ✅ | ✅ | — | — |
@@ -176,21 +177,35 @@ between models, and that asymmetry is worth seeing in one place.
 | SPRINT | undisclosed | ✅ | — | ✅ | — | — |
 | Boltz-2 | n/a (co-folding) | — | ✅ (FEP) | structures | — | ✅ |
 
-**The asymmetry to keep in mind: every retrieval model here ran a
-screening-selected checkpoint except HypSeek, which ran a ranking-selected one**
-— because `_rk` is the only weight its authors released. Reporting HypSeek's
-screening numbers from a checkpoint chosen on FEP ranking is not obviously fair,
-and it was raised as a criticism.
+**The asymmetry this used to carry is now closed.** For most of this
+project `_rk` was the only HypSeek weight its authors had released, so HypSeek
+was the one retrieval model represented by a ranking-selected checkpoint while
+every other model ran a screening-selected one. That was raised as a criticism,
+and the specific worry was selective leakage: `_rk` is chosen on benchmarks, so
+scoring DUD-E and LIT-PCBA with it scores a benchmark using a checkpoint tuned
+on benchmarks of that kind.
 
-It turns out not to disadvantage HypSeek, but establishing that took two tries.
-Our own `_vs` training scored far below `_rk`, which we first read as evidence
-about the objective; it was a deficit in our training (see
-[`MODELS_TRAINING.md`](MODELS_TRAINING.md)). A collaborator's paper-faithful
-`_vs`, run through this same pipeline, still trails `_rk` at every T3 layer —
-EF1% 30.70 vs 36.63 at L1, 5.75 vs 7.34 at L4
-([`results/T3_hypseek_three_way.csv`](results/T3_hypseek_three_way.csv)). So
-`_rk` is HypSeek's better screening weight as well as its ranking weight, by
-about 16% rather than the 40% our own weight suggested.
+Since the author released `_vs`, **the screening tables (T1, T3 main) use `_vs`
+and the ranking tables (T2) use `_rk`** — measured separately, which is what
+was asked for. Note that `_rk` is the *stronger* screening weight (T3 L1 EF1%
+36.63 vs 32.11), and that this is not a defence: a benchmark-selected weight
+outscoring the same benchmarks is the pattern the objection predicts, so the
+gap supports the concern rather than refuting it.
+
+Two earlier readings of this are superseded. Our own `_vs` training scored far
+below `_rk`, which we first read as evidence about the objective; it was a
+deficit in our training (see [`MODELS_TRAINING.md`](MODELS_TRAINING.md)). A
+collaborator's paper-faithful `_vs` also trails `_rk` at every T3 layer — EF1%
+30.70 vs 36.63 at L1, 5.75 vs 7.34 at L4
+([`results/T3_hypseek_three_way.csv`](results/T3_hypseek_three_way.csv)) — so
+the ordering is real; what changed is that "`_rk` scores higher" is no longer
+treated as a reason to report `_rk` on screening tasks.
+
+⚠️ Analyses built before the switch — the target-swap rounds, the leakage
+audit, the bootstrap CIs, the per-class breakdown and all of T5 — were computed
+with `_rk` and have not been re-run. They are labelled at each appearance. Their
+conclusions are cross-model patterns (ten of ten, twelve of twelve) that one
+model's checkpoint choice does not turn on.
 
 **A caveat that applies to anyone using this model.** The released `_rk` scores
 *above* the paper's own published screening numbers — DUD-E EF1% 56.39 against

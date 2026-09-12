@@ -24,14 +24,14 @@ def rd(p):
     with open(p) as f:
         return list(csv.DictReader(f))
 
-NICE = {"hypseek_rk": "HypSeek", "ligunity_protein_ranking": "LigUnity-protein",
+NICE = {"hypseek_official_vs": "HypSeek", "hypseek_rk": "HypSeek (_rk)", "ligunity_protein_ranking": "LigUnity-protein",
         "ligunity_pocket_ranking": "LigUnity-pocket", "litenclip": "LiTENCLIP",
         "drugclip": "DrugCLIP", "bindclip_randneg": "BindCLIP-randneg",
         "bindclip_hardneg": "BindCLIP-hardneg", "conglude": "ConGLUDe",
         "conplex": "ConPLex", "sprint": "SPRINT",
         "ligunity_pocket": "LigUnity-pocket", "ligunity_protein": "LigUnity-protein"}
 # training-data grouping: PocketAffDB as one group, the DrugCLIP set as another, everything else on its own
-POCKETAFF = {"hypseek_rk", "hypseek", "ligunity_pocket_ranking", "ligunity_protein_ranking",
+POCKETAFF = {"hypseek_official_vs", "hypseek_rk", "hypseek", "ligunity_pocket_ranking", "ligunity_protein_ranking",
              "ligunity_pocket", "ligunity_protein", "litenclip"}
 DRUGCLIPSET = {"drugclip", "bindclip_randneg", "bindclip_hardneg"}
 

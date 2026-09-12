@@ -19,6 +19,10 @@ drugclip,L1,56,17.0635,7.5333,0.3238,0.7528,original
 drugclip,L2,171,12.4308,6.3227,0.2464,0.7128,original
 drugclip,L3,19,6.1413,3.1206,0.1192,0.6828,original
 drugclip,L4,69,8.8537,5.0569,0.1814,0.6749,original
+hypseek_official_vs,L1,55,31.9195,13.9788,0.6133,0.9065,original
+hypseek_official_vs,L2,167,22.7184,10.7024,0.4396,0.8756,original
+hypseek_official_vs,L3,19,6.8859,4.5412,0.1445,0.6756,original
+hypseek_official_vs,L4,68,9.2711,4.6745,0.1834,0.6906,original
 hypseek_rk,L1,53,34.3744,14.4972,0.6552,0.9177,original
 hypseek_rk,L2,167,25.4483,11.8701,0.4935,0.8837,original
 hypseek_rk,L3,19,9.2892,5.6004,0.1937,0.6911,original
@@ -59,6 +63,10 @@ drugclip,L1,56,17.0635,7.5333,0.3238,0.7528,corrected
 drugclip,L2,171,12.4308,6.3227,0.2464,0.7128,corrected
 drugclip,L3,26,8.8668,4.4885,0.1750,0.7037,corrected
 drugclip,L4,62,8.0171,4.7019,0.1650,0.6653,corrected
+hypseek_official_vs,L1,55,31.9195,13.9788,0.6133,0.9065,corrected
+hypseek_official_vs,L2,167,22.7184,10.7024,0.4396,0.8756,corrected
+hypseek_official_vs,L3,26,10.8705,5.7561,0.2130,0.7229,corrected
+hypseek_official_vs,L4,61,7.8465,4.1720,0.1587,0.6721,corrected
 hypseek_rk,L1,53,34.3744,14.4972,0.6552,0.9177,corrected
 hypseek_rk,L2,167,25.4483,11.8701,0.4935,0.8837,corrected
 hypseek_rk,L3,26,12.6693,6.5349,0.2508,0.7325,corrected

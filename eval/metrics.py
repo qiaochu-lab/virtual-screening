@@ -5,8 +5,12 @@ Conventions
 ----
 - ``labels``: 1 = active, 0 = inactive/decoy
 - ``scores``: higher means more likely to be active
-- Ties are always broken with "average rank", to avoid bias from
-  implementation differences across models' own ranking code
+- Rank-based metrics (AUROC, BEDROC) break ties with "average rank", to avoid
+  bias from implementation differences across models' own ranking code
+- ``enrichment_factor`` does **not**: a tie group straddling the cutoff is
+  counted by expected value, i.e. only the proportional share of actives it is
+  due. Average rank counted such a group in full, which let EF exceed its own
+  theoretical ceiling; see that function's docstring
 
 Correctness of this implementation rests on two layers:
 1. ``test_metrics.py`` unit tests (theoretical boundary values)

@@ -388,15 +388,26 @@ already working in this area.
    affinity-trained models.**
    → [`tasks/T3-leakage.md`](tasks/T3-leakage.md)
 
-14. **A checkpoint selected for affinity ranking is also the better screener.**
-   HypSeek ships two weights from one run: `_vs` selected on screening, `_rk` on
-   FEP ranking. Both are now public (the author released them in
-   [issue #4](https://github.com/jianhuiwemi/HypSeek/issues/4)), and `_rk` beats
+14. **Screening tables use the screening-selected checkpoint, even though the
+   ranking one scores higher.** HypSeek ships two weights from one run: `_vs`
+   selected on screening, `_rk` on FEP ranking; both are public
+   ([issue #4](https://github.com/jianhuiwemi/HypSeek/issues/4)). `_rk` beats
    `_vs` on **all seven screening measurements** — DUD-E 56.39 vs 51.41,
    DEKOIS 28.83 vs 25.52, LIT-PCBA 8.34 vs 6.82, and every T3 layer
-   (L1 36.63 vs 32.11, L4 7.34 vs 7.07). An earlier version of this finding
-   compared `_rk` against a *self-trained* `_vs` with a known training defect;
-   the official weight makes the comparison sound.
+   (L1 36.63 vs 32.11, L4 7.34 vs 7.07). **That is not a reason to report it.**
+   Scoring DUD-E and LIT-PCBA with a checkpoint selected on benchmarks of that
+   kind is precisely the selective-leakage objection; a benchmark-selected
+   weight winning on the same benchmarks is what the objection predicts, so the
+   gap is evidence for the concern rather than a defence against it. **T1 and
+   T3's main tables therefore report `_vs`, and T2's ranking tables report
+   `_rk`.** Switching costs HypSeek the DEKOIS lead (25.52, behind
+   LigUnity-protein's 27.13) and two places at T3 L1 (32.11, behind LiTENCLIP's
+   32.37); it leaves the headline decay unmoved — 80% against 82%, with the
+   ten-model range still 68–84%. Analyses derived before the switch (target
+   swap, leakage audit, bootstrap CIs, T5) remain on `_rk` and are labelled
+   where they appear. An earlier version of this finding compared `_rk` against
+   a *self-trained* `_vs` with a known training defect; the official weight
+   makes the comparison sound.
    → [`results/T1_hypseek_official.md`](results/T1_hypseek_official.md)
 
    A collaborator's paper-faithful `_vs` reproduction, run through our pipeline,

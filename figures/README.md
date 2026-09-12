@@ -15,6 +15,19 @@ Each figure is written as both PNG (160 dpi) and PDF.
 | `fig2_t1_heatmap` | EF at 1% for every model on the three standard benchmarks | [`../results/T1_main.csv`](../results/T1_main.csv) |
 | `fig3_t6_physics` | Retrieval baseline vs physics rerank vs rank fusion, for both physics methods | [`../results/T6_rerank3.csv`](../results/T6_rerank3.csv), [`../results/T6_dock.csv`](../results/T6_dock.csv) |
 
+**fig 1–3 were re-rendered on 2026-09-12**, after the HypSeek screening rows
+switched from `_rk` to the official `_vs` (see [`../MODELS.md`](../MODELS.md)).
+`make_figures.py` was updated at the same time so the new row is named
+`HypSeek` and stays in the PocketAffDB colour group. The point both figures
+exist to make is unchanged: `_vs` remains in that group at every layer, and the
+four PocketAffDB models still hold the top four places on DUD-E and at all four
+T3 layers.
+
+⚠️ fig 3 is driven by the T6 tables, which this change did not touch — its
+bytes differ only because the whole set was re-rendered under a newer
+matplotlib. fig 4 comes from a separate script (`fig4_actives.py`) and was not
+regenerated.
+
 **Reading fig 1 and fig 2 together.** Both are coloured by training set rather
 than by architecture, because that is what separates the tiers: the four models
 trained on PocketAffDB occupy the top four positions on DUD-E and the top four

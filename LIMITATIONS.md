@@ -237,14 +237,15 @@ indicative of magnitude and must not be cited as "FEP+ results".
 
 | Model | What is public | Consequence |
 |---|---|---|
-| HypSeek | only the ranking weight `_rk` | its screening numbers may understate it; the screening weight would have to be trained |
+| HypSeek | **both weights, since 2026-09-07** — `_vs` (screening) and `_rk` (ranking) | resolved: screening tables use `_vs`, ranking tables `_rk` (see §16). Until then only `_rk` was public and every table used it |
 | LiTENCLIP | one weight (`bedroc_0.50`) | a `bedroc_0.58` variant is referenced upstream and was not obtained |
 | LigUnity | `_vs`, plus `_0.3` / `_0.8` variants filtered by training-set sequence distance | only the plain `_vs` was evaluated |
 
 **Resolved since:** HypSeek's T3 runs used a 256-atom pocket cap while everything
 else used 511, and 19.7% of 6 Å pockets exceed 256. Re-running at 511 changes
-nothing material (L1 AUROC 0.923 → 0.924, L4 EF1% 7.34 → 7.34), so the
-inconsistency is closed by measurement. See [`tasks/T3-time-split.md`](tasks/T3-time-split.md).
+nothing material (on `_rk`, the weight this check was run with: L1 AUROC
+0.923 → 0.924, L4 EF1% 7.34 → 7.34), so the inconsistency is closed by
+measurement. See [`tasks/T3-time-split.md`](tasks/T3-time-split.md).
 
 More generally, released checkpoints are chosen with DUD-E / LIT-PCBA scores in
 view, so those benchmarks measure a selection decision as well as a model. This
@@ -306,18 +307,30 @@ a 6 Å pocket. That asymmetry is real and favours the retrieval side. It is
 another route to a better input structure, and the N=5 result predicts it would
 change little — but that is a prediction, not a measurement.
 
-## 16. Checkpoint selection is not symmetric across models
+## 16. Checkpoint selection: fixed for the main tables, still open elsewhere
 
-Every retrieval model here ran a screening-selected checkpoint except HypSeek,
-which ran `_rk`, selected on FEP ranking — the only weight its authors released.
-Comparing it to models represented by their screening weights is not apples to
-apples.
+For most of this project HypSeek was the one retrieval model represented by a
+ranking-selected checkpoint (`_rk`) while every other model ran a
+screening-selected one — `_rk` was the only weight its authors had released.
+The objection is selective leakage: `_rk` is selected on benchmarks, so scoring
+DUD-E and LIT-PCBA with it uses a checkpoint tuned on benchmarks of that kind.
 
-Measured against the **official** `_vs`, which the author released on
-2026-09-07 in [issue #4](https://github.com/jianhuiwemi/HypSeek/issues/4):
-`_rk` is the stronger screening weight on all seven measurements — DUD-E 56.39
-vs 51.41, DEKOIS 28.83 vs 25.52, LIT-PCBA 8.34 vs 6.82, and every T3 layer. So
-the asymmetry does not flatter HypSeek's screening numbers.
+**Fixed for T1 and T3's main tables**, which now report the official `_vs`
+(released 2026-09-07 in
+[issue #4](https://github.com/jianhuiwemi/HypSeek/issues/4)); T2's ranking
+tables keep `_rk`. `_rk` is the stronger screening weight on all seven
+measurements — DUD-E 56.39 vs 51.41, DEKOIS 28.83 vs 25.52, LIT-PCBA 8.34 vs
+6.82, and every T3 layer — which is **not** a reason to report it: a
+benchmark-selected weight winning on the same benchmarks is what the objection
+predicts.
+
+⚠️ **Still on `_rk`, and not re-run:** the target-swap rounds, the leakage
+audit, the bootstrap CIs, the per-class breakdown, recall@k, the 256-vs-511
+pocket-cap check, and all of T5. Each is labelled where it appears. The risk
+they carry is small — their claims are cross-model patterns (ten of ten models,
+twelve of twelve cells) rather than statements about HypSeek's absolute level —
+but the numbers in those tables are `_rk` numbers and should not be read
+alongside the main tables as if they came from one checkpoint.
 
 ⚠️ An earlier version of this section made the same claim from a **self-trained**
 `_vs` (T3 L1 EF1% 22.2 against 36.6). That weight has a diagnosed training defect

@@ -50,17 +50,28 @@ Machine-readable: [`results/T1_main.csv`](../results/T1_main.csv).
 
 | Model | Protein input | DUD-E (102) | DEKOIS (81) | LIT-PCBA (15) |
 |---|---|---|---|---|
-| **HypSeek `_rk`** | 3D pocket, hyperbolic | **56.39** | **28.83** | 8.34 |
-| LigUnity ensemble | pocket + sequence + HGNN | 52.52 | 28.07 | 7.67 |
+| LigUnity ensemble | pocket + sequence + HGNN | **52.52** | **28.07** | 7.67 |
+| **HypSeek `_vs`** | 3D pocket, hyperbolic | 51.41 | 25.52 | 6.82 |
 | LiTENCLIP | 3D pocket | 43.95 | 23.97 | 6.56 |
-| LigUnity-pocket | 3D pocket | 42.57 | 24.62 | 7.30 |
-| LigUnity-protein | sequence | 36.69 | 27.04 | 6.22 |
-| BindCLIP-randneg | 3D pocket | 32.81 | 19.36 | 6.36 |
-| DrugCLIP | 3D pocket | 31.94 | 17.86 | 5.55 |
-| BindCLIP-hardneg | 3D pocket | 27.64 | 17.56 | 6.23 |
-| ConGLUDe | sequence + structure graph | 26.48 | 16.55 | **13.24** ⚠️ |
+| LigUnity-pocket | 3D pocket | 42.61 | 24.63 | 7.30 |
+| LigUnity-protein | sequence | 36.69 | 27.13 | 6.22 |
+| BindCLIP-randneg | 3D pocket | 32.82 | 19.36 | 6.36 |
+| DrugCLIP | 3D pocket | 31.97 | 17.86 | 5.55 |
+| BindCLIP-hardneg | 3D pocket | 27.64 | 17.64 | 6.23 |
+| ConGLUDe | sequence + structure graph | 26.48 | 16.58 | **13.24** ⚠️ |
 | ConPLex | sequence only | 18.70 | 10.46 | 2.15 |
 | SPRINT | SaProt 3Di sequence | 4.58 | 3.09 | 8.95 ⚠️ |
+
+**Which HypSeek checkpoint this row is.** HypSeek ships two weights from one
+training run. Screening tables — this one and T3 — use the **official `_vs`**,
+the screening-selected weight; T2's ranking tables use `_rk`. Scoring DUD-E and
+LIT-PCBA with `_rk` would mean scoring a benchmark with a checkpoint that was
+itself selected on benchmarks of that kind, which is the selective-leakage
+objection raised against exactly this practice. `_rk` scores *higher* here
+(56.39 / 28.83 / 8.34), and that is not a reason to report it: a
+benchmark-selected checkpoint beating the same benchmarks is what the objection
+predicts. Both weights side by side:
+[`results/T1_hypseek_official.md`](../results/T1_hypseek_official.md).
 
 ## What these three benchmarks are made of
 
@@ -328,6 +339,12 @@ training.
 
 Restricting to group C — the 45 targets neither split file ever names — and
 rescoring all ten models on that same subset:
+
+⚠️ This table was computed before the HypSeek checkpoint switch and its
+HypSeek row is **`_rk`**, so its `EF1% (102)` column (56.39) is the `_rk`
+number, not the 51.41 in the main table above. The comparison it makes is
+within-model (45 targets vs 102, same weight), so it is unaffected; only read
+the absolute column against other `_rk` figures.
 
 | Model | EF1% (45) | AUROC | EF1% (102) | change |
 |---|---|---|---|---|

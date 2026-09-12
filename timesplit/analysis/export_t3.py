@@ -12,15 +12,15 @@ os.makedirs(os.path.dirname(out), exist_ok=True)
 keys = [("AUROC","auroc"),("BEDROC","bedroc"),("EF0.1%","ef01"),("EF1%","ef1"),("EF5%","ef5")]
 with open(out, "w", newline="") as f:
     w = csv.writer(f)
-    w.writerow(["model", "layer", "n_targets"] + keys)
+    w.writerow(["model", "layer", "n_targets"] + [h for h, _ in keys])
     for m in sorted(d):
         for L in ("L1", "L2", "L3", "L4"):
             r = d[m].get(L)
             if not r:
                 continue
             row = [m, L, r.get("n_targets") or r.get("n")]
-            for k in keys:
-                v = r.get(k, r.get(k.replace("%", "")))
+            for _, k in keys:
+                v = r.get(k)
                 row.append(f"{v:.4f}" if isinstance(v, float) else v)
             w.writerow(row)
 print("写入", out)
