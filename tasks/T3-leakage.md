@@ -798,8 +798,8 @@ HypSeek's row changed for a reason connected to this update (it is now the `_vs`
 the rest were simply brought back into sync.
 
 **After switching labels, groups A and B separate further apart.** Under the current
-L1→L4 labels, group A sits at 45–69% and group B at 69–72%, overlapping; computed against
-each group's own training set, **group A is 49–58% and group B is 66–71%**, not
+L1→L4 labels, group A sits at 51–71% and group B at 70–73%, overlapping; computed against
+each group's own training set, **group A is 49–58% and group B is 66–70%**, not
 overlapping. **The decay conclusion is not an artefact of the layer labels.**
 
 ### Target difficulty must be divided out, and it cannot be a ratio
