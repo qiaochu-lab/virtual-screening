@@ -372,9 +372,17 @@ this task has to be read against that floor, not against zero.
 Scoring both sides on exactly the same ligands of the same target
 ([`paired_vs_ligand_only.py`](../timesplit/analysis/paired_vs_ligand_only.py)
 → [`results/T2_paired_vs_ligand_only_subset.csv`](../results/T2_paired_vs_ligand_only_subset.csv)),
-**none of the 24 model × layer cells survives BH-FDR**. Nominally only two reach
+**none of the 20 cells in the BH family survives**. Nominally only two reach
 p < 0.05 — HypSeek `_rk` at L4 (p = 0.020, model ahead) and DrugCLIP at L2
 (p = 0.012, baseline ahead) — and neither clears the correction.
+
+⚠️ The table below shows both HypSeek checkpoints but the BH family holds
+twenty cells, not twenty-four. `_vs` and `_rk` are one architecture from one
+training run differing only in the epoch window selected, so a second cell for
+the same model is a near-duplicate test rather than an independent one — the
+same pseudo-replication rule findings 9 and 18 apply. Nothing turns on it here:
+the smallest p in the family is 0.012 against a rank-1 threshold of 0.0025, so
+the count is zero either way.
 
 | Model | L1 Δ vs blind | wins | L4 Δ vs blind | wins |
 |---|---|---|---|---|

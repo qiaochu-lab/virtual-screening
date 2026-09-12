@@ -65,6 +65,12 @@ def main():
     ap.add_argument("--pred", default=f"{B}/results/export/T2_ligand_only_predictions.csv")
     ap.add_argument("--label", default="ligand-only", help="name for the baseline column")
     ap.add_argument("--out", default=f"{B}/results/export/T2_paired_vs_ligand_only.csv")
+    ap.add_argument("--bh-exclude", nargs="*", default=["hypseek_rk"],
+                    help="reported as rows but kept out of the BH family. HypSeek's two "
+                         "checkpoints come from one architecture and one training run, "
+                         "differing only in the epoch window selected, so counting both "
+                         "would inflate the family with a near-duplicate test — the same "
+                         "pseudo-replication rule finding 9 and finding 18 apply.")
     a = ap.parse_args()
 
     base = {}
@@ -139,15 +145,19 @@ def main():
             print("%-26s %-4s %5d %+9.3f %+11.3f %+9.3f %7d/%-4d %12.4g"
                   % (m, L, len(A), A.mean(), Bv.mean(), diff.mean(), k, n, p2))
 
-    # BH-FDR across every cell -- nominal p is not the standard here
-    ps = sorted((c[8], i) for i, c in enumerate(collected) if np.isfinite(c[8]))
+    # BH-FDR across the model-level family. Cells whose model is in --bh-exclude
+    # are still printed, but they are not independent tests and do not enter it.
+    ps = sorted((c[8], i) for i, c in enumerate(collected)
+                if np.isfinite(c[8]) and c[0] not in a.bh_exclude)
     N = len(ps)
     rejected = set()
     for rank, (pv, i) in enumerate(ps, start=1):
         if pv <= 0.05 * rank / N:
             rejected = {j for _, j in ps[:rank]}
     print("-" * 96)
-    print(f"\nBH-FDR over {N} cells (alpha=0.05): {len(rejected)} rejected")
+    print(f"\nBH-FDR over {N} cells (alpha=0.05): {len(rejected)} rejected"
+          + (f"  [excluded from the family: {', '.join(a.bh_exclude)}]"
+             if a.bh_exclude else ""))
     for i, c in enumerate(collected):
         m, L, nt, am, bm, dm, k, n, p2 = c
         verdict = ""

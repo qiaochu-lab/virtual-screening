@@ -229,8 +229,8 @@ already working in this area.
    alone**, only HypSeek `_rk` (p = 0.0015) and LigUnity-pocket (p = 0.0137) win
    at L1, **no model wins at L4**, and DrugCLIP loses to it there (p = 0.0065).
    Against a **regressor that is never told which protein it is scoring** —
-   ECFP4 → pAffinity, with the target held out — **not one of 24 model × layer
-   cells survives BH-FDR**; that blind baseline sits at ρ = +0.12 (L1) and +0.10
+   ECFP4 → pAffinity, with the target held out — **not one of the 20 cells in
+   the BH family survives**; that blind baseline sits at ρ = +0.12 (L1) and +0.10
    (L4) and, unlike every model, does not decay, because it never had target
    information to lose. Meanwhile a lookup that *does* see the target's known
    actives reaches **+0.52 (L1) and +0.57 (L4)**, two to five times any model: the
