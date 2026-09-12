@@ -99,3 +99,43 @@ drugclip,L4,远 0.35–0.5,52,66,0.0063,0.0405,0.500
 drugclip,L4,近 0.5–0.7,32,24,0.0026,0.0606,0.500
 drugclip,L4,极近 ≥0.7,20,22,-0.0974,0.0738,0.350
 drugclip,L4,pooled,55,,0.0100,0.0322,0.545
+bindclip_randneg,L1,全新 <0.35,4,22,-0.1542,0.2028,0.250
+bindclip_randneg,L1,远 0.35–0.5,27,16,-0.0341,0.0727,0.444
+bindclip_randneg,L1,近 0.5–0.7,39,37,0.1028,0.0564,0.615
+bindclip_randneg,L1,极近 ≥0.7,44,47,0.1001,0.0371,0.682
+bindclip_randneg,L1,pooled,44,,0.0882,0.0329,0.682
+bindclip_randneg,L2,全新 <0.35,105,51,0.0498,0.0272,0.590
+bindclip_randneg,L2,远 0.35–0.5,149,80,0.0534,0.0235,0.517
+bindclip_randneg,L2,近 0.5–0.7,126,59,0.0383,0.0300,0.556
+bindclip_randneg,L2,极近 ≥0.7,66,13,0.0116,0.0515,0.470
+bindclip_randneg,L2,pooled,152,,0.0560,0.0185,0.625
+bindclip_randneg,L3,全新 <0.35,13,81,0.0045,0.0525,0.692
+bindclip_randneg,L3,远 0.35–0.5,15,42,0.0620,0.0963,0.533
+bindclip_randneg,L3,近 0.5–0.7,7,35,-0.1261,0.0787,0.286
+bindclip_randneg,L3,极近 ≥0.7,4,13,0.1102,0.3158,0.500
+bindclip_randneg,L3,pooled,16,,-0.0282,0.0544,0.562
+bindclip_randneg,L4,全新 <0.35,37,58,0.0842,0.0472,0.622
+bindclip_randneg,L4,远 0.35–0.5,52,66,0.0106,0.0399,0.500
+bindclip_randneg,L4,近 0.5–0.7,32,24,0.0940,0.0638,0.594
+bindclip_randneg,L4,极近 ≥0.7,20,22,0.0602,0.0603,0.550
+bindclip_randneg,L4,pooled,55,,0.0394,0.0314,0.564
+bindclip_hardneg,L1,全新 <0.35,4,22,-0.3549,0.1989,0.250
+bindclip_hardneg,L1,远 0.35–0.5,27,16,0.0413,0.0732,0.593
+bindclip_hardneg,L1,近 0.5–0.7,39,37,0.1669,0.0473,0.692
+bindclip_hardneg,L1,极近 ≥0.7,44,47,0.1438,0.0395,0.750
+bindclip_hardneg,L1,pooled,44,,0.1286,0.0335,0.773
+bindclip_hardneg,L2,全新 <0.35,105,51,0.0483,0.0307,0.533
+bindclip_hardneg,L2,远 0.35–0.5,149,80,0.0428,0.0277,0.510
+bindclip_hardneg,L2,近 0.5–0.7,126,59,0.0407,0.0291,0.571
+bindclip_hardneg,L2,极近 ≥0.7,66,13,0.0695,0.0525,0.530
+bindclip_hardneg,L2,pooled,152,,0.0426,0.0212,0.572
+bindclip_hardneg,L3,全新 <0.35,13,81,-0.0177,0.0683,0.462
+bindclip_hardneg,L3,远 0.35–0.5,15,42,-0.0037,0.0779,0.400
+bindclip_hardneg,L3,近 0.5–0.7,7,35,-0.1624,0.1554,0.571
+bindclip_hardneg,L3,极近 ≥0.7,4,13,0.1087,0.2011,0.750
+bindclip_hardneg,L3,pooled,16,,-0.0108,0.0573,0.500
+bindclip_hardneg,L4,全新 <0.35,37,58,0.0257,0.0485,0.486
+bindclip_hardneg,L4,远 0.35–0.5,52,66,0.0258,0.0420,0.558
+bindclip_hardneg,L4,近 0.5–0.7,32,24,0.0650,0.0695,0.656
+bindclip_hardneg,L4,极近 ≥0.7,20,22,-0.0278,0.0881,0.450
+bindclip_hardneg,L4,pooled,55,,0.0493,0.0354,0.618

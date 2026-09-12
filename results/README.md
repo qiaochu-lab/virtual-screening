@@ -24,6 +24,11 @@
 | File | What |
 |---|---|
 | `T3_ligand_only.csv` | per-target **chemical-series oracle ceiling** — no protein, but conditioned on that target's known actives |
+| `T2_novelty_tiers_subset.csv` | T2 by ligand-novelty tier, on the subset |
+| `T2_novelty_paired_subset.csv` | familiar vs novel half, paired per target, on the subset |
+| `T2_novelty_tiers_Agroup_subset.csv` | the same against the DrugCLIP family's own training ligands |
+| `T2_novelty_paired_Agroup_subset.csv` | and its paired test |
+| `T3_novelty_tiered_ef_subset.csv` | enrichment by novelty tier, on the subset |
 | `T3_ligand_only_noscaf.csv` | the same oracle with the decoy scaffold rule switched off — #3b |
 | `T3_main_clean_subset.csv` | contamination-removed main table, on the subset |
 | `T3_seq_vs_pocket_per_target_subset.csv` | LigUnity's two branches, paired per target, on the subset |

@@ -52,9 +52,14 @@ already working in this area.
    and reorders nothing, so the decay below is not an artefact of the metric.
    → [`results/T3_recall_at_k.csv`](results/T3_recall_at_k.csv)
 
-1. **All ten models lose 68–84% of their above-random enrichment on post-cutoff
-   targets** (full set; **51–77%** on the 350-quota subset, where L4 targets carry
-   ≥50 actives each). Absolute performance differs fifteenfold between the best
+1. **All ten models lose 56–83% of their above-random enrichment on post-cutoff
+   targets** on the 350-quota subset the paper reports, where L4 targets carry ≥50
+   actives each; 68–84% on the full 1,144-target set.
+   ⚠️ The subset figure is read off the **corrected** layering. This line used to
+   quote 51–77%, which is the same table under the *original* layering — the one
+   finding 6 shows was produced by a fall-through bug that dropped 24% of L4
+   targets into the wrong layer. Quoting it here while finding 6 argues against it
+   was an inconsistency, not a second convention. Absolute performance differs fifteenfold between the best
    and worst model while the *decay* spans 16 points — far tighter than the
    absolute spread, which is the point, though "identical" overstates it. This is a property of the method
    class, not of any one model.
@@ -65,11 +70,20 @@ already working in this area.
    same tables already used this convention.
    → [T3](tasks/T3-time-split.md)
 
-2. **A chemical-series oracle reaches 98.7% of the theoretical ceiling — at every
-   layer, and 100% on DUD-E.** Scoring each candidate purely by its 2D fingerprint similarity to the
-   target's other actives (no protein at all) gives EF@1% ≈ 50.4 against a ceiling
-   of 51.0, at L1 *and* L4. Actives of one target are largely one congeneric
+2. **A chemical-series oracle reaches 99.6–99.9% of the theoretical ceiling at
+   every layer, and 100% on DUD-E.** Scoring each candidate purely by its 2D
+   fingerprint similarity to the target's other actives (no protein at all) gives
+   EF@1% of 50.8–51.0 against a ceiling of 51.0 on the 350-quota subset — L1 99.6%,
+   L2 99.7%, L3 99.9%, L4 99.8%. Actives of one target are largely one congeneric
    series; cross-target decoys are not.
+   ⚠️ On the full 1,144-target set the same oracle runs 94.9% / 99.7% / 97.7% /
+   98.9% for L1–L4, so "98.7% at every layer" — which an earlier version of this
+   line said — was never quite right there: L1 is four points below the others,
+   because targets outside the subset carry as few as ten actives and a
+   leave-one-out nearest-neighbour has little to work with. The subset, where
+   every target holds ≥50, is both the paper's convention and the cleaner
+   measurement.
+   → [`results/T3_ligand_only_subset.csv`](results/T3_ligand_only_subset.csv)
 
    ⚠️ **This is not a "ligand-only baseline", and calling it one would overstate
    it.** It is conditioned on the target — it reads that target's known actives,

@@ -193,6 +193,24 @@ ligands and computing the per-target Spearman **within each tier**
 Across the 14 tests (7 models × L1/L4), BH-FDR keeps the first three;
 LigUnity-pocket's 0.024 does not clear the threshold (0.0143).
 
+**On the 350-quota subset the paper reports, the same family keeps one.**
+Direction is unchanged for every model, but n falls from 78–81 to 27–29 and only
+LigUnity-protein at L1 survives (p = 0.00097); LiTENCLIP (0.019) and HypSeek
+(0.044) are nominal, LigUnity-pocket (0.12) is not
+([`results/T2_novelty_paired_subset.csv`](../results/T2_novelty_paired_subset.csv)):
+
+| Model | L1 familiar | L1 novel | Δ | p (subset) | p (full set) |
+|---|---|---|---|---|---|
+| LigUnity-protein | +0.238 | **−0.074** | +0.312 | **0.00097** | 0.0001 |
+| LiTENCLIP | +0.158 | **−0.096** | +0.255 | 0.019 | 0.0009 |
+| HypSeek `_rk` | +0.244 | +0.009 | +0.235 | 0.044 | 0.0013 |
+| LigUnity-pocket | +0.190 | +0.041 | +0.149 | 0.12 | 0.024 |
+| DrugCLIP | +0.095 | +0.028 | +0.068 | 0.35 | 0.21 |
+
+The gap between the halves is *wider* on the subset — the novel half goes
+negative for the two strongest models — and it is the sample size, not the
+effect, that costs the significance.
+
 **At L4 every model has p > 0.19**, with Δ between +0.03 and −0.05. The effect
 is gone.
 
@@ -257,9 +275,18 @@ extreme tiers rather than the halves:
 | BindCLIP-randneg | +0.195 | +0.010 | +0.185 | **0.013** | 29/46 |
 | BindCLIP-hardneg | +0.193 | +0.037 | +0.156 | **0.012** | 27/46 |
 
-**All three are significant.** The effect is not a property of the PocketAffDB
-group — it is a property of all seven models tested, once each is measured
-against the data it actually saw.
+**All three are significant on the full set.** The effect is not a property of
+the PocketAffDB group — it is a property of all seven models tested, once each is
+measured against the data it actually saw.
+
+⚠️ **On the 350-quota subset only DrugCLIP survives**: Δ = +0.280 at p = 0.0019,
+against BindCLIP-randneg's +0.174 (p = 0.12) and BindCLIP-hardneg's +0.140
+(p = 0.14), all at n = 21
+([`results/T2_novelty_paired_Agroup_subset.csv`](../results/T2_novelty_paired_Agroup_subset.csv)).
+All three keep the same sign and a similar effect size, so this reads as the
+twenty-one-target cell rather than as a failure to replicate — but on the paper's
+convention the sentence has to be "DrugCLIP significantly, the BindCLIP pair
+directionally", not "all three".
 
 ⚠️ **Which contrast is usable depends on the reference set, and the two groups
 need different ones.** Against the 428,767-ligand set, the extreme tiers leave

@@ -1,0 +1,61 @@
+model,layer,tier,n_targets,n_actives_median,spearman_mean,spearman_sem,frac_positive
+drugclip,L1,全新 <0.35,41,42,-0.0128,0.0464,0.561
+drugclip,L1,远 0.35–0.5,40,33,0.0659,0.0524,0.600
+drugclip,L1,近 0.5–0.7,31,19,0.0331,0.0722,0.516
+drugclip,L1,极近 ≥0.7,24,12,0.2144,0.0640,0.750
+drugclip,L1,pooled,44,,0.0680,0.0391,0.659
+drugclip,L2,全新 <0.35,147,124,0.0281,0.0235,0.510
+drugclip,L2,远 0.35–0.5,133,38,-0.0096,0.0275,0.489
+drugclip,L2,近 0.5–0.7,56,18,0.0559,0.0531,0.518
+drugclip,L2,极近 ≥0.7,6,7,0.1758,0.0622,1.000
+drugclip,L2,pooled,152,,0.0333,0.0212,0.533
+drugclip,L3,全新 <0.35,16,103,0.0127,0.0371,0.500
+drugclip,L3,远 0.35–0.5,8,14,0.0694,0.1192,0.500
+drugclip,L3,近 0.5–0.7,3,8,-0.1857,0.1625,0.000
+drugclip,L3,极近 ≥0.7,1,8,0.8571,nan,1.000
+drugclip,L3,pooled,16,,-0.0038,0.0502,0.500
+drugclip,L4,全新 <0.35,54,92,-0.0123,0.0319,0.444
+drugclip,L4,远 0.35–0.5,45,25,0.0700,0.0427,0.644
+drugclip,L4,近 0.5–0.7,17,14,-0.0627,0.0858,0.412
+drugclip,L4,极近 ≥0.7,3,7,-0.3121,0.2361,0.000
+drugclip,L4,pooled,55,,0.0100,0.0322,0.545
+bindclip_randneg,L1,全新 <0.35,41,42,0.0358,0.0468,0.610
+bindclip_randneg,L1,远 0.35–0.5,40,33,0.0290,0.0467,0.500
+bindclip_randneg,L1,近 0.5–0.7,31,19,0.0459,0.0728,0.581
+bindclip_randneg,L1,极近 ≥0.7,24,12,0.1716,0.0707,0.667
+bindclip_randneg,L1,pooled,44,,0.0882,0.0329,0.682
+bindclip_randneg,L2,全新 <0.35,147,124,0.0585,0.0215,0.612
+bindclip_randneg,L2,远 0.35–0.5,133,38,0.0337,0.0305,0.541
+bindclip_randneg,L2,近 0.5–0.7,56,18,0.1270,0.0487,0.643
+bindclip_randneg,L2,极近 ≥0.7,6,7,0.0505,0.2200,0.500
+bindclip_randneg,L2,pooled,152,,0.0560,0.0185,0.625
+bindclip_randneg,L3,全新 <0.35,16,103,-0.0137,0.0500,0.562
+bindclip_randneg,L3,远 0.35–0.5,8,14,0.0843,0.0958,0.750
+bindclip_randneg,L3,近 0.5–0.7,3,8,-0.0485,0.3698,0.333
+bindclip_randneg,L3,极近 ≥0.7,1,8,0.7619,nan,1.000
+bindclip_randneg,L3,pooled,16,,-0.0282,0.0544,0.562
+bindclip_randneg,L4,全新 <0.35,54,92,0.0020,0.0300,0.370
+bindclip_randneg,L4,远 0.35–0.5,45,25,0.0975,0.0463,0.689
+bindclip_randneg,L4,近 0.5–0.7,17,14,0.0422,0.1141,0.471
+bindclip_randneg,L4,极近 ≥0.7,3,7,-0.1142,0.3761,0.333
+bindclip_randneg,L4,pooled,55,,0.0394,0.0314,0.564
+bindclip_hardneg,L1,全新 <0.35,41,42,0.0623,0.0521,0.537
+bindclip_hardneg,L1,远 0.35–0.5,40,33,0.1285,0.0472,0.575
+bindclip_hardneg,L1,近 0.5–0.7,31,19,0.1230,0.0669,0.645
+bindclip_hardneg,L1,极近 ≥0.7,24,12,0.1116,0.0691,0.583
+bindclip_hardneg,L1,pooled,44,,0.1286,0.0335,0.773
+bindclip_hardneg,L2,全新 <0.35,147,124,0.0404,0.0238,0.585
+bindclip_hardneg,L2,远 0.35–0.5,133,38,0.0033,0.0303,0.496
+bindclip_hardneg,L2,近 0.5–0.7,56,18,0.0612,0.0591,0.518
+bindclip_hardneg,L2,极近 ≥0.7,6,7,0.0653,0.1482,0.500
+bindclip_hardneg,L2,pooled,152,,0.0426,0.0212,0.572
+bindclip_hardneg,L3,全新 <0.35,16,103,0.0092,0.0539,0.500
+bindclip_hardneg,L3,远 0.35–0.5,8,14,-0.1469,0.1049,0.250
+bindclip_hardneg,L3,近 0.5–0.7,3,8,0.0275,0.1758,0.667
+bindclip_hardneg,L3,极近 ≥0.7,1,8,0.7143,nan,1.000
+bindclip_hardneg,L3,pooled,16,,-0.0108,0.0573,0.500
+bindclip_hardneg,L4,全新 <0.35,54,92,0.0394,0.0341,0.463
+bindclip_hardneg,L4,远 0.35–0.5,45,25,0.0610,0.0514,0.533
+bindclip_hardneg,L4,近 0.5–0.7,17,14,0.0352,0.0642,0.529
+bindclip_hardneg,L4,极近 ≥0.7,3,7,0.1777,0.3883,0.667
+bindclip_hardneg,L4,pooled,55,,0.0493,0.0354,0.618
