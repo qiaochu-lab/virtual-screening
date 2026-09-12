@@ -34,7 +34,7 @@ B = "/data/work/vs-benchmark"
 GROUP = {
     "A(train_no_test_af)": ["drugclip", "bindclip_randneg", "bindclip_hardneg"],
     "B(PocketAffDB)": ["ligunity_pocket_ranking", "ligunity_protein_ranking",
-                       "litenclip", "hypseek_rk"],
+                       "litenclip", "hypseek_official_vs"],
     "C(ConPLex BindingDB)": ["conplex"],
     "unavailable": ["conglude", "sprint"],
 }

@@ -474,18 +474,23 @@ already working in this area.
 
     Re-cutting L1–L4 per model against the corrected union still separates the
     two families: **49–58% decay for the three structure-only models against
-    66–71% for the four with affinity labels**, where the shared L1→L4 labels had
+    66–70% for the four with affinity labels**, where the shared L1→L4 labels had
     them overlapping. Ranking the ten models *within each target*, which cancels
-    target difficulty, the four gain **+0.83 to +1.86 rank places** on targets in
-    their own training set; the three structure-only models gain **−0.19 to
-    +0.09**, i.e. nothing — though that null is weak evidence, since all seven
+    target difficulty, the four gain **+0.87 to +1.98 rank places** on targets in
+    their own training set; the three structure-only models gain **−0.04 to
+    +0.19**, i.e. nothing — though that null is weak evidence, since all seven
     trained on those same targets and none can stand out. Splitting by which half
-    a target came from, the four rank **1.73 places better** on targets only the
-    affinity half contains (exact permutation p = 0.0095, 2 of 210 splits).
-    Repeated on all 840 common records rather than the 350-quota subset — which
-    grows the thin structure-only cell from 7 to 28 — the gap is **1.85 places at
-    p = 0.0048, a perfect ten-model separation**, and the one exception in the
-    subset (HypSeek, +0.12) does not survive the larger sample.
+    a target came from, the four rank **2.29 places better** on targets only the
+    affinity half contains — a perfect ten-model separation, exact permutation
+    p = 0.0048 (1 of 210 splits). Repeated on all 840 common records rather than
+    the 350-quota subset — which grows the thin structure-only cell from 7 to 28
+    — the separation holds at **1.95 places, p = 0.0048**.
+    ⚠️ These are the `_vs` numbers, HypSeek's screening weight, consistent with
+    the main tables; `_rk` is excluded so the ranking still covers ten models.
+    On `_rk` the same cuts gave 1.73 places (p = 0.0095) on the subset with
+    HypSeek as the lone exception at +0.12, and 1.85 places on the full set —
+    the conclusion is the same and the subset version is now the cleaner of the
+    two rather than the weaker.
     → [`tasks/T3-leakage.md`](tasks/T3-leakage.md)
 
     ⚠️ **This finding replaces an earlier version that was wrong.** It read

@@ -535,19 +535,25 @@ reading the crossover below — the "affinity-only" cell is not empty, it holds
 
 The crossover that produced "2.4 rank places" compared cells defined as "in A
 only" and "in B only", which presumes the sets are disjoint. Recomputed against
-the two label halves, the effect survives but weakens: **1.73 places, p = 0.0095**
-(exact permutation, 2 of C(10,4) = 210 splits), against a perfect ten-model
-separation in the first version. The structure-only cell holds **7 records** in
-the 350-quota subset, and two models sit on the wrong side of zero — HypSeek
-+0.12 among the four, ConGLUDe −0.19 among the six.
+the two label halves, the effect survives at **2.29 places, p = 0.0048** (exact
+permutation, 1 of C(10,4) = 210 splits — the four affinity-trained models are
+the most extreme of all 210 splits). The structure-only cell still holds only
+**7 records** in the 350-quota subset, and one model sits on the wrong side of
+zero: ConGLUDe at +0.05, among the six.
 
-**Repeating it on all 840 common records removes that exception.** The
-structure-only cell grows from 7 to 28, and HypSeek moves from +0.12 to −0.37,
-putting all four affinity-trained models on the same side. The group difference
-goes from 1.73 to **1.85 places, and p from 2/210 to 1/210 — a perfect ten-model
-separation**. So the effect strengthens slightly across a threefold change in
-sample size while the one anomaly does not survive it, which is what a
-small-sample artefact looks like.
+**Repeating it on all 840 common records confirms rather than rescues it.** The
+structure-only cell grows from 7 to 28 and the group difference reads **1.95
+places, p = 0.0048**, the same complete separation. The effect is stable across
+a threefold change in sample size.
+
+⚠️ These are the `_vs` numbers — HypSeek's screening weight, matching the main
+tables since 2026-09-12, with `_rk` excluded so the ranking still covers ten
+models. On `_rk` the subset gave 1.73 places at p = 0.0095 with HypSeek as the
+lone exception at +0.12, rescued only by the full-set run (1.85 places, 1/210).
+Switching to the screening weight removes that exception at the subset level:
+HypSeek goes from +0.12 to −2.02 and becomes the strongest of the four. The
+conclusion is unchanged; what changed is that it no longer depends on widening
+the sample.
 ([`results/T3_train_set_crossover_full.csv`](results/T3_train_set_crossover_full.csv),
 `train_set_crossover.py --subset all`)
 
@@ -559,7 +565,7 @@ a rule this retraction is the reason for.
 
 **The measurements were never wrong; the attribution was.** What is actually
 shown is narrower: on targets reachable only through the affinity-labelled half,
-the four models trained on it rank ~1.5 places better. On the structure half —
+the four models trained on it rank ~2 places better. On the structure half —
 which all seven pocket models trained on — no group stands out, which is what
 should happen when everyone has seen the data.
 
@@ -583,7 +589,7 @@ model's own training set. Two limits on how far that result reaches.
 **The A-only cell holds 13 targets.** The crossover that separates PocketAffDB
 membership from `train_no_test_af` membership compares targets only one set
 contains. B-only has 32; A-only has 13. Two of the four PocketAffDB models reach
-significance individually (p = 0.009, 0.005); the other two are directionally
+significance individually (p = 0.039, 0.044); the other two are directionally
 consistent but not significant. The evidence that survives is at **group** level
 — all four B models on one side of zero, all six others on the other, exact
 p = 0.0048 — not per model. Widening the A-only cell needs a larger subset, not

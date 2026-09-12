@@ -34,10 +34,17 @@ B = "/data/work/vs-benchmark"
 MODEL_SET = {
     "drugclip": "A", "bindclip_randneg": "A", "bindclip_hardneg": "A",
     "ligunity_pocket_ranking": "B", "ligunity_protein_ranking": "B",
-    "litenclip": "B", "hypseek_rk": "B",
+    "litenclip": "B", "hypseek_official_vs": "B",
     "conplex": "C", "sprint": "D",
 }
 LAYERS = ["L1", "L2", "L3", "L4"]
+
+# HypSeek ships two weights and summary.json now holds both. Ranking is a
+# within-target position among the benchmark models, so it must rank TEN:
+# `_vs` is HypSeek's row (screening-selected, matching the main tables since
+# 2026-09-12) and `_rk` is excluded here — leaving both in would rank eleven
+# and count HypSeek twice, shifting every model's rank.
+EXCLUDE_MODELS = {"hypseek_rk"}
 
 
 def load_sets():
@@ -92,6 +99,7 @@ def main():
         open(f"{B}/results/export/T3_vsds_matched.csv"))}
     SETS = load_sets()
     S = json.load(open(f"{B}/results/t3/summary.json"))
+    S = {m: v for m, v in S.items() if m not in EXCLUDE_MODELS}
 
     EF = {}
     for m in S:

@@ -47,7 +47,7 @@ B = "/data/work/vs-benchmark"
 MODEL_SET = {
     "drugclip": "A", "bindclip_randneg": "A", "bindclip_hardneg": "A",
     "ligunity_pocket_ranking": "B", "ligunity_protein_ranking": "B",
-    "litenclip": "B", "hypseek_rk": "B",
+    "litenclip": "B", "hypseek_official_vs": "B",
     "conplex": "C",
     "sprint": "D",
     # conglude: list not obtained

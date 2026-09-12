@@ -779,15 +779,23 @@ entries. The table below uses the correct values after filtering by (layer, targ
 
 | Model | Set | seen | unseen | EF1 seen | EF1 unseen | Own decay | L1→L4 decay |
 |---|---|---|---|---|---|---|---|
-| DrugCLIP | A | 187 | 128 | 15.53 | 7.07 | 58% | 45% |
-| BindCLIP-hardneg | A | 187 | 128 | 14.64 | 7.49 | 52% | 69% |
-| BindCLIP-randneg | A | 187 | 128 | 14.24 | 7.78 | 49% | 59% |
-| HypSeek `_rk` | B | 232 | 75 | 26.84 | 8.52 | **71%** | 72% |
-| LigUnity-pocket | B | 234 | 75 | 28.56 | 9.28 | **70%** | 69% |
-| LigUnity-protein | B | 234 | 75 | 32.86 | 11.46 | 67% | 70% |
-| LiTENCLIP | B | 234 | 75 | 24.25 | 8.81 | 66% | 69% |
-| ConPLex | C | 128 | 170 | 5.34 | 2.32 | 70% | 67% |
-| SPRINT | D | 22 | 241 | 2.11 | 2.02 | 8% *(p=0.85)* | 29% |
+| DrugCLIP | A | 187 | 128 | 15.53 | 7.07 | 58% | 51% |
+| BindCLIP-hardneg | A | 187 | 128 | 14.64 | 7.49 | 52% | 71% |
+| BindCLIP-randneg | A | 187 | 128 | 14.24 | 7.78 | 49% | 62% |
+| HypSeek `_vs` | B | 234 | 75 | 24.26 | 8.46 | **68%** | 70% |
+| LigUnity-pocket | B | 234 | 75 | 28.56 | 9.28 | **70%** | 73% |
+| LigUnity-protein | B | 234 | 75 | 32.86 | 11.46 | 67% | 73% |
+| LiTENCLIP | B | 234 | 75 | 24.25 | 8.81 | 66% | 73% |
+| ConPLex | C | 128 | 170 | 5.34 | 2.32 | 70% | 75% |
+| SPRINT | D | 22 | 241 | 2.11 | 2.02 | 8% *(p=0.85)* | 54% |
+
+⚠️ Every column here now matches
+[`results/T3_per_model_layers.csv`](../results/T3_per_model_layers.csv) cell for cell.
+It did not before: the right-hand column used to read 45 / 69 / 59 / 72 / 69 / 70 / 69 /
+67 / 29 in this document while the committed CSV held the values above — the table had
+drifted from its own source at some earlier point, the same way the main tables had. Only
+HypSeek's row changed for a reason connected to this update (it is now the `_vs` weight);
+the rest were simply brought back into sync.
 
 **After switching labels, groups A and B separate further apart.** Under the current
 L1→L4 labels, group A sits at 45–69% and group B at 69–72%, overlapping; computed against
@@ -808,18 +816,18 @@ out ([`per_model_seen_effect.py`](../timesplit/analysis/per_model_seen_effect.py
 
 | Model | Set | P(seen&gt;unseen) | Rank seen | Rank unseen | Rank improvement |
 |---|---|---|---|---|---|
-| DrugCLIP | A | 0.690 | 5.78 | 5.73 | **−0.05** |
-| BindCLIP-randneg | A | 0.661 | 6.06 | 5.87 | **−0.19** |
-| BindCLIP-hardneg | A | 0.692 | 5.93 | 6.03 | **+0.09** |
-| LigUnity-pocket | B | 0.815 | 3.04 | 4.90 | **+1.86** |
-| LigUnity-protein | B | 0.824 | 2.74 | 4.53 | **+1.78** |
-| HypSeek `_rk` | B | 0.811 | 3.64 | 5.46 | **+1.82** |
-| LiTENCLIP | B | 0.775 | 4.24 | 5.07 | **+0.83** |
-| ConPLex | C | 0.621 | 7.57 | 7.29 | **−0.28** |
-| SPRINT | D | 0.450 | 7.08 | 7.95 | +0.87 *(p=0.78)* |
+| DrugCLIP | A | 0.693 | 5.66 | 5.77 | **+0.10** |
+| BindCLIP-randneg | A | 0.665 | 5.95 | 5.91 | **−0.04** |
+| BindCLIP-hardneg | A | 0.695 | 5.84 | 6.03 | **+0.19** |
+| LigUnity-pocket | B | 0.816 | 2.97 | 4.94 | **+1.98** |
+| LigUnity-protein | B | 0.823 | 2.74 | 4.47 | **+1.73** |
+| HypSeek `_vs` | B | 0.795 | 4.17 | 5.64 | **+1.47** |
+| LiTENCLIP | B | 0.776 | 4.16 | 5.03 | **+0.87** |
+| ConPLex | C | 0.625 | 7.48 | 7.25 | **−0.23** |
+| SPRINT | D | 0.450 | 7.00 | 7.92 | +0.92 *(p=0.78)* |
 
 **The two criteria conflict, and the conflict itself is the answer.** Absolute EF says
-group A is clearly higher on targets it has seen (P=0.67~0.69, p&lt;1e-4); within-target
+group A is clearly higher on targets it has seen (P=0.67~0.70, p&lt;1e-4); within-target
 rank says group A's relative position hasn't moved at all. **Group A's "higher when
 seen" is because those targets are simply easier — every model scores higher there.**
 
@@ -843,46 +851,59 @@ next subsection.
 
 | Model | Group | P-only | L-only | L-only minus P-only | p |
 |---|---|---|---|---|---|
-| LiTENCLIP | B | 6.07 | 4.19 | **−1.88** | 0.036 |
-| LigUnity-pocket | B | 3.93 | 2.68 | **−1.25** | 0.048 |
-| LigUnity-protein | B | 3.86 | 2.73 | **−1.13** | 0.062 |
-| ConGLUDe | ? | 7.36 | 7.17 | −0.19 | 0.42 |
-| HypSeek `_rk` | B | 4.07 | 4.19 | **+0.12** ⚠️ | 0.69 |
-| BindCLIP-randneg | A | 6.36 | 6.58 | +0.23 | 0.64 |
-| ConPLex | C | 6.79 | 7.17 | +0.38 | 0.66 |
-| SPRINT | D | 7.00 | 7.74 | +0.74 | 0.65 |
-| BindCLIP-hardneg | A | 4.71 | 6.00 | +1.29 | 0.94 |
-| DrugCLIP | A | 4.86 | 6.56 | +1.70 | 0.90 |
+| HypSeek `_vs` | B | 5.79 | 3.76 | **−2.02** | 0.039 |
+| LiTENCLIP | B | 5.93 | 4.23 | **−1.70** | 0.044 |
+| LigUnity-protein | B | 3.71 | 2.81 | **−0.90** | 0.150 |
+| LigUnity-pocket | B | 3.64 | 2.79 | **−0.86** | 0.084 |
+| ConGLUDe | ? | 7.14 | 7.19 | +0.05 | 0.49 |
+| BindCLIP-randneg | A | 6.21 | 6.70 | +0.49 | 0.76 |
+| ConPLex | C | 6.57 | 7.17 | +0.60 | 0.71 |
+| SPRINT | D | 6.79 | 7.75 | +0.96 | 0.69 |
+| BindCLIP-hardneg | A | 4.50 | 6.00 | +1.50 | 0.94 |
+| DrugCLIP | A | 4.71 | 6.61 | +1.89 | 0.94 |
 
-The between-group mean difference is **1.73 places** (group B −1.04, non-B +0.69). Exact
+The between-group mean difference is **2.29 places** (group B −1.37, non-B +0.92). Exact
 permutation test: of all C(10,4)=210 ways of picking four of the ten models to call
-"group B", only **2** give a between-group difference ≥ the observed value, **p =
-0.0095**.
+"group B", only **1** gives a between-group difference ≥ the observed value, **p =
+0.0048** — the four affinity-trained models are exactly the most extreme split of the
+ten. Reproducible with
+[`finding18_permutation.py`](../timesplit/analysis/finding18_permutation.py), which also
+re-derives the pre-2026-09-12 values from the archived CSVs.
 
 > **On targets covered only by the affinity half, models trained on that half rank about
-> 1.7 places stronger relative to the others.** On the structure half, which both groups
+> 2.3 places stronger relative to the others.** On the structure half, which both groups
 > trained on, no group stands out — which is exactly what should happen.
 
-### Robustness: on the full set of shared targets, the one exception disappears and the separation becomes complete
+⚠️ **These are the `_vs` numbers.** HypSeek's row is the official screening weight, as in
+the main tables since 2026-09-12; ranking is a within-target position among the ten
+benchmark models, so `_rk` is excluded rather than ranked alongside it — keeping both
+would rank eleven and count HypSeek twice. On `_rk` this table read −1.88 / −1.25 / −1.13
+/ **+0.12** for group B and a between-group 1.73 places at p = 0.0095.
 
-In the table above, HypSeek is group B's sole exception in the wrong direction (+0.12),
-and the "P-only" cell has only 7 records. Widening the scope from the 350 subset to the
-**840 records shared by all ten models**, this cell grows to 28
-(`train_set_crossover.py --subset all` →
+### Robustness: the full set of shared targets confirms the subset
+
+The "P-only" cell holds only 7 records in the 350 subset, thin enough that the result
+should not rest on it alone. Widening the scope to the **840 records shared by all ten
+models** grows that cell to 28 (`train_set_crossover.py --subset all` →
 [`results/T3_train_set_crossover_full.csv`](../results/T3_train_set_crossover_full.csv)):
 
 | | 350 subset (n=237) | Full common set (n=840) |
 |---|---|---|
 | Four cells: P∩L / P-only / L-only / neither | 128 / **7** / 42 / 60 | 419 / **28** / 191 / 202 |
-| Group B's "L-only minus P-only" | −1.88, −1.25, −1.13, **+0.12** | −1.60, −1.26, −1.20, **−0.37** |
-| Is group B entirely negative | No | **Yes** |
-| Between-group difference | 1.73 places | **1.85 places** |
-| Exact permutation p | 0.0095 (2/210) | **0.0048 (1/210, complete separation)** |
+| Group B's "L-only minus P-only" | −2.02, −1.70, −0.90, −0.86 | −1.60, −1.30, −1.10, −0.67 |
+| Is group B entirely negative | **Yes** | **Yes** |
+| Between-group difference | **2.29 places** | 1.95 places |
+| Exact permutation p | **0.0048 (1/210)** | **0.0048 (1/210)** |
 
-**After tripling the sample size: the effect size ticks up slightly, p goes from 2/210 to
-a complete separation at 1/210, and the sole exception disappears** — exactly what a
-small-sample artefact should look like. HypSeek's +0.12 on the subset needs no further
-explanation — it was simply noise on 7 records to begin with.
+**Across a threefold change in sample size the separation stays complete and p does not
+move**; the effect size settles from 2.29 to 1.95 places as the thin cell fills out.
+Nothing here rests on the small cell any more.
+
+⚠️ **This section used to argue the other way round.** On `_rk`, group B was not entirely
+negative on the subset — HypSeek sat at +0.12, and the full-set run was what removed that
+exception (1.73 → 1.85 places, 2/210 → 1/210). Moving HypSeek's row to the screening
+weight `_vs` puts it at −2.02, the strongest of the four, so the subset no longer needs
+rescuing. The conclusion is unchanged; the argument for it got shorter.
 
 ### This set of numbers has been independently verified
 
@@ -894,8 +915,8 @@ cell counts, the per-model values for all ten models, and the permutation p all 
 ### Three things that must go into the limitations
 
 1. **The "P-only" cell has only 7 records in the 350 subset.** After the full-set version
-   widens it to 28, group B's direction becomes consistent, but 28 is still thin. Subset
-   p=0.0095, full-set p=0.0048.
+   widens it to 28, but 28 is still thin. Group B is entirely negative on both, and
+   the exact permutation p is 0.0048 on each.
 2. **The layer labels themselves are contaminated.** In the 350 subset, 4 (21%) L3
    targets and 8 (11%) L4 targets were in fact seen by the four group-B models through
    the structure half. The direction is the same as that earlier fall-through bug: seen
