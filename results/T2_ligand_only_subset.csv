@@ -1,0 +1,9 @@
+baseline,layer,n_targets,spearman_mean,spearman_sem,frac_positive,median_n_actives
+oracle,L1,56,0.5166,0.0210,1.000,99
+oracle,L2,177,0.6350,0.0138,1.000,171
+oracle,L3,19,0.5106,0.0341,1.000,103
+oracle,L4,74,0.5692,0.0238,0.986,147
+learned_ridge,L1,56,0.1187,0.0319,0.661,99
+learned_ridge,L2,177,0.0815,0.0206,0.638,171
+learned_ridge,L3,19,0.1051,0.0431,0.737,103
+learned_ridge,L4,74,0.0953,0.0296,0.635,147

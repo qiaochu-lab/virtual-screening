@@ -78,6 +78,18 @@ def main():
         p = f"{B}/data/t3/eval/{L}.jsonl"
         EV[L] = {json.loads(x)["uniprot"]: json.loads(x) for x in open(p)} if os.path.exists(p) else {}
 
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--subset", help="restrict to a (layer, uniprot) subset CSV — "
+                                     "the 350-quota list is the paper's convention")
+    ap.add_argument("--out", default=f"{B}/results/export/T3_main_clean.csv")
+    args = ap.parse_args()
+    keep = None
+    if args.subset:
+        import csv as _csv
+        keep = {(r["layer"], r["uniprot"]) for r in _csv.DictReader(open(args.subset))}
+        print(f"子集：{len(keep)} 条（靶点×层）")
+
     rows = ["model,layer,n_targets,n_actives_removed,EF1_raw,EF1_clean,BEDROC_raw,BEDROC_clean,AUROC_raw,AUROC_clean"]
     print("%-26s %-4s %7s %9s %16s %16s" % ("模型", "层", "靶点", "删掉", "EF1 原→净", "AUROC 原→净"))
     print("-" * 88)
@@ -90,6 +102,8 @@ def main():
                 continue
             raw, clean, ndrop = [], [], 0
             for up in sorted(os.listdir(d)):
+                if keep is not None and (L, up) not in keep:
+                    continue
                 try:
                     p = np.load(f"{d}/{up}/saved_preds.npy").reshape(-1)
                     y = np.load(f"{d}/{up}/saved_labels.npy")
@@ -135,7 +149,7 @@ def main():
             rows.append(f"{m},{L},{len(raw)},{ndrop},{f(raw,'ef1'):.4f},{f(clean,'ef1'):.4f},"
                         f"{f(raw,'bedroc'):.4f},{f(clean,'bedroc'):.4f},"
                         f"{f(raw,'auroc'):.4f},{f(clean,'auroc'):.4f}")
-    out = f"{B}/results/export/T3_main_clean.csv"
+    out = args.out
     open(out, "w").write("\n".join(rows) + "\n")
     print(f"\n写入 {out}")
     print("L3/L4 两列应完全相同（那两层污染为 0），可作自检")

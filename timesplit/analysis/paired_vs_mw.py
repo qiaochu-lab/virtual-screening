@@ -46,8 +46,24 @@ def model_order(up, L, n, rec, labels):
     except Exception: return None
     return ok(out)
 
+import argparse
+_ap = argparse.ArgumentParser()
+_ap.add_argument("--subset", help="restrict to a (layer, uniprot) subset CSV; "
+                                  "the 350-quota list is the paper's convention")
+_ap.add_argument("--out", default=f"{B}/results/export/T2_vs_mw_baseline.csv")
+_args = _ap.parse_args()
+
+_keep = None
+if _args.subset:
+    import csv as _csv
+    _keep = {(r["layer"], r["uniprot"]) for r in _csv.DictReader(open(_args.subset))}
+    print(f"子集：{len(_keep)} 条（靶点×层），"
+          f"{len({u for _, u in _keep})} 个唯一靶点")
+
 recs = {L: [json.loads(x) for x in open(f"{B}/data/t3/eval/{L}.jsonl")]
         for L in ("L1", "L2", "L3", "L4")}
+if _keep is not None:
+    recs = {L: [r for r in v if (L, r["uniprot"]) in _keep] for L, v in recs.items()}
 
 print("逐靶点配对：模型 vs 分子量基线（同靶点、同活性集合）")
 print("%-24s %-4s %5s %9s %9s %9s %10s %12s" %

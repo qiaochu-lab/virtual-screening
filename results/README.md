@@ -7,6 +7,13 @@
 | `T3_vsds_matched.csv` | the selected subset: **328** target×layer entries, **293** unique targets (quota 350) |
 | `T3_main_vsds_subset.csv` | T3 main table on the subset, both original and corrected layering |
 | `T2_on_T3_subset.csv` | affinity ranking on the subset |
+| `T2_ligand_only_subset.csv` | E2 — the ranking oracle and the target-blind regressor, on the subset |
+| `T2_ligand_only_subset_per_target.csv` | the same, per target |
+| `T2_paired_vs_ligand_only_subset.csv` | each model vs the target-blind regressor, paired per target |
+| `T2_vs_mw_baseline_subset.txt` | each model vs molecular weight, paired per target, on the subset |
+| `T3_main_ci_subset.csv` | bootstrap confidence intervals on the subset |
+| `T2_ligand_only.csv` | E2 on the full 1,144-target set — auxiliary check, not the paper's convention |
+| `T2_ligand_only_per_target.csv` | the same, per target |
 | `T5_structure_source_subset.csv` | structure-source control on the subset |
 | `T5_pocket_threshold_subset.txt` | 4/6/8 Å curve on the subset |
 | `T5_apo_subset.txt` | apo control on the subset (15 targets — under-powered) |

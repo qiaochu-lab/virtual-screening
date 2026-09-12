@@ -39,7 +39,15 @@ def main():
     ap.add_argument("--metric", default="ef1", choices=["ef1", "ef5", "bedroc", "auroc"])
     ap.add_argument("--summary", default=f"{B}/results/t3/summary.json")
     ap.add_argument("--out", default=f"{B}/results/export/T3_main_ci.csv")
+    ap.add_argument("--subset", help="restrict to a (layer, uniprot) subset CSV — "
+                                     "the 350-quota list is the paper's convention")
     args = ap.parse_args()
+
+    keep = None
+    if args.subset:
+        import csv
+        keep = {(r["layer"], r["uniprot"]) for r in csv.DictReader(open(args.subset))}
+        print(f"子集：{len(keep)} 条（靶点×层），{len({u for _, u in keep})} 个唯一靶点")
 
     s = json.load(open(args.summary))
     rows = ["model,layer,n_targets,metric,mean,ci_lo,ci_hi"]
@@ -52,7 +60,9 @@ def main():
             d = s[m].get(L)
             if not d or "per_target" not in d:
                 continue
-            vals = [t.get(args.metric) for t in d["per_target"] if t.get(args.metric) is not None]
+            vals = [t.get(args.metric) for t in d["per_target"]
+                    if (keep is None or (L, t["uniprot"]) in keep)
+                    and t.get(args.metric) is not None]
             mean, lo, hi = ci(vals)
             if not np.isfinite(mean):
                 continue

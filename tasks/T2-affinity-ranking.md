@@ -332,6 +332,69 @@ MW. The weak statement is enough for the argument it is needed for: physics scor
 correlate strongly with molecular size, so reading MW as an independent "blind-spot
 signal" does not hold.
 
+### The two pure-ligand baselines T2 never had
+
+T1 and T3 are bracketed on both sides — a target-conditioned similarity oracle
+reaches ~99% of the structural ceiling, and a classifier that never learns which
+target it is scoring lands below random. T2 had neither bound, so "+0.22 within
+target" could not be read against anything. Both are now measured on the same
+protocol as every other number on this page — actives only, per-target Spearman
+against measured pAffinity, on the **350-quota subset**
+([`timesplit/analysis/t2_ligand_only.py`](../timesplit/analysis/t2_ligand_only.py)
+→ [`results/T2_ligand_only_subset.csv`](../results/T2_ligand_only_subset.csv)):
+
+| Baseline | L1 | L2 | L3 | L4 | fraction positive |
+|---|---|---|---|---|---|
+| **oracle** — mean pAff of the 5 most ECFP4-similar *other actives of the same target*, leave-one-out | **+0.517** | **+0.635** | **+0.511** | **+0.569** | 0.99–1.00 |
+| **blind** — ECFP4 → pAff regression, GroupKFold by uniprot, so the target is held out | +0.119 | +0.082 | +0.105 | +0.095 | 0.64–0.74 |
+| best model for comparison (HypSeek `_rk`) | +0.225 | +0.147 | +0.084 | +0.151 | — |
+
+Grouping the folds by **target** rather than by molecule is the point: a
+congeneric series split across a fold boundary would put near-duplicates on both
+sides and leak.
+
+**Three things this settles.**
+
+**The ceiling is nowhere near reached.** A lookup that knows only "what else
+binds this target" ranks affinity two to five times better than the best model,
+at every layer. Whatever the models are missing, it is not that the information
+is absent from chemistry — it is that they are not using it. ⚠️ The oracle reads
+that target's known actives, which no evaluated model is given; it is a ceiling,
+not a competitor.
+
+**There is a floor of about +0.10 that owes nothing to the protein.** The blind
+regressor never sees which target it is scoring and still reaches +0.08 to +0.12
+— and, unlike every model on this page, **it does not decay**: L1 +0.119 against
+L4 +0.095, because it never had target information to lose. Any absolute ρ in
+this task has to be read against that floor, not against zero.
+
+**Paired per target, no model is distinguishable from the blind baseline.**
+Scoring both sides on exactly the same ligands of the same target
+([`paired_vs_ligand_only.py`](../timesplit/analysis/paired_vs_ligand_only.py)
+→ [`results/T2_paired_vs_ligand_only_subset.csv`](../results/T2_paired_vs_ligand_only_subset.csv)),
+**none of the 24 model × layer cells survives BH-FDR**. Nominally only two reach
+p < 0.05 — HypSeek `_rk` at L4 (p = 0.020, model ahead) and DrugCLIP at L2
+(p = 0.012, baseline ahead) — and neither clears the correction.
+
+| Model | L1 Δ vs blind | wins | L4 Δ vs blind | wins |
+|---|---|---|---|---|
+| HypSeek `_rk` | +0.088 | 24/41 | +0.090 | 36/54 |
+| HypSeek `_vs` | +0.084 | 26/43 | +0.067 | 34/54 |
+| LigUnity-protein | +0.088 | 24/43 | +0.037 | 29/54 |
+| LigUnity-pocket | +0.043 | 21/43 | +0.047 | 30/54 |
+| LiTENCLIP | −0.033 | 17/43 | +0.053 | 30/54 |
+| DrugCLIP | −0.061 | 19/44 | −0.060 | 27/55 |
+
+⚠️ **This is underpowered, and that is part of the finding rather than a way
+round it.** Each cell has 41–55 targets after the ≥10-actives floor and the
+molecule-order check, so a 0.09 difference in mean ρ is not resolvable. The
+statement that survives is the negative one: *on the paper's 350-target
+convention, we cannot show that any model ranks affinity better than a
+regressor that is never told which protein it is scoring.* The full 1,144-target
+set, kept as an auxiliary check
+([`results/T2_ligand_only.csv`](../results/T2_ligand_only.csv)), puts the blind
+baseline at +0.139 / +0.098 for L1 / L4 — the same shape with more targets.
+
 ### On FEP data
 
 | Model | Spearman | Pearson | Systems with correct direction |
