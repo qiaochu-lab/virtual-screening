@@ -68,7 +68,12 @@ for r in csv.DictReader(open(AIMNET_CSV)):
         continue
     sm = None
     try:
-        sm = -float(r["smina"])
+        # NOT negated -- see aimnet_mw_baseline.py. composite is an energy
+        # (lower is better, so it is flipped above); the smina column is
+        # already stored "higher is better" (all values positive, 3.92-12.33).
+        # Nothing published from this script used the smina slot, so no result
+        # changed when the sign was corrected here.
+        sm = float(r["smina"])
     except (ValueError, TypeError):
         pass
     ai[(r["layer"], r["uniprot"])].append((k, pa, comp, sm))

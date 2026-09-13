@@ -20,7 +20,16 @@ from rdkit import Chem, RDLogger
 from rdkit.Chem import Descriptors
 RDLogger.DisableLog("rdApp.*")
 
-rows = list(csv.DictReader(open("{B}/data/t3/aimnet_t3_ligands.csv")))
+import os
+
+B = "/data/work/vs-benchmark"
+# This line used to read open("{B}/data/t3/...") -- a literal "{B}", because the
+# f prefix was missing and no B was defined in this file. The script could not
+# run as committed. It now points at the committed copy of the collaborator's
+# per-ligand scores, which is the file every published number came from.
+AIMNET_CSV = os.environ.get("AIMNET_CSV", f"{B}/results/T2_aimnet_t3_ligands.csv")
+
+rows = list(csv.DictReader(open(AIMNET_CSV)))
 byt = collections.defaultdict(list)
 for r in rows:
     m = Chem.MolFromSmiles(r["smiles"])
@@ -37,7 +46,14 @@ for r in rows:
         pass
     sm = None
     try:
-        sm = -float(r["smina"])
+        # NOT negated, unlike composite/interaction. Those two are energies in
+        # the pipeline's CSV (composite median -48, interaction median well
+        # below zero): lower is better, so they have to be flipped to correlate
+        # with pAffinity. The smina column is already stored "higher is better"
+        # -- every value is positive, 3.92 to 12.33, i.e. |affinity| in kcal/mol
+        # rather than the negative number smina prints. Negating it here (as an
+        # earlier version did) flipped the whole smina row's sign.
+        sm = float(r["smina"])
     except (ValueError, TypeError):
         pass
     byt[(r["layer"], r["uniprot"])].append(
