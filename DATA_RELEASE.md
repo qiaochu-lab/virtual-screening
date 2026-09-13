@@ -6,8 +6,8 @@ different question, and you only need the one that matches what you want to do.
 | Tier | Where | Size | What it lets you do |
 |---|---|---|---|
 | **1. Index** | this repository | 66 MB | see every molecule, label and affinity; re-derive the layering |
-| **2. Raw scores** | Zenodo (DOI pending) | 326 MB | **recompute every metric we report**, under any cutoff or layering, without a GPU |
-| **3. Structures** | Zenodo (DOI pending) | 3.1 GB | re-run the models, or run your own |
+| **2. Raw scores** | on request | 326 MB | **recompute every metric we report**, under any cutoff or layering, without a GPU |
+| **3. Structures** | on request | 3.1 GB | re-run the models, or run your own |
 
 Tier 1 alone tells you what the benchmark *is*. Tier 1 + 2 lets you check every
 T3 number in this repository on a laptop, and T1 for seven of the ten models. Tier 3 is needed only to run inference.
@@ -28,7 +28,7 @@ different order. Joining scores to labels by the wrong one silently mislabels
 every molecule — that bug cost this project two retracted conclusions, so the
 mapping is shipped rather than left to be re-derived.
 
-## Tier 2 — raw per-molecule scores (Zenodo)
+## Tier 2 — raw per-molecule scores (on request)
 
 One `.npz` per model per task, keys `"<task>/<layer>/<uniprot>/{preds,labels}"`,
 scores `float32`, labels `int8`. Rebuild with
@@ -60,7 +60,7 @@ came from checking only `results/t1_raw`, which holds three models, while four
 more sit directly under `results/<model>/<benchmark>/`. Same failure as the one
 `eval/pack_raw.py` documents for T3: one root checked, several in use.
 
-## Tier 3 — pockets and ligands (Zenodo)
+## Tier 3 — pockets and ligands (on request)
 
 The 350-quota subset only, split by layer. 6 Å pockets and the ligand lmdbs.
 

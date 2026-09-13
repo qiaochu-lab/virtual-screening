@@ -6,10 +6,10 @@ what you need to recompute a metric we did not report, apply a different
 cutoff, or check ours.
 
 They are **not committed** — 326 MB of `.npz` across 18 packages, too large for
-this repository. They are being deposited on Zenodo; the DOI is pending, and
-[`../DATA_RELEASE.md`](../DATA_RELEASE.md) is the index for all three tiers of
-the release. You can also rebuild them from a run with
-[`../eval/pack_raw.py`](../eval/pack_raw.py).
+this repository. They are packaged and checksummed, and available on request;
+[`../DATA_RELEASE.md`](../DATA_RELEASE.md) is the index for all three tiers and
+says what each one does and does not let you do. You can also rebuild them from
+a run with [`../eval/pack_raw.py`](../eval/pack_raw.py).
 
 **T3: 11 packages** — all ten published models, plus both HypSeek weights.
 **T1: 7 packages** — LigUnity-pocket, LigUnity-protein and LiTENCLIP are absent

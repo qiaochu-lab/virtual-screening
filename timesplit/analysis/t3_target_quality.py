@@ -88,16 +88,16 @@ def main():
     for up in eval_targets:
         s = src.get(up)
         if s == "pdb_holo":
-            grade[up] = "A 实验结构"
+            grade[up] = "A experimental"
             continue
         c = conf.get(up)
         if not c:
-            grade[up] = "C 无置信度记录"
+            grade[up] = "C no confidence recorded"
             continue
         pl, ip = c.get("complex_plddt", 0), c.get("iptm", 0)
         detail[up] = (pl, ip)
-        grade[up] = ("B 预测·置信达标" if pl >= PLDDT_MIN and ip >= IPTM_MIN
-                     else "C 预测·置信不足")
+        grade[up] = ("B predicted (confident)" if pl >= PLDDT_MIN and ip >= IPTM_MIN
+                     else "C predicted (low confidence)")
 
     print("=" * 66)
     print(f"结构质量分级（plddt ≥ {PLDDT_MIN}, iptm ≥ {IPTM_MIN}）")

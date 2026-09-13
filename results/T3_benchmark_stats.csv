@@ -13,10 +13,10 @@ dataset,kind,key,n_entries,n_targets,n_actives,value
 全量 T3,class,转运体,23,,708,20
 全量 T3,class,核受体,22,,1339,21
 全量 T3,class,P450,12,,418,29
-全量 T3,structure,A 实验结构,889,,,
-全量 T3,structure,C 无置信度记录,100,,,
-全量 T3,structure,B 预测·置信达标,91,,,
-全量 T3,structure,C 预测·置信不足,64,,,
+全量 T3,structure,A experimental,889,,,
+全量 T3,structure,C no confidence recorded,100,,,
+全量 T3,structure,B predicted (confident),91,,,
+全量 T3,structure,C predicted (low confidence),64,,,
 全量 T3,actives_ge,50,507,,,44.3
 全量 T3,actives_ge,100,327,,,28.6
 全量 T3,actives_ge,200,195,,,17.0
@@ -35,10 +35,10 @@ dataset,kind,key,n_entries,n_targets,n_actives,value
 350 配额子集（实际用于报告）,class,核受体,6,,991,172
 350 配额子集（实际用于报告）,class,转运体,3,,290,109
 350 配额子集（实际用于报告）,class,P450,2,,170,85
-350 配额子集（实际用于报告）,structure,A 实验结构,274,,,
-350 配额子集（实际用于报告）,structure,B 预测·置信达标,24,,,
-350 配额子集（实际用于报告）,structure,C 预测·置信不足,17,,,
-350 配额子集（实际用于报告）,structure,C 无置信度记录,13,,,
+350 配额子集（实际用于报告）,structure,A experimental,274,,,
+350 配额子集（实际用于报告）,structure,B predicted (confident),24,,,
+350 配额子集（实际用于报告）,structure,C predicted (low confidence),17,,,
+350 配额子集（实际用于报告）,structure,C no confidence recorded,13,,,
 350 配额子集（实际用于报告）,actives_ge,50,328,,,100.0
 350 配额子集（实际用于报告）,actives_ge,100,216,,,65.9
 350 配额子集（实际用于报告）,actives_ge,200,122,,,37.2
