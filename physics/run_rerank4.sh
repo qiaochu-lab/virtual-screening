@@ -16,7 +16,7 @@
 # $1=shard $2=GPU
 set -u
 E=/data/work/envs/boltz2
-B=/data/work/vs
+B=/data/work/vs-benchmark
 S=$1; GPU=$2
 mkdir -p $B/results/logs
 CUDA_VISIBLE_DEVICES=$GPU $E/bin/boltz predict $B/boltz_rerank3/shard_$S \

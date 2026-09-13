@@ -6,7 +6,7 @@ misaligned throughout. The old column is kept alongside so the retraction
 can be checked against it.
 """
 import csv, json, os
-B = "/data/work/vs"
+B = "/data/work/vs-benchmark"
 d = json.load(open(f"{B}/results/t3/summary_t2_v2.json"))
 out = f"{B}/results/export/T2_on_T3.csv"
 os.makedirs(os.path.dirname(out), exist_ok=True)

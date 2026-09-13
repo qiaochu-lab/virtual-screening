@@ -9,7 +9,7 @@
 # 配体用的是建 T3 输入时生成的同一份 3D 构象（smina 读不了 SMILES），
 # 所以对接与检索模型吃的是同一个构象，比较时少一个混杂变量。
 set -u
-B=/data/work/vs
+B=/data/work/vs-benchmark
 D=/data/work/envs/dock/bin
 LOG=$B/results/logs/dock.log
 NPROC=${1:-12}

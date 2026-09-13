@@ -5,9 +5,9 @@ count and each metric. If small targets really do score higher, the
 correlation should be negative."""
 import numpy as np, collections, sys
 from scipy import stats
-sys.path.insert(0, "/data/work/vs/eval")
+sys.path.insert(0, "/data/work/vs-benchmark/eval")
 from metrics import enrichment_factor, bedroc, pr_auc, roc_auc
-B="/data/work/vs/results/raw_release"
+B="/data/work/vs-benchmark/results/raw_release"
 M=(("EF1%",lambda s,y:enrichment_factor(s,y,0.01)),("BEDROC",lambda s,y:bedroc(s,y,80.5)),
    ("PR-AUC",pr_auc),("AUROC",roc_auc))
 models=["ligunity_protein_ranking","hypseek_rk","ligunity_pocket_ranking","litenclip","drugclip"]

@@ -17,7 +17,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-B = "/data/work/vs"
+B = "/data/work/vs-benchmark"
 OUT = f"{B}/results/figures"
 os.makedirs(OUT, exist_ok=True)
 plt.rcParams.update({"font.size": 9, "axes.spines.top": False,

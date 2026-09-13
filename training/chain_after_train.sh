@@ -5,7 +5,7 @@
 # 每批都 OOM，unicore 静默跳过）。所以现在每轮训练结束都先比对权重与预训练初值，
 # 距离为 0 就直接停下报错，不再往下浪费评测时间。
 set -u
-B=/data/work/vs
+B=/data/work/vs-benchmark
 E=/data/work/envs/litenclip
 PY=/data/work/envs/ligunity/bin/python
 LOG=$B/results/logs/chain_after_train.log
@@ -22,7 +22,7 @@ for SEED in 1 2; do
   MOVED=$($E/bin/python - "$CK" <<'PY'
 import sys, torch
 ck = torch.load(sys.argv[1], map_location="cpu")["model"]
-B = "/data/work/vs"
+B = "/data/work/vs-benchmark"
 mol = torch.load(f"{B}/ckpt/hypseek/pretrain/mol_pre_no_h_220816.pt", map_location="cpu")
 mol = mol["model"] if "model" in mol else mol
 d = 0.0

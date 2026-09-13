@@ -23,7 +23,7 @@ from rdkit import Chem, RDLogger
 from rdkit.Chem import AllChem
 
 RDLogger.DisableLog("rdApp.*")
-B = "/data/work/vs"
+B = "/data/work/vs-benchmark"
 
 
 def main(layer="L4"):

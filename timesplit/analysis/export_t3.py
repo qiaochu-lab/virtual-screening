@@ -5,7 +5,7 @@ model; the complete data had been sitting in T3_main_clean.csv all along.
 This script lets the main table be rebuilt at any time.
 """
 import csv, json, os
-B = "/data/work/vs"
+B = "/data/work/vs-benchmark"
 d = json.load(open(f"{B}/results/t3/summary.json"))
 out = f"{B}/results/export/T3_main.csv"
 os.makedirs(os.path.dirname(out), exist_ok=True)

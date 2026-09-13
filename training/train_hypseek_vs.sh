@@ -24,7 +24,7 @@
 set -u
 SEED=${1:-1}
 GPUS=${2:-"5,6,7"}
-B=/data/work/vs
+B=/data/work/vs-benchmark
 E=/data/work/envs/litenclip
 
 data_path="$B/code/LigUnity/test_datasets"

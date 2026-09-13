@@ -2,7 +2,7 @@
 # 起 rerank4 的三个分片（3 张卡，在 4 张上限内），跑完自动算分。
 # 断网不影响：全程 setsid nohup。
 set -u
-B=/data/work/vs
+B=/data/work/vs-benchmark
 PY=/data/work/envs/ligunity/bin/python
 LOG=$B/results/logs/chain_rerank4.log
 say(){ echo "[$(date '+%m-%d_%H:%M')] $*" >> $LOG; }

@@ -20,7 +20,7 @@ Command line:
 import json, os, pickle, sys
 import lmdb, numpy as np
 
-B = "/data/work/vs"
+B = "/data/work/vs-benchmark"
 
 
 class MoleculeOrderError(RuntimeError):

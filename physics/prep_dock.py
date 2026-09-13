@@ -40,7 +40,7 @@ import subprocess
 import lmdb
 import numpy as np
 
-B = "/data/work/vs"
+B = "/data/work/vs-benchmark"
 DOCK = "/data/work/envs/dock/bin"
 PAD = 4.0
 

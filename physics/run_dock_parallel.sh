@@ -18,7 +18,7 @@
 #
 # 幂等：已有完整 scores.txt 的靶点直接跳过，中途挂掉重跑不白干。
 set -u
-B=/data/work/vs
+B=/data/work/vs-benchmark
 D=/data/work/envs/dock/bin
 LOG=$B/results/logs/dock.log
 PER=${1:-4}          # 每个靶点几个核

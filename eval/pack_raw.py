@@ -10,7 +10,7 @@ Usage: python pack_raw.py [output_dir]
 import json, os, sys
 import numpy as np
 
-B = "/data/work/vs"
+B = "/data/work/vs-benchmark"
 OUT = sys.argv[1] if len(sys.argv) > 1 else f"{B}/results/raw_release"
 os.makedirs(OUT, exist_ok=True)
 

@@ -14,7 +14,7 @@ RDKit). Pockets are packed separately.
 """
 import csv, gzip, json, os, sys
 
-B = "/data/work/vs"
+B = "/data/work/vs-benchmark"
 OUT = sys.argv[1] if len(sys.argv) > 1 else f"{B}/data/release"
 os.makedirs(OUT, exist_ok=True)
 LAYERS = ("L1", "L2", "L3", "L4")

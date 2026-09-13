@@ -38,7 +38,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 try:
     from metrics import enrichment_factor, roc_auc, bedroc, pr_auc
 except ImportError:
-    sys.path.insert(0, "/data/work/vs/eval")
+    sys.path.insert(0, "/data/work/vs-benchmark/eval")
     from metrics import enrichment_factor, roc_auc, bedroc, pr_auc
 
 LAYERS = ("L1", "L2", "L3", "L4")
@@ -70,7 +70,7 @@ def load(raw_dir, model):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--raw", default="/data/work/vs/results/raw_release")
+    ap.add_argument("--raw", default="/data/work/vs-benchmark/results/raw_release")
     ap.add_argument("--out", default="T3_actives_gradient")
     args = ap.parse_args()
 

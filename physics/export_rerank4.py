@@ -20,7 +20,7 @@ from scipy import stats
 from rdkit import RDLogger
 
 RDLogger.DisableLog("rdApp.*")
-B = "/data/work/vs"
+B = "/data/work/vs-benchmark"
 man = json.load(open(f"{B}/data/t3/rerank3_manifest.json"))
 
 

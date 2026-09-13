@@ -23,7 +23,7 @@ import pickle
 
 import lmdb
 
-B = "/data/work/vs"
+B = "/data/work/vs-benchmark"
 SRC = f"{B}/code/LigUnity/test_datasets/casf.lmdb"
 OUT = f"{B}/code/LigUnity/test_datasets"
 

@@ -31,7 +31,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "eval"))
 try:
     from metrics import enrichment_factor, roc_auc, bedroc
 except ImportError:                       # allow being invoked from elsewhere
-    sys.path.insert(0, "/data/work/vs/eval")
+    sys.path.insert(0, "/data/work/vs-benchmark/eval")
     from metrics import enrichment_factor, roc_auc, bedroc
 
 POCKET, SEQ = "pocket_ranking", "protein_ranking"
@@ -75,7 +75,7 @@ def load(root, bench, results):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--results", default="/data/work/vs/results")
+    ap.add_argument("--results", default="/data/work/vs-benchmark/results")
     ap.add_argument("--out", default="T1_seq_vs_pocket_per_target.csv")
     args = ap.parse_args()
 

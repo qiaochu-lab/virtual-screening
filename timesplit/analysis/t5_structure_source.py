@@ -36,7 +36,7 @@ from scipy import stats
 
 from _subset import add_subset_arg, load_subset
 
-B = "/data/work/vs"
+B = "/data/work/vs-benchmark"
 ALL = ["drugclip", "bindclip_randneg", "bindclip_hardneg",
        "ligunity_pocket_ranking", "ligunity_protein_ranking", "litenclip",
        "hypseek_official_vs", "hypseek_rk", "conglude", "conplex", "sprint"]

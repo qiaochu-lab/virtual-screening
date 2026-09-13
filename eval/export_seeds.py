@@ -5,7 +5,7 @@ targets, and the two seeds differ by 17.6% there, which by itself tells you
 the noise level of that benchmark.
 """
 import csv, json, os
-B = "/data/work/vs"
+B = "/data/work/vs-benchmark"
 out = f"{B}/results/export/T1_T3_hypseek_seeds.csv"
 os.makedirs(os.path.dirname(out), exist_ok=True)
 

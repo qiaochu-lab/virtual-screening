@@ -15,7 +15,7 @@ Correction formula (Thorndike case II):
 rho_true ~ rho_obs*(S/s) / sqrt(1 + rho_obs^2*(S^2/s^2 - 1))
 """
 import json, os, numpy as np
-B = "/data/work/vs"
+B = "/data/work/vs-benchmark"
 
 by = {}
 for e in json.load(open(f"{B}/code/LigUnity/test_datasets/casf_label_seq.json")):

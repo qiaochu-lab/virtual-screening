@@ -24,7 +24,7 @@ from collections import defaultdict
 import numpy as np
 from scipy import stats
 
-B = "/data/work/vs"
+B = "/data/work/vs-benchmark"
 
 
 def parse_scores(path):
