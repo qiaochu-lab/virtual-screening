@@ -573,6 +573,10 @@ produced, and T5 is the T3 pipeline re-run at other pocket cutoffs.
 WALKTHROUGH-zh.md   Understand the whole project from scratch (Chinese) — a
                complete walkthrough that assumes no prior background
 
+DATA_RELEASE.md     what is needed to check this benchmark, in three tiers:
+               the index shipped here, the raw per-molecule scores, and the
+               pockets — and which of the three each question actually needs
+
 MODELS_TRAINING.md  ⚠️ our attempt to train HypSeek's screening weight: two runs
                that never updated a parameter, then two that did — and what the
                19–23% shortfall against the released weight does and does not show
