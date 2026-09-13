@@ -122,7 +122,7 @@ with gzip.open("results/frozen/T3_index_L1.csv.gz", "rt") as f:
         rows[k].append((pos, int(r["label"])))
 
 # 4. join to the scores and aggregate under the new labels
-z = np.load("T3_hypseek_rk.npz")                       # see RAW_SCORES.md
+z = np.load("T3_hypseek_official_vs.npz")              # see RAW_SCORES.md
 ef = collections.defaultdict(list)
 for (layer, up), mols in rows.items():
     preds = z[f"{layer}/{up}/preds"]
@@ -143,7 +143,7 @@ than a fresh implementation.
 
 ## What is not here
 
-**The scores themselves.** They are 267 MB of `.npz` and are described in
+**The scores themselves.** They are 326 MB of `.npz` and are described in
 [`RAW_SCORES.md`](RAW_SCORES.md). These three tables are the *keys* — identity,
 position, label, affinity, novelty — which is the part that was fragile and
 kept being re-derived. The scores are bulky but have never been in doubt.
