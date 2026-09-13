@@ -6,11 +6,11 @@ different question, and you only need the one that matches what you want to do.
 | Tier | Where | Size | What it lets you do |
 |---|---|---|---|
 | **1. Index** | this repository | 66 MB | see every molecule, label and affinity; re-derive the layering |
-| **2. Raw scores** | Zenodo (DOI pending) | 279 MB | **recompute every metric we report**, under any cutoff or layering, without a GPU |
+| **2. Raw scores** | Zenodo (DOI pending) | 326 MB | **recompute every metric we report**, under any cutoff or layering, without a GPU |
 | **3. Structures** | Zenodo (DOI pending) | 3.1 GB | re-run the models, or run your own |
 
 Tier 1 alone tells you what the benchmark *is*. Tier 1 + 2 lets you check every
-number in this repository on a laptop. Tier 3 is needed only to run inference.
+T3 number in this repository on a laptop, and T1 for seven of the ten models. Tier 3 is needed only to run inference.
 
 ## Tier 1 — index (in this repository)
 
@@ -40,13 +40,25 @@ weights: `drugclip`, `bindclip_randneg`, `bindclip_hardneg`,
 `ligunity_pocket_ranking`, `ligunity_protein_ranking`, `litenclip`,
 `hypseek_official_vs`, `hypseek_rk`, `conglude`, `conplex`, `sprint`.
 
-⚠️ **T1 — 3 packages, 40.5 MB, not ten.** Only `conglude`, `conplex` and
-`sprint` have per-molecule T1 scores. The other seven models' forks do not
-persist scores on the DUD-E / DEKOIS / LIT-PCBA path — the patches in
-[`PATCHES.md`](PATCHES.md) that add score-saving were written for the T3 branch
-only. **So T1 numbers can be independently recomputed for 3 of 10 models, and
-T3 numbers for all of them.** Fixing this needs the patches extended to the T1
-branch and those seven models re-run; it is not a gap in what was kept.
+⚠️ **T1 — 7 packages, 87.2 MB, not ten.** `drugclip`, `bindclip_randneg`,
+`bindclip_hardneg`, `hypseek_official_vs`, `conglude`, `conplex` and `sprint`
+have per-molecule T1 scores across all three benchmarks (102 DUD-E, 80–81
+DEKOIS, 13–15 LIT-PCBA). **Missing: `ligunity_pocket_ranking`,
+`ligunity_protein_ranking`, `litenclip`** — their upstream repositories write
+only the embedding and never the score, so nothing was lost in a run; there was
+never a score on disk to keep. The two are separate checkouts
+(`code/LigUnity`, `code/LiTENCLIP`), and the patch that added score-saving for
+T3 covers the first only, on its T3 branch.
+
+So **T1 can be independently recomputed for 7 of 10 models, T3 for all ten.**
+Closing the gap means adding the save to each repository's T1 branch and
+re-running three models across three benchmarks — roughly 45 minutes of
+inference, not a re-derivation.
+
+⚠️ An earlier version of this page said 3 of 10, and named the wrong cause. That
+came from checking only `results/t1_raw`, which holds three models, while four
+more sit directly under `results/<model>/<benchmark>/`. Same failure as the one
+`eval/pack_raw.py` documents for T3: one root checked, several in use.
 
 ## Tier 3 — pockets and ligands (Zenodo)
 

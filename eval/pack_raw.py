@@ -1,21 +1,31 @@
 """Pack the raw per-molecule scores so anyone can recompute every metric here.
 
-One .npz per model per task. Keys are paths, always task-prefixed:
+One .npz per model per task. Keys are paths:
 
     T3_hypseek_official_vs.npz
       T3/L1/C7C422/preds     float32, one score per molecule
       T3/L1/C7C422/labels    int8, 1 = active
+    T1_drugclip.npz
+      DUDE/def/preds         T1 keys are <benchmark>/<target>, no task prefix
 
 Scores are cast to float32 (originals are float64; every metric in this
 repository is identical to four decimals either way), labels to int8.
 
-⚠️ Two source roots, not one
-----------------------------
-T3 per-target scores live under **two** directories, and which one a model is
-in is an accident of when it was run:
+⚠️ Three source layouts, not one
+---------------------------------
+Per-target scores live under **different roots depending on when the run
+happened**, and there is no single place to look:
 
-    results/t3_raw/<model>/T3/<layer>/<uniprot>/saved_preds.npy
-    results/t3/<model>/<layer>/<uniprot>/saved_preds.npy      (note: no T3/)
+    T3: results/t3_raw/<model>/T3/<layer>/<uniprot>/saved_preds.npy
+        results/t3/<model>/<layer>/<uniprot>/saved_preds.npy      (no T3/)
+    T1: results/t1_raw/<model>/<benchmark>/<target>/saved_preds.npy
+        results/<model>/<benchmark>/<target>/saved_preds.npy
+
+The last one cost a published error: checking only `results/t1_raw` gave "T1
+scores exist for 3 of 10 models", when in fact **7 of 10** have them and the
+other four sit directly under `results/<model>/`. The real gap is three models
+(LigUnity-pocket, LigUnity-protein, LiTENCLIP), whose upstream repositories
+store only embeddings and never the score.
 
 The analysis scripts already read both with a fallback. An earlier version of
 this script walked only `t3_raw`, so `conglude` and `conplex` — which exist
@@ -46,10 +56,18 @@ EXPECT_T3 = ["drugclip", "bindclip_randneg", "bindclip_hardneg",
              "ligunity_pocket_ranking", "ligunity_protein_ranking", "litenclip",
              "hypseek_official_vs", "hypseek_rk", "conglude", "conplex", "sprint"]
 
+# T1 has scores for seven of the ten. LigUnity-pocket, LigUnity-protein and
+# LiTENCLIP are absent because their upstream code never writes them, not
+# because a run was lost.
+EXPECT_T1 = ["drugclip", "bindclip_randneg", "bindclip_hardneg",
+             "hypseek_official_vs", "conglude", "conplex", "sprint"]
+
 # task -> [(root, needs_task_prefix), ...]; earlier roots win when a model is in both
 ROOTS = {
     "T3": [(f"{B}/results/t3_raw", False), (f"{B}/results/t3", True)],
-    "T1": [(f"{B}/results/t1_raw", False), (f"{B}/results/t1", True)],
+    # ⚠️ `results` itself is a T1 root. It also holds t3_raw/, logs/, export/ …,
+    # so T1 must never be discovered by listing it — always use EXPECT_T1.
+    "T1": [(f"{B}/results/t1_raw", False), (f"{B}/results", False)],
 }
 
 
@@ -107,7 +125,11 @@ def main():
             if m not in found and os.path.isdir(os.path.join(root, m)):
                 found[m] = (root, pref)
 
-    wanted = sorted(found) if args.all else EXPECT_T3 if args.task == "T3" else sorted(found)
+    expected = EXPECT_T3 if args.task == "T3" else EXPECT_T1
+    if args.all and args.task == "T1":
+        raise SystemExit("⛔ --all is unsafe for T1: its root is `results`, which "
+                         "also contains t3_raw/, logs/ and export/. Use the list.")
+    wanted = sorted(found) if args.all else expected
     missing = [m for m in wanted if m not in found]
     if missing:
         raise SystemExit(
