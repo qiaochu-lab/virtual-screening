@@ -12,9 +12,24 @@ says what each one does and does not let you do. You can also rebuild them from
 a run with [`../eval/pack_raw.py`](../eval/pack_raw.py).
 
 **T3: 11 packages** — all ten published models, plus both HypSeek weights.
-**T1: 7 packages** — LigUnity-pocket, LigUnity-protein and LiTENCLIP are absent
-because their upstream code writes only the embedding and never the score, so
-no file was ever created to keep.
+**T1: 10 packages** — complete as of 2026-09-13. LigUnity-pocket,
+LigUnity-protein and LiTENCLIP used to be absent because their upstream code
+writes only the embedding and never the score, so no file was ever created to
+keep. `timesplit/runners/patch_t1_save_preds.py` adds that save and the three
+were re-run; `timesplit/analysis/verify_t1_preds.py` checked the result against
+`T1_main.csv` before anything was copied into place.
+
+⚠️ **One caveat if you recompute LIT-PCBA from these files.** The re-run
+reproduces the published table exactly on DUD-E and DEKOIS — every one of the
+six model × benchmark cells agrees to within 5e-5 on EF@1%, EF@5%, BEDROC and
+AUROC. On LIT-PCBA it agrees to ~1e-3 instead: the largest gap is
+LigUnity-protein's EF@5%, 2.1821 recomputed against 2.1807 published (0.06%).
+The difference is confined to the two biggest targets — `VDR` (356k molecules)
+and `ALDH1` (145k) — where EF@5% is decided at the top-17,800 boundary and fp16
+inference places a handful of molecules differently between runs; 13 of the 15
+LIT-PCBA targets reproduce to the last digit. **The published table is the
+original run and has not been changed**, so a recomputation from these score
+files will differ from it in the third or fourth decimal on LIT-PCBA only.
 
 ## What is in a package
 

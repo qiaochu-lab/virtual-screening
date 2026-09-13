@@ -40,25 +40,37 @@ weights: `drugclip`, `bindclip_randneg`, `bindclip_hardneg`,
 `ligunity_pocket_ranking`, `ligunity_protein_ranking`, `litenclip`,
 `hypseek_official_vs`, `hypseek_rk`, `conglude`, `conplex`, `sprint`.
 
-⚠️ **T1 — 7 packages, 87.2 MB, not ten.** `drugclip`, `bindclip_randneg`,
-`bindclip_hardneg`, `hypseek_official_vs`, `conglude`, `conplex` and `sprint`
-have per-molecule T1 scores across all three benchmarks (102 DUD-E, 80–81
-DEKOIS, 13–15 LIT-PCBA). **Missing: `ligunity_pocket_ranking`,
-`ligunity_protein_ranking`, `litenclip`** — their upstream repositories write
-only the embedding and never the score, so nothing was lost in a run; there was
-never a score on disk to keep. The two are separate checkouts
-(`code/LigUnity`, `code/LiTENCLIP`), and the patch that added score-saving for
-T3 covers the first only, on its T3 branch.
+✅ **T1 — 10 packages, complete as of 2026-09-13.** All ten models now have
+per-molecule T1 scores across all three benchmarks (102 DUD-E, 80–81 DEKOIS,
+13–15 LIT-PCBA).
 
-So **T1 can be independently recomputed for 7 of 10 models, T3 for all ten.**
-Closing the gap means adding the save to each repository's T1 branch and
-re-running three models across three benchmarks — roughly 45 minutes of
-inference, not a re-derivation.
+`ligunity_pocket_ranking`, `ligunity_protein_ranking` and `litenclip` were the
+three that used to be missing: their upstream repositories write only the
+embedding and never the score, so nothing was lost in a run — there was never a
+score on disk to keep. They are separate checkouts (`code/LigUnity`,
+`code/LiTENCLIP`), and the patch that added score-saving for T3 covered the
+first only, on its T3 branch. `timesplit/runners/patch_t1_save_preds.py` adds
+the same save to `test_dude_target`, `test_dekois_target` and
+`test_pcba_target` in both, and the three models were re-run across the three
+benchmarks (~90 minutes on three GPUs).
 
-⚠️ An earlier version of this page said 3 of 10, and named the wrong cause. That
-came from checking only `results/t1_raw`, which holds three models, while four
-more sit directly under `results/<model>/<benchmark>/`. Same failure as the one
-`eval/pack_raw.py` documents for T3: one root checked, several in use.
+**Nothing in any published table changed.** The re-run was validated against
+`T1_main.csv` before the files were copied into place
+(`timesplit/analysis/verify_t1_preds.py`): DUD-E and DEKOIS reproduce to within
+5e-5 on all four metrics, LIT-PCBA to ~1e-3. That last gap is worth knowing if
+you recompute from the files — see the caveat in
+[`results/RAW_SCORES.md`](results/RAW_SCORES.md); it comes from fp16 inference
+placing a few molecules differently at the top-5% boundary on the two largest
+targets, and 13 of 15 LIT-PCBA targets still reproduce to the last digit.
+
+So **T1 and T3 can both be independently recomputed for all ten models.**
+
+⚠️ Two corrections worth keeping visible. An earlier version of this page said
+3 of 10 could be recomputed and named the wrong cause: that came from checking
+only `results/t1_raw`, which holds three models, while four more sit directly
+under `results/<model>/<benchmark>/` — the same failure `eval/pack_raw.py`
+documents for T3, one root checked, several in use. The true count before the
+re-run was 7 of 10.
 
 ## Tier 3 — pockets and ligands (on request)
 
