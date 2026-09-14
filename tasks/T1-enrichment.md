@@ -53,7 +53,7 @@ Machine-readable: [`results/T1_main.csv`](../results/T1_main.csv).
 | LigUnity ensemble | pocket + sequence + HGNN | **52.52** | **28.07** | 7.67 |
 | **HypSeek `_vs`** | 3D pocket, hyperbolic | 51.41 | 25.52 | 6.82 |
 | LiTENCLIP | 3D pocket | 43.95 | 23.97 | 6.56 |
-| LigUnity-pocket | 3D pocket | 42.61 | 24.63 | 7.30 |
+| LigUnity-pocket | 3D pocket | 41.51 | 24.55 | 6.30 |
 | LigUnity-protein | sequence | 36.69 | 27.13 | 6.22 |
 | BindCLIP-randneg | 3D pocket | 32.82 | 19.36 | 6.36 |
 | DrugCLIP | 3D pocket | 31.97 | 17.86 | 5.55 |
@@ -297,16 +297,16 @@ the split files only as test (B), and targets neither file ever names (C):
 
 | Model | A: train (40) | B: test-only (17) | C: never (45) | p(A>C) | Kruskal–Wallis |
 |---|---|---|---|---|---|
-| **ConPLex** | **1.034** | **0.615** | **0.100** | **<1e-5** | **1e-5** |
-| ConGLUDe | 0.817 | 0.785 | 0.842 | 0.59 | 0.94 |
-| SPRINT | 0.055 | 0.208 | 0.063 | 0.14 | 0.011 |
-| HypSeek `_rk` | 1.729 | 1.962 | 1.963 | 0.85 | 0.40 |
-| LigUnity-pocket | 1.151 | 1.412 | 1.367 | 0.99 | 0.043 |
-| LigUnity-protein | 0.998 | 1.058 | 1.227 | 0.99 | 0.049 |
-| LiTENCLIP | 1.270 | 1.526 | 1.250 | 0.70 | 0.45 |
-| DrugCLIP | 0.938 | 0.882 | 0.984 | 0.25 | 0.47 |
-| BindCLIP-randneg | 1.021 | 0.862 | 1.000 | 0.33 | 0.087 |
-| BindCLIP-hardneg | 0.802 | 0.826 | 0.717 | 0.39 | 0.82 |
+| **ConPLex** | **1.034** | **0.615** | **0.100** | **<1e-5** | **2e-6** |
+| ConGLUDe | 0.817 | 0.785 | 0.797 | 0.57 | 0.98 |
+| SPRINT | 0.052 | 0.172 | 0.063 | 0.17 | 0.019 |
+| HypSeek `_rk` | 1.729 | 2.385 | 1.979 | 0.87 | 0.26 |
+| LigUnity-pocket | 1.223 | 1.598 | 1.282 | 0.82 | 0.19 |
+| LigUnity-protein | 0.976 | 1.078 | 1.174 | 0.99 | 0.049 |
+| LiTENCLIP | 1.257 | 1.526 | 1.184 | 0.69 | 0.41 |
+| DrugCLIP | 0.890 | 0.882 | 0.992 | 0.46 | 0.66 |
+| BindCLIP-randneg | 0.978 | 0.862 | 1.016 | 0.37 | 0.098 |
+| BindCLIP-hardneg | 0.762 | 0.826 | 0.717 | 0.47 | 0.82 |
 
 ConPLex is monotone across all three groups and is the only model with a
 significant A>C gradient. **Even the targets the split files hold out score 6×
@@ -325,10 +325,10 @@ targets at ≥95% identity** — but that grouping explains nothing:
 
 | Grouping | n | r inside | r outside | fold | p |
 |---|---|---|---|---|---|
-| BindingDB ≥95% identity | 53 | 0.400 | 0.250 | 1.60 | 0.14 |
-| BindingDB seen, not in a DUD-E split | 27 | 0.248 | 0.345 | 0.72 | 0.71 |
-| DUD-E split train union | 40 | 1.034 | 0.152 | **6.82** | **9e-5** |
-| **DUD-E train, BindingDB never saw** | 14 | 1.446 | 0.284 | **5.09** | **0.0012** |
+| BindingDB ≥95% identity | 53 | 0.400 | 0.214 | 1.87 | 0.11 |
+| BindingDB seen, not in a DUD-E split | 27 | 0.231 | 0.357 | 0.65 | 0.70 |
+| DUD-E split train union | 40 | 1.034 | 0.150 | **6.89** | **4e-5** |
+| **DUD-E train, BindingDB never saw** | 14 | 1.446 | 0.272 | **5.33** | **0.0009** |
 
 The effect survives on the 14 targets BindingDB never contained, and vanishes on
 the 27 that BindingDB saw but no DUD-E split names. It is the DUD-E contrastive
@@ -349,9 +349,9 @@ the absolute column against other `_rk` figures.
 | Model | EF1% (45) | AUROC | EF1% (102) | change |
 |---|---|---|---|---|
 | HypSeek `_rk` | 52.90 | 0.949 | 56.39 | −6.2% |
-| LigUnity-pocket | 42.61 | 0.886 | 42.61 | +0.0% |
 | LiTENCLIP | 42.60 | 0.881 | 43.95 | −3.1% |
 | LigUnity-protein | 39.35 | 0.886 | 36.69 | +7.2% |
+| LigUnity-pocket | 37.70 | 0.866 | 41.51 | −9.2% |
 | BindCLIP-randneg | 31.16 | 0.809 | 32.81 | −5.1% |
 | DrugCLIP | 30.50 | 0.791 | 31.97 | −4.6% |
 | BindCLIP-hardneg | 26.18 | 0.785 | 27.64 | −5.3% |

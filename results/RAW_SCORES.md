@@ -5,14 +5,25 @@ model's score for each molecule, and that molecule's label. Those arrays are
 what you need to recompute a metric we did not report, apply a different
 cutoff, or check ours.
 
-They are **not committed** — 326 MB of `.npz` across 18 packages, too large for
+They are **not committed** — 380 MB of `.npz` across 22 packages, too large for
 this repository. They are packaged and checksummed, and available on request;
 [`../DATA_RELEASE.md`](../DATA_RELEASE.md) is the index for all three tiers and
 says what each one does and does not let you do. You can also rebuild them from
 a run with [`../eval/pack_raw.py`](../eval/pack_raw.py).
 
-**T3: 11 packages** — all ten published models, plus both HypSeek weights.
-**T1: 10 packages** — complete as of 2026-09-13. LigUnity-pocket,
+**T3: 12 packages, 256.9 MB** — all ten published models, both HypSeek weights,
+and **two for LigUnity-pocket**: `T3_ligunity_pocket_ranking.npz` is the current
+checkpoint and reproduces every table on the 350-target convention;
+`T3_ligunity_pocket_ranking_ckpt1.npz` is the first checkpoint and reproduces the
+full 1,144-target auxiliary tables, which were not re-run
+([`../MODELS.md`](../MODELS.md) records why).
+⚠️ Scripts that take a `--raw` directory load `T3_ligunity_pocket_ranking.npz`
+**by name**, so they reproduce the 350-convention numbers as shipped. To re-derive
+a *full-set* LigUnity-pocket table (`T3_main.csv`, `T3_actives_gradient.csv`, the
+other 1,144-target tables), put the `_ckpt1` file under that name first — otherwise
+the run silently mixes the two checkpoints: current weights on the 309 subset
+targets, first weights on the other 707.
+**T1: 10 packages, 123.5 MB.** LigUnity-pocket,
 LigUnity-protein and LiTENCLIP used to be absent because their upstream code
 writes only the embedding and never the score, so no file was ever created to
 keep. `timesplit/runners/patch_t1_save_preds.py` adds that save and the three

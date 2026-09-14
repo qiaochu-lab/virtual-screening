@@ -83,23 +83,23 @@ same ligands the retrieval models were scored on, the same metric:
 
 | System | n | **Boltz-2 ρ** | LigUnity-pocket | LigUnity-protein | LiTENCLIP |
 |---|---|---|---|---|---|
-| mcl1 | 42 | **+0.885** | +0.750 | +0.799 | +0.724 |
-| cmet | 24 | **+0.883** | −0.072 | +0.537 | +0.512 |
-| ptp1b | 23 | **+0.823** | +0.372 | +0.182 | +0.026 |
-| jnk1 | 21 | **+0.806** | +0.662 | +0.338 | −0.307 |
-| tyk2 | 16 | **+0.806** | +0.462 | +0.382 | +0.406 |
-| cdk8 | 32 | **+0.799** | +0.510 | +0.314 | +0.475 |
-| cdk2 | 16 | **+0.782** | −0.276 | +0.296 | +0.506 |
-| syk | 44 | **+0.778** | +0.422 | +0.292 | +0.301 |
-| tnks2 | 27 | **+0.737** | +0.496 | +0.327 | +0.708 |
-| thrombin | 11 | +0.691 | **+0.782** | +0.700 | +0.318 |
-| p38 | 34 | **+0.503** | +0.194 | +0.129 | −0.252 |
-| eg5 | 28 | **+0.494** | +0.286 | +0.396 | +0.452 |
-| hif2a | 41 | +0.433 | **+0.473** | +0.415 | +0.370 |
-| shp2 | 26 | +0.332 | **+0.735** | +0.620 | +0.549 |
-| pfkfb3 | 40 | +0.168 | **+0.505** | +0.158 | +0.111 |
-| bace | 36 | **−0.081** | −0.032 | +0.444 | −0.488 |
-| **mean** | | **+0.615** | +0.392 | +0.396 | +0.276 |
+| mcl1 | 42 | **+0.885** | +0.733 | +0.799 | +0.724 |
+| cmet | 24 | **+0.883** | +0.452 | +0.537 | +0.512 |
+| ptp1b | 23 | **+0.823** | +0.314 | +0.182 | +0.026 |
+| jnk1 | 21 | **+0.806** | +0.632 | +0.338 | −0.307 |
+| tyk2 | 16 | **+0.806** | +0.579 | +0.382 | +0.406 |
+| cdk8 | 32 | **+0.799** | +0.573 | +0.314 | +0.475 |
+| cdk2 | 16 | **+0.782** | −0.356 | +0.296 | +0.506 |
+| syk | 44 | **+0.778** | +0.238 | +0.292 | +0.301 |
+| tnks2 | 27 | **+0.737** | +0.623 | +0.327 | +0.708 |
+| thrombin | 11 | **+0.691** | +0.636 | +0.700 | +0.318 |
+| p38 | 34 | **+0.503** | +0.186 | +0.129 | −0.252 |
+| eg5 | 28 | **+0.494** | +0.312 | +0.396 | +0.452 |
+| hif2a | 41 | +0.433 | **+0.459** | +0.415 | +0.370 |
+| shp2 | 26 | +0.332 | **+0.572** | +0.620 | +0.549 |
+| pfkfb3 | 40 | +0.168 | **+0.440** | +0.158 | +0.111 |
+| bace | 36 | **−0.081** | −0.112 | +0.444 | −0.488 |
+| **mean** | | **+0.615** | +0.393 | +0.396 | +0.276 |
 
 Per-system CSV: [`results/T6_FEP_boltz.csv`](../results/T6_FEP_boltz.csv).
 
@@ -109,7 +109,7 @@ In Kendall τ — the metric the published physics reference reports — it is
 an affinity head lands within noise of a free-energy method, at a fraction of the
 cost per ligand.
 
-**But it does not dominate.** LigUnity-pocket beats it on 5 of 16 systems,
+**But it does not dominate.** LigUnity-pocket beats it on 3 of 16 systems,
 LigUnity-protein on 3, LiTENCLIP on 1 — and the systems where retrieval wins
 (SHP-2, PFKFB3, HIF-2α, thrombin, BACE) overlap with the ones where the
 published physics reference also loses to retrieval. Two families with different

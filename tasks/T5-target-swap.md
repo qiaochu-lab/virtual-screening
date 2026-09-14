@@ -194,8 +194,8 @@ anhydrase I → II (P00915 → P00918), JAK2 → JAK3 (O60674 → P52333).
 | | L4 | 0.718 | 0.486 (**−32.3%**) | 0.795 (−4.1%) |
 | LigUnity-protein | L1 | 0.918 | 0.543 (**−40.8%**) | 0.917 (**+0.8%**) |
 | | L4 | 0.705 | 0.481 (**−31.8%**) | 0.772 (−0.1%) |
-| LigUnity-pocket | L1 | 0.882 | 0.544 (**−38.4%**) | 0.880 (+1.8%) |
-| | L4 | 0.649 | 0.495 (**−23.8%**) | 0.741 (+9.8%) |
+| LigUnity-pocket | L1 | 0.892 | 0.538 (**−39.8%**) | 0.884 (+0.2%) |
+| | L4 | 0.708 | 0.483 (**−31.7%**) | 0.775 (+7.4%) |
 | LiTENCLIP | L1 | 0.877 | 0.511 (**−41.7%**) | 0.874 (−0.6%) |
 | | L4 | 0.706 | 0.494 (**−30.0%**) | 0.798 (+1.9%) |
 | DrugCLIP | L1 | 0.753 | 0.471 (**−37.5%**) | 0.779 (+3.0%) |
@@ -209,7 +209,7 @@ anhydrase I → II (P00915 → P00918), JAK2 → JAK3 (O60674 → P52333).
 ### EF@1%
 
 For the same batch of models, swapping to an unrelated target drops EF@1% by
-**93.5–99.3%** (HypSeek L1 34.37 → 1.51, L4 9.08 → 0.11); swapping to a
+**93.5–99.8%** (HypSeek L1 34.37 → 1.51, L4 9.08 → 0.11); swapping to a
 same-family target drops it by **−18% to +12%**, i.e. within the noise range.
 The largest is BindCLIP-hardneg L1 at −18.1%, DrugCLIP L1 at −16.4%.
 

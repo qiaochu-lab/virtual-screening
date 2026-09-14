@@ -6,7 +6,7 @@ different question, and you only need the one that matches what you want to do.
 | Tier | Where | Size | What it lets you do |
 |---|---|---|---|
 | **1. Index** | this repository | 66 MB | see every molecule, label and affinity; re-derive the layering |
-| **2. Raw scores** | on request | 326 MB | **recompute every metric we report**, under any cutoff or layering, without a GPU |
+| **2. Raw scores** | on request | 380 MB | **recompute every metric we report**, under any cutoff or layering, without a GPU |
 | **3. Structures** | on request | 3.1 GB | re-run the models, or run your own |
 
 Tier 1 alone tells you what the benchmark *is*. Tier 1 + 2 lets you check every
@@ -35,14 +35,25 @@ scores `float32`, labels `int8`. Rebuild with
 [`eval/pack_raw.py`](eval/pack_raw.py); verify against `manifest_T3.json` /
 `manifest_T1.json`, which carry a sha256 per package.
 
-**T3 — 11 packages, 238.5 MB.** All ten published models, plus both HypSeek
-weights: `drugclip`, `bindclip_randneg`, `bindclip_hardneg`,
+**T3 — 12 packages, 256.9 MB.** All ten published models, both HypSeek weights,
+and a second LigUnity-pocket package. LigUnity-pocket was re-run on a newer
+screening checkpoint on 2026-09-14, so its scores exist in two versions:
+`T3_ligunity_pocket_ranking.npz` (current checkpoint — what every table on the
+paper's 350-target convention is computed from) and
+`T3_ligunity_pocket_ranking_ckpt1.npz` (first checkpoint — what the full
+1,144-target auxiliary tables are still computed from, since those were not
+re-run). The other ten packages: `drugclip`, `bindclip_randneg`, `bindclip_hardneg`,
 `ligunity_pocket_ranking`, `ligunity_protein_ranking`, `litenclip`,
 `hypseek_official_vs`, `hypseek_rk`, `conglude`, `conplex`, `sprint`.
 
-✅ **T1 — 10 packages, complete as of 2026-09-13.** All ten models now have
-per-molecule T1 scores across all three benchmarks (102 DUD-E, 80–81 DEKOIS,
-13–15 LIT-PCBA).
+✅ **T1 — 10 packages, 123.5 MB.** All ten models now have per-molecule T1
+scores across all three benchmarks (102 DUD-E, 80–81 DEKOIS, 13–15 LIT-PCBA).
+
+⚠️ The per-target score *files* were completed on 2026-09-13, but the three
+`.npz` **packages** for LigUnity-pocket, LigUnity-protein and LiTENCLIP were only
+built on 2026-09-14 — the release directory held 7 T1 packages until then, and
+this page said 10. LigUnity-pocket's package is from the new checkpoint, matching
+`T1_main.csv`; the other two are unchanged scores, packaged for the first time.
 
 `ligunity_pocket_ranking`, `ligunity_protein_ranking` and `litenclip` were the
 three that used to be missing: their upstream repositories write only the

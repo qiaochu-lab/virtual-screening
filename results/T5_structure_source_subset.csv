@@ -2,7 +2,7 @@ model,layer,n_holo,ef1_holo,sem_holo,n_pred,ef1_pred,sem_pred,p,seq_only
 drugclip,L4,35,10.3678,2.4806,34,7.2951,2.1289,0.2806,0
 bindclip_randneg,L4,35,8.3670,2.0985,34,5.9731,1.9302,0.2851,0
 bindclip_hardneg,L4,35,6.8347,2.1708,34,5.5842,1.8096,0.4139,0
-ligunity_pocket_ranking,L4,34,15.1023,3.0206,34,4.7182,1.8629,0.0186,0
+ligunity_pocket_ranking,L4,34,15.0899,3.0174,34,6.4981,2.2406,0.0340,0
 ligunity_protein_ranking,L4,34,13.8264,3.0211,34,8.9268,2.6261,0.1820,1
 litenclip,L4,34,13.4763,2.7569,34,5.9264,2.0295,0.0599,0
 hypseek_official_vs,L4,34,11.8354,2.8632,34,6.7068,2.3478,0.0637,0

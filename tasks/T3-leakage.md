@@ -181,8 +181,8 @@ on the same set of targets:
 
 | Model | L1 | L2 | L3 | L4 |
 |---|---|---|---|---|
-| LigUnity-protein | **79%** | 63% | 38% | **17%** |
-| LigUnity-pocket | 69% | 54% | 29% | 16% |
+| LigUnity-protein | **79%** | 63% | 38% | 17% |
+| LigUnity-pocket | 70% | 53% | 27% | **19%** |
 | LiTENCLIP | 64% | 45% | 16% | 18% |
 | HypSeek `_vs` | 63% | 45% | 21% | 15% |
 | DrugCLIP | 34% | 24% | 17% | 16% |
@@ -191,7 +191,7 @@ on the same set of targets:
 | SPRINT | 5% | 4% | 3% | 3% |
 
 **One sentence for the whole of T3**: the best model extracts 79% of the available
-signal on familiar targets, and only 17% on entirely novel ones.
+signal on familiar targets, and no model more than 19% on entirely novel ones.
 
 ⚠️ Regenerated 2026-09-12 from the current subset table; the previous version of this
 table predated both the EF tie-handling fix and the `_vs` switch. HypSeek's row is the
@@ -292,8 +292,8 @@ CMP_exc  = CMP − CMP_pred             the residual — this is the actual pref
 |---|---|---|---|---|---|
 | HypSeek `_rk` | L1 | +0.460 | +0.322 | **+0.138** | +0.185 |
 | | L4 | +0.083 | +0.017 | **+0.066** | +0.055 |
-| LigUnity-pocket | L1 | +0.385 | +0.303 | **+0.082** | +0.136 |
-| | L4 | +0.021 | +0.007 | **+0.014** | +0.022 |
+| LigUnity-pocket | L1 | +0.366 | +0.302 | **+0.064** | +0.106 |
+| | L4 | +0.019 | +0.020 | **−0.001** | +0.016 |
 | LigUnity-protein | L1 | +0.406 | +0.330 | **+0.077** | +0.112 |
 | | L4 | +0.092 | +0.029 | **+0.063** | +0.140 |
 | LiTENCLIP | L1 | +0.360 | +0.283 | **+0.077** | +0.125 |

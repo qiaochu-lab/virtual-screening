@@ -9,7 +9,7 @@ came from, and what to know about each before reading its numbers.
 | DrugCLIP | 3D pocket (UniMol) | 3D conformer | DrugCLIP set (`train_no_test_af`) | `checkpoint_best.pt` |
 | BindCLIP-randneg | 3D pocket | 3D conformer | same as DrugCLIP | `BindCLIP_randneg.pt` |
 | BindCLIP-hardneg | 3D pocket | 3D conformer | same as DrugCLIP | `BindCLIP_hardneg.pt` |
-| LigUnity-pocket | 3D pocket | 3D conformer | PocketAffDB | `LigUnity_VS/pocket_ranking_vs/checkpoint_avg_41-50.pt` |
+| LigUnity-pocket | 3D pocket | 3D conformer | PocketAffDB | `LigUnity_VS/pocket_ranking_vs_v2/checkpoint_avg_41_50.pt` ⁽¹⁾ |
 | LigUnity-protein | sequence | 3D conformer | PocketAffDB | `LigUnity_VS/protein_ranking_vs/checkpoint_avg_41-50.pt` |
 | LiTENCLIP | 3D pocket | 3D conformer | PocketAffDB (same files) | `checkpoint.best_valid_bedroc_0.50.pt` |
 | HypSeek | 3D pocket, hyperbolic embedding space | 3D conformer | PocketAffDB | `checkpoint_avg_41-50_rk.pt` |
@@ -20,6 +20,20 @@ came from, and what to know about each before reading its numbers.
 
 The UniMol-family models additionally load the shared pretrained encoders
 `mol_pre_no_h_220816.pt` and `pocket_pre_220816.pt`.
+
+⁽¹⁾ **LigUnity-pocket was re-run on a newer screening checkpoint (2026-09-14).**
+The authors supplied a second `pocket_ranking` screening weight (md5
+`f8ffada8003efc6193e22f09f494854d`); it is the same architecture as the first,
+420 state-dict keys identical in name and shape, 416 of them differing in value.
+It was verified to be a LigUnity-pocket weight rather than the model it arrived
+labelled as, and our own DUD-E and LIT-PCBA numbers reproduce the sender's to the
+third decimal. Every table on the paper's 350-target convention — T1, the T3
+subset, both target swaps, and FEP — is computed with this weight. The **full
+1,144-target auxiliary tables keep the first checkpoint's LigUnity-pocket rows**,
+which are not re-run; each such table says so where it appears, and both raw
+score packages are published (`T3_ligunity_pocket_ranking.npz` for the current
+numbers, `..._ckpt1.npz` for the auxiliary ones). What changed in the conclusions
+is recorded in [`PATCHES.md`](PATCHES.md).
 
 ## One training set across seven models, and half of them also get affinity labels
 

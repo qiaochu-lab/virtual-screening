@@ -174,39 +174,47 @@ it was not** ([`results/T3_seq_vs_pocket_per_target.csv`](../results/T3_seq_vs_p
 
 | Benchmark | Metric | pocket | sequence | seq wins | pocket wins | ties | win rate | p |
 |---|---|---|---|---|---|---|---|---|
-| DUD-E | EF1% | 42.57 | 36.69 | 45 | 47 | 10 | 48.9% | 0.08 |
-| DUD-E | BEDROC | 0.653 | 0.574 | 49 | 53 | 0 | 48.0% | 0.11 |
-| DUD-E | AUROC | 0.892 | 0.887 | 51 | 51 | 0 | 50.0% | 0.53 |
-| **DEKOIS** | EF1% | 24.62 | **27.04** | 30 | 22 | 29 | **57.7%** | **0.011** |
-| **DEKOIS** | BEDROC | 0.728 | **0.785** | 55 | 26 | 0 | **67.9%** | **0.02** |
-| DEKOIS | AUROC | 0.911 | 0.925 | 40 | 40 | 1 | 50.0% | 0.22 |
-| **LIT-PCBA** | EF1% | **7.30** | 6.22 | **0** | **10** | 5 | **0.0%** | **0.0051** |
-| **LIT-PCBA** | EF5% | **3.10** | 2.18 | 1 | 13 | 1 | **7.1%** | **0.0029** |
-| **LIT-PCBA** | BEDROC | **0.088** | 0.075 | 2 | 13 | 0 | **13.3%** | **0.012** |
-| LIT-PCBA | AUROC | 0.601 | 0.563 | 5 | 10 | 0 | 33.3% | 0.19 |
+| DUD-E | EF1% | 41.51 | 36.69 | 42 | 51 | 9 | 45.2% | 0.07 |
+| DUD-E | BEDROC | 0.641 | 0.574 | 43 | 59 | 0 | 42.2% | 0.07 |
+| DUD-E | AUROC | 0.888 | 0.887 | 51 | 51 | 0 | 50.0% | 0.60 |
+| **DEKOIS** | EF1% | 24.55 | **27.13** | 36 | 14 | 31 | **72.0%** | **0.0011** |
+| **DEKOIS** | BEDROC | 0.723 | **0.785** | 52 | 29 | 0 | **64.2%** | **0.009** |
+| DEKOIS | AUROC | 0.919 | 0.925 | 48 | 33 | 0 | 59.3% | 0.16 |
+| LIT-PCBA | EF1% | 6.30 | 6.22 | 5 | 5 | 5 | 50.0% | 0.80 |
+| LIT-PCBA | EF5% | 2.45 | 2.18 | 4 | 9 | 2 | 30.8% | 0.13 |
+| LIT-PCBA | BEDROC | 0.076 | 0.075 | 6 | 9 | 0 | 40.0% | 0.49 |
+| LIT-PCBA | AUROC | 0.579 | 0.563 | 5 | 10 | 0 | 33.3% | 0.49 |
 
-**Putting both tables together, there is no consistent winner.** The sequence
-branch wins DEKOIS and T3's L1/L2; the pocket branch wins LIT-PCBA on every
-early-enrichment metric — 10 of 10 decided targets on EF1% — and DUD-E is a tie
-under pairing despite a 5.89 gap in the means. This is the same phenomenon as
-finding 3 below, one level down: **not only does model ranking reverse by
-benchmark, so does the ranking of two branches of a single model.**
+**Putting both tables together, there is still no consistent winner — but the
+pocket branch no longer has a decisive win.** The sequence branch wins DEKOIS
+(72% of decided targets, p = 0.001) and T3's L1/L2. The pocket branch leads
+DUD-E by 4.82 EF1% in the mean, which the paired test does not resolve (45.2% of
+decided targets to the sequence branch, p = 0.07). LIT-PCBA is an even split,
+5 targets each on EF1% (p = 0.80). What survives is the weaker form of the same
+phenomenon as finding 3 below: **which branch leads depends on the benchmark,
+and on two of the three nothing is decided at all.**
 
-**LIT-PCBA deserves the most weight of the three standard benchmarks** — its
-decoys are experimentally confirmed inactives rather than generated — and it is
-the one that favours the pocket most decisively. Any claim that a 3D pocket is
-dispensable has to answer that.
+⚠️ **This is the one conclusion the LigUnity-pocket checkpoint update changed.**
+The previous checkpoint won LIT-PCBA 10–0 on decided targets (EF1% 7.30 vs 6.22,
+p = 0.005), and this page argued from it that LIT-PCBA — the benchmark whose
+decoys are experimentally confirmed inactives rather than generated, and so the
+one that deserves the most weight — favoured the pocket most decisively. The
+current checkpoint scores 6.30 there and the branches become indistinguishable.
+The claim was therefore checkpoint-specific, not a property of the two
+representations, which is worth more than the claim it replaces: **"a 3D pocket
+is dispensable" is not refuted by these two branches, and was never refuted by
+more than one checkpoint's LIT-PCBA column.**
 
 Three reading notes.
 
 **The per-target table matters more than the means here.** EF@1% is coarse at
 this pool size (T3's median pool is ~1,200 candidates, so the top 1% is 12 slots)
 and 131 of 310 L1 targets are exact ties, so a mean difference can be carried by
-a handful of targets. DUD-E is the clearest case: the pocket branch leads by 5.89
-EF1% in the mean and the paired test says 48.9% vs 51.1%, p = 0.08.
+a handful of targets. DUD-E is the clearest case: the pocket branch leads by 4.82
+EF1% in the mean and the paired test says 45.2% vs 54.8%, p = 0.07.
 
 **AUROC settles nothing anywhere.** It is non-significant on all three standard
-benchmarks (p = 0.19–0.53) and at L3/L4. Only the early-enrichment metrics
+benchmarks (p = 0.16–0.60) and at L3/L4. Only the early-enrichment metrics
 separate the two branches — the same point finding 4 makes about models.
 
 **This is not evidence about representations in general.** Both weights were
@@ -402,7 +410,7 @@ random and it is directly comparable to EF@1%.
 | Model | Hit@100 L1 | Hit@100 L4 | EF@100 L1 | EF@1% L1 | EF@100 decay | EF@1% decay |
 |---|---|---|---|---|---|---|
 | LigUnity-protein | **59.4** | 19.9 | 30.3 | 40.1 | 69% | 73% |
-| LigUnity-pocket | 53.7 | 19.6 | 27.4 | 34.8 | 66% | 74% |
+| LigUnity-pocket | 54.9 | 20.9 | 28.1 | 35.3 | 64% | 71% |
 | HypSeek `_rk` | 53.7 | 17.4 | 27.5 | 34.4 | 70% | 76% |
 | LiTENCLIP | 49.9 | 18.4 | 25.5 | 32.2 | 66% | 72% |
 | BindCLIP-hardneg | 31.4 | 10.7 | 16.0 | 19.3 | 70% | 71% |

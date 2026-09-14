@@ -39,26 +39,26 @@ ligunity_protein_ranking,L4,远 0.35–0.5,51,67,0.0551,0.0385,0.588
 ligunity_protein_ranking,L4,近 0.5–0.7,32,24,0.0976,0.0562,0.688
 ligunity_protein_ranking,L4,极近 ≥0.7,20,22,0.1473,0.0935,0.750
 ligunity_protein_ranking,L4,pooled,54,,0.0981,0.0325,0.704
-ligunity_pocket_ranking,L1,全新 <0.35,4,22,0.1288,0.1169,0.500
-ligunity_pocket_ranking,L1,远 0.35–0.5,26,15,0.0345,0.0870,0.462
-ligunity_pocket_ranking,L1,近 0.5–0.7,38,37,0.1451,0.0612,0.684
-ligunity_pocket_ranking,L1,极近 ≥0.7,43,47,0.2574,0.0426,0.860
-ligunity_pocket_ranking,L1,pooled,43,,0.1723,0.0431,0.698
-ligunity_pocket_ranking,L2,全新 <0.35,104,51,0.0701,0.0293,0.587
-ligunity_pocket_ranking,L2,远 0.35–0.5,146,80,0.1359,0.0252,0.664
-ligunity_pocket_ranking,L2,近 0.5–0.7,123,59,0.1238,0.0315,0.667
-ligunity_pocket_ranking,L2,极近 ≥0.7,65,14,0.1785,0.0513,0.615
-ligunity_pocket_ranking,L2,pooled,149,,0.1135,0.0222,0.651
-ligunity_pocket_ranking,L3,全新 <0.35,13,81,-0.0105,0.0884,0.538
-ligunity_pocket_ranking,L3,远 0.35–0.5,15,42,0.1098,0.0515,0.667
-ligunity_pocket_ranking,L3,近 0.5–0.7,7,35,-0.1329,0.1482,0.571
-ligunity_pocket_ranking,L3,极近 ≥0.7,4,13,-0.0903,0.1748,0.500
-ligunity_pocket_ranking,L3,pooled,16,,0.0388,0.0421,0.562
-ligunity_pocket_ranking,L4,全新 <0.35,36,55,0.0389,0.0452,0.528
-ligunity_pocket_ranking,L4,远 0.35–0.5,51,67,0.0761,0.0375,0.667
-ligunity_pocket_ranking,L4,近 0.5–0.7,32,24,0.0941,0.0647,0.625
-ligunity_pocket_ranking,L4,极近 ≥0.7,20,22,0.0613,0.0872,0.600
-ligunity_pocket_ranking,L4,pooled,54,,0.1083,0.0358,0.704
+ligunity_pocket_ranking,L1,全新 <0.35,4,22,0.0411,0.3181,0.750
+ligunity_pocket_ranking,L1,远 0.35–0.5,26,15,0.0732,0.0565,0.538
+ligunity_pocket_ranking,L1,近 0.5–0.7,38,37,0.1876,0.0523,0.763
+ligunity_pocket_ranking,L1,极近 ≥0.7,43,47,0.2709,0.0418,0.837
+ligunity_pocket_ranking,L1,pooled,43,,0.1927,0.0386,0.791
+ligunity_pocket_ranking,L2,全新 <0.35,104,51,0.0613,0.0311,0.538
+ligunity_pocket_ranking,L2,远 0.35–0.5,146,80,0.1438,0.0271,0.658
+ligunity_pocket_ranking,L2,近 0.5–0.7,123,59,0.1547,0.0328,0.699
+ligunity_pocket_ranking,L2,极近 ≥0.7,65,14,0.1839,0.0495,0.646
+ligunity_pocket_ranking,L2,pooled,149,,0.1218,0.0240,0.624
+ligunity_pocket_ranking,L3,全新 <0.35,13,81,-0.0023,0.0688,0.538
+ligunity_pocket_ranking,L3,远 0.35–0.5,15,42,-0.0287,0.0936,0.467
+ligunity_pocket_ranking,L3,近 0.5–0.7,7,35,-0.1406,0.0827,0.143
+ligunity_pocket_ranking,L3,极近 ≥0.7,4,13,0.1383,0.2169,0.500
+ligunity_pocket_ranking,L3,pooled,16,,0.0270,0.0482,0.562
+ligunity_pocket_ranking,L4,全新 <0.35,36,55,0.0699,0.0553,0.667
+ligunity_pocket_ranking,L4,远 0.35–0.5,51,67,0.0629,0.0390,0.647
+ligunity_pocket_ranking,L4,近 0.5–0.7,32,24,0.1044,0.0565,0.656
+ligunity_pocket_ranking,L4,极近 ≥0.7,20,22,0.0748,0.0894,0.550
+ligunity_pocket_ranking,L4,pooled,54,,0.0873,0.0346,0.704
 litenclip,L1,全新 <0.35,4,22,-0.4136,0.1521,0.000
 litenclip,L1,远 0.35–0.5,26,15,-0.0644,0.0830,0.385
 litenclip,L1,近 0.5–0.7,38,37,0.0908,0.0599,0.605

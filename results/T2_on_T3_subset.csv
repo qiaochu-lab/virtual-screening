@@ -7,10 +7,10 @@ ligunity_protein_ranking,L1,54,0.2214,0.0360,0.1574,0.7963
 ligunity_protein_ranking,L2,166,0.1156,0.0229,0.0829,0.6446
 ligunity_protein_ranking,L3,19,0.0080,0.0389,0.0044,0.6316
 ligunity_protein_ranking,L4,67,0.1018,0.0284,0.0694,0.6866
-ligunity_pocket_ranking,L1,54,0.1739,0.0373,0.1231,0.7037
-ligunity_pocket_ranking,L2,166,0.1212,0.0213,0.0861,0.6506
-ligunity_pocket_ranking,L3,19,0.0440,0.0436,0.0315,0.5789
-ligunity_pocket_ranking,L4,67,0.0916,0.0324,0.0636,0.6716
+ligunity_pocket_ranking,L1,54,0.1862,0.0352,0.1306,0.7778
+ligunity_pocket_ranking,L2,166,0.1232,0.0228,0.0897,0.6325
+ligunity_pocket_ranking,L3,19,0.0325,0.0458,0.0219,0.5789
+ligunity_pocket_ranking,L4,67,0.0814,0.0308,0.0565,0.6866
 litenclip,L1,54,0.1032,0.0312,0.0688,0.6481
 litenclip,L2,166,0.0807,0.0228,0.0575,0.5783
 litenclip,L3,19,-0.0015,0.0522,-0.0027,0.4737

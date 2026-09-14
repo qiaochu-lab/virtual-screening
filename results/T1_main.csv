@@ -2,9 +2,9 @@ model,benchmark,n_targets,EF1,EF5,BEDROC,AUROC
 hypseek_official_vs,DUDE,102,51.4138,16.2997,0.7892,0.9435
 hypseek_official_vs,DEKOIS,81,25.5186,14.9630,0.7718,0.9255
 hypseek_official_vs,PCBA,15,6.8157,3.3859,0.0816,0.6225
-ligunity_pocket,DUDE,102,42.6101,13.5700,0.6528,0.8922
-ligunity_pocket,DEKOIS,81,24.6308,13.5282,0.7275,0.9112
-ligunity_pocket,PCBA,15,7.3030,3.1040,0.0875,0.6014
+ligunity_pocket,DUDE,102,41.5129,13.3400,0.6411,0.8882
+ligunity_pocket,DEKOIS,81,24.5517,13.4290,0.7228,0.9187
+ligunity_pocket,PCBA,15,6.3025,2.4515,0.0763,0.5794
 ligunity_protein,DUDE,102,36.6929,12.1066,0.5740,0.8873
 ligunity_protein,DEKOIS,81,27.1297,14.3019,0.7848,0.9246
 ligunity_protein,PCBA,15,6.2208,2.1807,0.0745,0.5630

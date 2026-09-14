@@ -138,7 +138,7 @@ subset re-aggregation, which filters by uniprot, was wrong. See
 |---|---|---|---|---|
 | **HypSeek `_rk`** | **+0.225** ± .041 | +0.144 | +0.087 | **+0.139** |
 | LigUnity-protein | +0.221 ± .036 | +0.116 | +0.008 | +0.102 |
-| LigUnity-pocket | +0.174 ± .037 | +0.121 | +0.044 | +0.092 |
+| LigUnity-pocket | +0.186 ± .035 | +0.123 | +0.033 | +0.081 |
 | ConGLUDe | +0.109 ± .030 | +0.046 | +0.027 | +0.056 |
 | LiTENCLIP | +0.103 ± .031 | +0.081 | −0.002 | +0.092 |
 | BindCLIP-hardneg | +0.087 ± .032 | +0.039 | −0.007 | +0.050 |
@@ -195,8 +195,9 @@ LigUnity-pocket's 0.024 does not clear the threshold (0.0143).
 
 **On the 350-quota subset the paper reports, the same family keeps one.**
 Direction is unchanged for every model, but n falls from 78–81 to 27–29 and only
-LigUnity-protein at L1 survives (p = 0.00097); LiTENCLIP (0.019) and HypSeek
-(0.044) are nominal, LigUnity-pocket (0.12) is not
+LigUnity-protein at L1 survives (p = 0.00097); LiTENCLIP (0.019), LigUnity-pocket
+(0.019) and HypSeek (0.044) are nominal — LigUnity-pocket's was 0.12 on the previous
+checkpoint
 ([`results/T2_novelty_paired_subset.csv`](../results/T2_novelty_paired_subset.csv)):
 
 | Model | L1 familiar | L1 novel | Δ | p (subset) | p (full set) |
@@ -204,7 +205,7 @@ LigUnity-protein at L1 survives (p = 0.00097); LiTENCLIP (0.019) and HypSeek
 | LigUnity-protein | +0.238 | **−0.074** | +0.312 | **0.00097** | 0.0001 |
 | LiTENCLIP | +0.158 | **−0.096** | +0.255 | 0.019 | 0.0009 |
 | HypSeek `_rk` | +0.244 | +0.009 | +0.235 | 0.044 | 0.0013 |
-| LigUnity-pocket | +0.190 | +0.041 | +0.149 | 0.12 | 0.024 |
+| LigUnity-pocket | +0.232 | +0.056 | +0.176 | 0.019 | 0.024 |
 | DrugCLIP | +0.095 | +0.028 | +0.068 | 0.35 | 0.21 |
 
 The gap between the halves is *wider* on the subset — the novel half goes
@@ -419,7 +420,7 @@ the count is zero either way.
 | HypSeek `_rk` | +0.088 | 24/41 | +0.090 | 36/54 |
 | HypSeek `_vs` | +0.084 | 26/43 | +0.067 | 34/54 |
 | LigUnity-protein | +0.088 | 24/43 | +0.037 | 29/54 |
-| LigUnity-pocket | +0.043 | 21/43 | +0.047 | 30/54 |
+| LigUnity-pocket | +0.064 | 25/43 | +0.026 | 28/54 |
 | LiTENCLIP | −0.033 | 17/43 | +0.053 | 30/54 |
 | DrugCLIP | −0.061 | 19/44 | −0.060 | 27/55 |
 
@@ -438,7 +439,7 @@ baseline at +0.139 / +0.098 for L1 / L4 — the same shape with more targets.
 | Model | Spearman | Pearson | Systems with correct direction |
 |---|---|---|---|
 | LigUnity-protein | **+0.396** | +0.428 | **16/16** |
-| LigUnity-pocket | +0.392 | +0.434 | 13/16 |
+| LigUnity-pocket | +0.393 | +0.403 | 14/16 |
 | LiTENCLIP | +0.276 | +0.247 | 13/16 |
 
 Per-system: [`results/T2_on_FEP.csv`](../results/T2_on_FEP.csv). These were never
@@ -585,7 +586,7 @@ identity ([`timesplit/analysis/fep_vs_t3_v2.py`](../timesplit/analysis/fep_vs_t3
 
 | Model | FEP data | T3 data | paired Wilcoxon |
 |---|---|---|---|
-| LigUnity-pocket | +0.391 | **+0.289** | p = 0.33 |
+| LigUnity-pocket | +0.395 | **+0.259** | p = 0.15 |
 | LigUnity-protein | +0.413 | **+0.290** | p = 0.27 |
 
 **No significant difference.** The earlier version of this table read +0.391 vs
@@ -701,8 +702,8 @@ Note `eval/metrics.py::r2_score` deliberately returns **Pearson r²**, not
 
 | Method | Kendall τ (16 FEP systems) | RMSE (kcal/mol) |
 |---|---|---|
-| LigUnity-pocket | 0.291 | not computable |
 | LigUnity-protein | 0.284 | not computable |
+| LigUnity-pocket | 0.279 | not computable |
 | LiTENCLIP | 0.200 | not computable |
 | **Uni-FEP** (reference, published) | **0.503** | 0.65–1.79 |
 | **Boltz-2** | **0.474** (mean over 16 systems) | **computable** |

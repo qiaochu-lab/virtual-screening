@@ -2,76 +2,155 @@
  "T3_bindclip_hardneg": {
   "targets": 1044,
   "file": "T3_bindclip_hardneg.npz",
-  "size_mb": 18.9
+  "size_mb": 18.9,
+  "source_root": "t3_raw",
+  "sha256": "ea8657c8a628cc40225b71bd8c2bb845149102079f983cfa508f9e05777041a6"
  },
  "T3_bindclip_randneg": {
   "targets": 1044,
   "file": "T3_bindclip_randneg.npz",
-  "size_mb": 18.94
+  "size_mb": 18.94,
+  "source_root": "t3_raw",
+  "sha256": "79996efede063ff8c41e8003f9c23e47a032495a035c18f5f5eb520d16e37ac6"
  },
- "T3_bindclip_randneg_apo": {
-  "targets": 45,
-  "file": "T3_bindclip_randneg_apo.npz",
-  "size_mb": 0.97
+ "T3_conglude": {
+  "targets": 903,
+  "file": "T3_conglude.npz",
+  "size_mb": 23.55,
+  "source_root": "t3",
+  "sha256": "a0bf711f5afb8c43b1ff46f843e8b201c1364fcd0d1654333218b042965277c6"
+ },
+ "T3_conplex": {
+  "targets": 1062,
+  "file": "T3_conplex.npz",
+  "size_mb": 16.46,
+  "source_root": "t3",
+  "sha256": "a49a1ba881a0cb43b044838ba0567632f60811d14835420ecd117f301a67d4b5"
  },
  "T3_drugclip": {
   "targets": 1044,
   "file": "T3_drugclip.npz",
-  "size_mb": 18.94
+  "size_mb": 18.94,
+  "source_root": "t3_raw",
+  "sha256": "b8b7fa4a3a4044d09f4f735d13a81d15eb374fa62a9d9f362849eb9e3ded6bfa"
  },
- "T3_drugclip_apo": {
-  "targets": 45,
-  "file": "T3_drugclip_apo.npz",
-  "size_mb": 0.97
+ "T3_hypseek_official_vs": {
+  "targets": 1016,
+  "file": "T3_hypseek_official_vs.npz",
+  "size_mb": 27.25,
+  "source_root": "t3_raw",
+  "sha256": "52a251d1db0a296c2ac6a1165ec8bfa7aab1b6fc9d1b638e9e18620047cc3284"
  },
  "T3_hypseek_rk": {
   "targets": 1012,
   "file": "T3_hypseek_rk.npz",
-  "size_mb": 27.16
- },
- "T3_hypseek_rk_511": {
-  "targets": 1016,
-  "file": "T3_hypseek_rk_511.npz",
-  "size_mb": 27.2
- },
- "T3_hypseek_vs_s1": {
-  "targets": 1016,
-  "file": "T3_hypseek_vs_s1.npz",
-  "size_mb": 26.24
+  "size_mb": 27.16,
+  "source_root": "t3_raw",
+  "sha256": "989e741140dea3836fe00f2fe3e91db9d7e0e47666104c33908abd44943c74f8"
  },
  "T3_ligunity_pocket_ranking": {
   "targets": 1016,
   "file": "T3_ligunity_pocket_ranking.npz",
-  "size_mb": 18.28
+  "size_mb": 18.32,
+  "source_root": "t3_raw",
+  "sha256": "881f65efd7b205ec7ed8aa071edef21f23d0f5a9b86d6f6b3c6a75243f65cd24"
+ },
+ "T3_ligunity_pocket_ranking_ckpt1": {
+  "targets": 1016,
+  "file": "T3_ligunity_pocket_ranking_ckpt1.npz",
+  "size_mb": 18.28,
+  "source_root": "t3_raw",
+  "sha256": "d0034aaf294eca0b58bf3c807b031281f2769fc61b416816536fbe38a995b02b"
  },
  "T3_ligunity_protein_ranking": {
   "targets": 1016,
   "file": "T3_ligunity_protein_ranking.npz",
-  "size_mb": 18.25
+  "size_mb": 18.25,
+  "source_root": "t3_raw",
+  "sha256": "34efa6489e38eb5c64f38c1fb2ddff9ad669e8daaa2d592c68c838c5d605e5c3"
  },
  "T3_litenclip": {
   "targets": 1016,
   "file": "T3_litenclip.npz",
-  "size_mb": 27.89
+  "size_mb": 27.89,
+  "source_root": "t3_raw",
+  "sha256": "4881832a1a51ec25855a5bda11c4953ed9fbfd6df597b5e575d46e4cd523bfe7"
  },
  "T3_sprint": {
   "targets": 909,
   "file": "T3_sprint.npz",
-  "size_mb": 22.92
+  "size_mb": 22.92,
+  "source_root": "t3_raw",
+  "sha256": "390df16264e0bffe55a921cf932fc70b31141a7d25f25f91b53f8c91124a8678"
+ },
+ "T1_bindclip_hardneg": {
+  "targets": 198,
+  "file": "T1_bindclip_hardneg.npz",
+  "size_mb": 10.28,
+  "source_root": "results",
+  "sha256": "f7b52156409a98e257ea0269487ce0b8433d1e53004c529c3c477d8e7f221d38"
+ },
+ "T1_bindclip_randneg": {
+  "targets": 198,
+  "file": "T1_bindclip_randneg.npz",
+  "size_mb": 10.37,
+  "source_root": "results",
+  "sha256": "337d769556e356937d19df7abee403872c6a819805ea04f00a28bff39b186081"
  },
  "T1_conglude": {
   "targets": 196,
   "file": "T1_conglude.npz",
-  "size_mb": 15.19
+  "size_mb": 15.19,
+  "source_root": "t1_raw",
+  "sha256": "f9b0395e2fdf4984424f01f77088c2b9c7ecdec98d612607eb207ba9acf07809"
  },
  "T1_conplex": {
   "targets": 196,
   "file": "T1_conplex.npz",
-  "size_mb": 10.04
+  "size_mb": 10.04,
+  "source_root": "t1_raw",
+  "sha256": "1d1784ed6fe069b6c722310e1d338303935c82d93f416761d54fa7b7076268dc"
+ },
+ "T1_drugclip": {
+  "targets": 198,
+  "file": "T1_drugclip.npz",
+  "size_mb": 10.21,
+  "source_root": "results",
+  "sha256": "86e5b6fd75cf2925915214bedf271f986c01166e8291557037c21f6d3dfbe4fd"
+ },
+ "T1_hypseek_official_vs": {
+  "targets": 198,
+  "file": "T1_hypseek_official_vs.npz",
+  "size_mb": 15.84,
+  "source_root": "results",
+  "sha256": "3c068e849c9aafd98da2ae76d8905b21697df4114e8c2bf3a56a42f3705c28dc"
+ },
+ "T1_ligunity_pocket": {
+  "targets": 198,
+  "file": "T1_ligunity_pocket.npz",
+  "size_mb": 10.21,
+  "source_root": "results/<model>",
+  "sha256": "fe129d18d28bbe2a7d5a7f48a230a12a3b895d8fe18ec70cfcd6fbbe66bcb2f9"
+ },
+ "T1_ligunity_protein": {
+  "targets": 198,
+  "file": "T1_ligunity_protein.npz",
+  "size_mb": 10.03,
+  "source_root": "results/<model>",
+  "sha256": "a42acb5b441f3710d0220a8a6f491ccbf7d1f18eaa9792fc2cbfdea73bb0f489"
+ },
+ "T1_litenclip": {
+  "targets": 198,
+  "file": "T1_litenclip.npz",
+  "size_mb": 16.09,
+  "source_root": "results/<model>",
+  "sha256": "e7f9f8bb2ff43afda26fa2238f63c8bf82b1adbff7e96be277ecf351c21c2562"
  },
  "T1_sprint": {
   "targets": 198,
   "file": "T1_sprint.npz",
-  "size_mb": 15.28
+  "size_mb": 15.28,
+  "source_root": "t1_raw",
+  "sha256": "6c5db4f98fbf8b1a49aba98ab20611e3522833362d5e6f68ce0ff8fcc8b66f0b"
  }
 }

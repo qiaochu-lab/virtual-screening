@@ -213,7 +213,7 @@ re-inferred.
 ### Structure source on the subset
 
 Per-target counts drop from 65–89 to **25–35 (holo) / 30–34 (predicted)**, so the
-per-model effect sizes are no longer estimable — only LigUnity-pocket (p = 0.019)
+per-model effect sizes are no longer estimable — only LigUnity-pocket (p = 0.034)
 and SPRINT (p = 0.023) stay individually significant, and nothing survives BH-FDR
 across the 10 comparisons. What *strengthens* is the direction: **all 10 models
 favour experimental structures (sign test p = 0.002)**, up from 8/10 (p = 0.109).
@@ -230,7 +230,7 @@ too small to resolve. Target difficulty cannot be ruled out as cleanly as
 
 **Correct phrasing for the subset:** *the direction is unanimous
 (10/10, sign test p = 0.002), but individual effect sizes are not estimable at
-25–35 targets per arm — only LigUnity-pocket (p = 0.019) and SPRINT (p = 0.023)
+25–35 targets per arm — only LigUnity-pocket (p = 0.034) and SPRINT (p = 0.023)
 reach nominal significance and neither survives BH-FDR across the ten
 comparisons.*
 

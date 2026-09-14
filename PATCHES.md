@@ -953,3 +953,66 @@ reported the very processes it was checking for. The bracket idiom
 matches itself — but the durable fix is not to identify work by its command line
 at all. Wait on a **file** the job produces, or on a PID captured at launch.
 
+
+---
+
+## Part 3 — a checkpoint replacement, and what it changed
+
+### LigUnity-pocket was re-run on a newer screening weight (2026-09-14)
+
+The authors supplied a second `pocket_ranking` screening checkpoint. It arrived
+labelled as a different model; a state-dict comparison settled what it is — 420
+keys identical in name and shape to `pocket_ranking_vs`, 416 of them differing in
+value, maximum absolute difference 0.307 — and the sender confirmed it. Our own
+DUD-E and LIT-PCBA numbers from it reproduce the sender's to the third decimal,
+which is the independent check that the weight was loaded the way they loaded it.
+
+**Scope of the re-run:** everything the paper reports on the 350-target
+convention — T1 (DUD-E 102, DEKOIS 81, LIT-PCBA 15), the T3 subset (309 targets
+with scores), both target swaps (3 rounds each), and the 16 FEP systems. The full
+1,144-target trees were **not** re-run: they are auxiliary, and re-running them
+buys nothing the subset does not already answer. So every full-set table keeps the
+first checkpoint's LigUnity-pocket rows, and both raw score packages are published
+(`T3_ligunity_pocket_ranking.npz`, `..._ckpt1.npz`) so either can be recomputed.
+
+Old-versus-new was compared before anything was published: each affected script
+was re-run against the first checkpoint's backed-up scores first, and only
+installed once that reproduced the committed table. That check is what separates
+"this number moved because of the weight" from "this table had drifted from its
+own source" — and it caught one of each.
+
+**Four conclusions changed.**
+
+| Claim | First checkpoint | Current | Status |
+|---|---|---|---|
+| pocket branch beats sequence branch on LIT-PCBA | 10–0 on decided targets, EF1% 7.30 vs 6.22, p = 0.005 | 5–5, 6.30 vs 6.22, p = 0.80 | **withdrawn** — was checkpoint-specific |
+| on the subset, L4 AUROC favours the sequence branch | 63.2% of decided targets, p = 0.024 | 52.9%, p = 0.56 | **withdrawn** — both conventions now agree neither branch leads |
+| retrieval beats Boltz-2 on 5 of 16 FEP systems (LigUnity-pocket) | 5 of 16 | 3 of 16 | narrowed; the union over the three retrieval models is still 5 systems |
+| on the subset, LigUnity-pocket ranks affinity better than molecular weight at L1 | 30 of 43 targets, p = 0.0137 | 28 of 43, p = 0.066 | **withdrawn** — only HypSeek `_rk` (p = 0.0015) still beats it; the mean margin actually widened (+0.107 → +0.127), the sign test did not |
+
+Smaller shifts that do not change a conclusion: on the ConPLex-clean 45 DUD-E
+targets LigUnity-pocket now scores 37.70 against 41.51 on all 102 (−9.2%, was
++0.0%); the structure-source gap at L4 on the subset is −57% at p = 0.034 (was
+−69% at p = 0.019) and SPRINT rather than LigUnity-pocket is now the largest
+proportional drop; and LigUnity-pocket rather than LigUnity-protein now tops the
+L4 ceiling fraction, at 19%.
+
+**What held.** The L1→L4 decay and its shape, the random-target-swap collapse to
+chance, the same-family swap staying non-significant, the T2 ranking
+conclusions other than the molecular-weight row above, the ConPLex DUD-E leakage
+result (its fold strengthened, 4.65 → 5.28),
+and finding 18's permutation p = 0.0048. Where a control's own numbers moved
+because LigUnity-pocket is one of the ten models its normalisation divides by,
+the movement is propagation, not a new measurement — the leave-one-out median in
+the DUD-E leakage tables and the within-target ranks in the crossover tables both
+work that way.
+
+### One table was found stale, and is not from this update
+
+`results/T3_per_model_layers_ctrl.csv` does not reproduce from either checkpoint:
+re-running it on the first checkpoint's scores gives `n_seen` 144 where the
+committed file says 139, for models LigUnity has no bearing on. It predates some
+earlier change to the seen/unseen target set. It is the deliberately-unusable
+ratio normalisation kept only for inspection
+([`LIMITATIONS.md`](LIMITATIONS.md) §25 explains why it is not reported), so it
+is left as it is rather than half-updated — but it should not be cited.

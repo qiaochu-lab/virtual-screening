@@ -2,9 +2,9 @@
 
 同一张表的全集版在 T2_vs_mw_baseline.txt。两者方向一致，但子集上 n 从
 188–273 掉到 41–55，显著性随之大幅削弱——这是检验力的差别，不是效应消失。
-按论文口径，能说的是：L1 上 HypSeek `_rk`（p=0.0015）与 LigUnity-pocket
-（p=0.0137）显著强于分子量；L4 上没有任何模型显著强于它，而 DrugCLIP 显著
-输给它（p=0.0065）。
+按论文口径，能说的是：L1 上只有 HypSeek `_rk`（p=0.0015）显著强于分子量；
+L4 上没有任何模型显著强于它，而 DrugCLIP 显著输给它（p=0.0065）。
+（LigUnity-pocket 换权重前在 L1 是 p=0.0137，现在 p=0.066，已不显著。）
 
 p 是双侧精确二项检验。20 个检验做 BH-FDR (alpha=0.05) 只有 HypSeek/L1 通过。
 
@@ -24,10 +24,10 @@ ligunity_protein_ranking L2     149    +0.120    +0.083    +0.037       82/149  
 ligunity_protein_ranking L3      16    +0.018    +0.124    -0.107        6/16       0.4545 
 ligunity_protein_ranking L4      54    +0.098    +0.140    -0.042       25/54       0.6835 
 
-ligunity_pocket_ranking  L1      43    +0.172    +0.066    +0.107       30/43      0.01372 模型赢
-ligunity_pocket_ranking  L2     149    +0.113    +0.083    +0.031       77/149      0.7433 
-ligunity_pocket_ranking  L3      16    +0.039    +0.124    -0.085        5/16       0.2101 
-ligunity_pocket_ranking  L4      54    +0.108    +0.140    -0.032       22/54       0.2203 
+ligunity_pocket_ranking  L1      43    +0.193    +0.066    +0.127       28/43      0.06599 
+ligunity_pocket_ranking  L2     149    +0.122    +0.083    +0.039       72/149      0.7433 
+ligunity_pocket_ranking  L3      16    +0.027    +0.124    -0.097        7/16       0.8036 
+ligunity_pocket_ranking  L4      54    +0.087    +0.140    -0.053       25/54       0.6835 
 
 litenclip                L1      43    +0.096    +0.066    +0.030       22/43            1 
 litenclip                L2     149    +0.081    +0.083    -0.002       77/149      0.7433 

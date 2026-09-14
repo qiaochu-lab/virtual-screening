@@ -105,7 +105,8 @@ already working in this area.
    It reframes the decay: the ceiling is flat across layers while models fall from 38
    to 9, so **what the models lose on novel targets is access to a memorisable
    chemical series**, not chemistry ability. Normalised against that ceiling, the
-   best model extracts **79% of the available signal at L1 and 17% at L4**.
+   best model extracts **79% of the available signal at L1, and no model more
+   than 19% at L4**.
 
    The matching *lower* bound closes the argument. A classifier that sees only
    ECFP4 and never learns which target it is scoring (GroupKFold by uniprot —
@@ -258,8 +259,9 @@ already working in this area.
 
    **Two baselines say how much of that is worth anything.** On the 350-target
    convention the paper reports, paired per target: against **molecular weight
-   alone**, only HypSeek `_rk` (p = 0.0015) and LigUnity-pocket (p = 0.0137) win
-   at L1, **no model wins at L4**, and DrugCLIP loses to it there (p = 0.0065).
+   alone**, only HypSeek `_rk` (p = 0.0015) wins at L1 — LigUnity-pocket, which the
+   previous checkpoint had at p = 0.0137, is now p = 0.066 — **no model wins at
+   L4**, and DrugCLIP loses to it there (p = 0.0065).
    Against a **regressor that is never told which protein it is scoring** —
    ECFP4 → pAffinity, with the target held out — **not one of the 20 cells in
    the BH family survives**; that blind baseline sits at ρ = +0.12 (L1) and +0.10
@@ -272,7 +274,10 @@ already working in this area.
    cannot show a model ranks better than target-blind chemistry. The full
    1,144-target set, kept as an auxiliary check, has the same shape with sharper
    p-values: there the three strongest models beat molecular weight at L1 at
-   p = 1.6e-09 … 0.0013, and DrugCLIP still loses to it at L4.
+   p = 1.6e-09 … 0.0013, and DrugCLIP still loses to it at L4. One of those three
+   is LigUnity-pocket at p = 0.0013, on the **first** checkpoint — the full set was
+   not re-run, so that row speaks to the shape of the result, not to the subset
+   claim withdrawn above.
    → [`results/T2_vs_mw_baseline_subset.txt`](results/T2_vs_mw_baseline_subset.txt),
    [`results/T2_paired_vs_ligand_only_subset.csv`](results/T2_paired_vs_ligand_only_subset.csv),
    [T2](tasks/T2-affinity-ranking.md)
@@ -319,7 +324,7 @@ already working in this area.
    |---|---|---|
    | models worse on predicted | 8 of 10, sign test p = 0.109 | **10 of 10, p = 0.002** |
    | individually significant | 4 of 20 comparisons; 1 survives BH-FDR (ConGLUDe) | 2 of 10; **none survives BH** |
-   | largest drop | ConGLUDe −58% (6.40 → 2.66) | LigUnity-pocket **−69%** (15.10 → 4.72) |
+   | largest drop | ConGLUDe −58% (6.40 → 2.66) | SPRINT **−66%** (2.56 → 0.87); LigUnity-pocket −57% (15.09 → 6.50) |
 
    The direction is unanimous on the published subset and the effect is larger
    there, so this is not a case of a result weakening under the stricter set.
@@ -393,23 +398,25 @@ already working in this area.
    loses — which is what makes the two families worth combining rather than
    ranking. → [T6](tasks/T6-physics.md)
 
-12. **Sequence and pocket trade places by benchmark — neither representation
-   wins consistently.** LigUnity ships a pocket branch and a sequence branch from
+12. **Neither the sequence nor the pocket representation wins consistently.** LigUnity ships a pocket branch and a sequence branch from
    one release — same training set, same ligand encoder, same checkpoint scheme.
-   Paired per target, the sequence branch wins DEKOIS and T3's L1/L2 (60–69% of
-   decided targets, p ≤ 0.02), the pocket branch wins **LIT-PCBA on every
-   early-enrichment metric** (10 of 10 decided targets on EF1%, p = 0.005), and
-   DUD-E is a tie under pairing despite a 5.89 EF1% gap in the means. This is
-   finding 3 one level down: not only does model ranking reverse by benchmark,
-   so does the ranking of two branches of one model.
+   Paired per target, the sequence branch wins DEKOIS and T3's L1/L2 (60–72% of
+   decided targets, p ≤ 0.02), while **neither branch is resolved on the other
+   two standard benchmarks**: DUD-E leads the pocket branch by 4.82 EF1% in the
+   means and stays a tie under pairing (p = 0.07), and LIT-PCBA splits 5–5 on
+   decided targets (p = 0.80). ⚠️ The previous LigUnity-pocket checkpoint won
+   LIT-PCBA 10–0 there (p = 0.005) and this finding used to rest on it; the
+   current checkpoint removes that leg, so what is left is the weaker claim that
+   which branch leads depends on the benchmark.
 
-   **At L4 the two conventions disagree, and the disagreement is metric-specific.**
-   On the full 1,144-target set the branches are indistinguishable there — 48.1%
-   of decided targets on EF@1%, 49.1% on AUROC. On the 350-quota subset the paper
-   reports, EF@1% stays a tie (52.1%, p = 0.62) but **AUROC favours the sequence
-   branch, 63.2% of decided targets, p = 0.024**. So on novel targets the sequence
-   branch orders the whole list better while neither branch is ahead at the top of
-   it — the same split between AUROC and EF that finding 1 turns on.
+   **At L4 the branches are indistinguishable on both conventions.** On the full
+   1,144-target set the sequence branch takes 48.1% of decided targets on EF@1%
+   and 49.1% on AUROC; on the 350-quota subset the paper reports, 51.1% (p = 0.62)
+   and 52.9% (p = 0.56). ⚠️ With the previous LigUnity-pocket checkpoint the
+   subset's AUROC favoured the sequence branch (63.2%, p = 0.024), and this
+   paragraph read that as a metric-specific disagreement between the two
+   conventions. The current checkpoint closes the gap, so both conventions now say
+   the same thing: on novel targets neither branch is ahead.
    → [`results/T3_seq_vs_pocket_per_target_subset.csv`](results/T3_seq_vs_pocket_per_target_subset.csv)
    → [T3](tasks/T3-time-split.md)
 
