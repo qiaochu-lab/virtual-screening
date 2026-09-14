@@ -292,8 +292,9 @@ top-200 to score.
 ⚠️ **The table below has been superseded.** It ran on **the full L4 set**,
 where only 5 of the 20 targets land in the final 350-target subset. For the
 re-run on the correct target set, see the "T6-RE: re-docked on the final
-subset" section on this page — same direction, **but the significance is
-gone**. This table is kept only for the record; don't cite its p-values.
+subset" section on this page — same direction, and after the re-dock **P@20 is
+significant again while the other three metrics are not**. This table is kept
+only for the record; don't cite its p-values.
 
 
 | Ranking | P@10 | P@20 | mean active rank | AUROC |
@@ -377,29 +378,46 @@ and should not be quoted.
 ### T6-RE: re-docked on the final subset
 
 25 targets drawn at random (fixed seed) from the 350-quota subset's L4, filtered
-to high-quality structures; the hard molecule-order check rejected 4, leaving 21,
-of which **9 hit the 6-hour per-target cap** and finished partially. Usable: **11
-targets**, of which **6 scored all 200 ligands** and one more reached 99%
-(`score_dock.py` counts "complete" as coverage ≥ 0.99, giving 7; the remaining
-four sit at 0.21, 0.43, 0.54 and 0.92)
+to high-quality structures; the hard molecule-order check rejected 4, leaving 21.
+The first pass lost 9 of those to a 6-hour per-target cap, which left 11 usable
+targets and made compute, not data, the binding constraint. **Re-docked
+2026-09-13 → 09-14 with the cap lifted and 8 cores per target** (9 in parallel,
+CPU only): coverage recovered on four targets — P34969 54% → 100%, Q5JRX3
+20% → 100%, P0AES4 42% → 57%, and P50052 became scorable at 46%.
+
+**Usable: 12 targets, of which 9 scored all 200 ligands** (coverage ≥ 0.99; the
+other three sit at 0.46, 0.57 and 0.92)
 ([`results/T6_dock_subset.csv`](../results/T6_dock_subset.csv)).
+
+⚠️ **12 is the ceiling here, and the remaining 9 are a data limit rather than a
+compute one**: they have too few actives inside retrieval's top-200 to score at
+all. The plan's "20–30 targets" is therefore not reachable on this shortlist
+depth — an earlier note on this page hoped the re-dock would reach 15–17, and it
+did not.
 
 | Ranking | P@10 | P@20 | mean active rank | AUROC |
 |---|---|---|---|---|
-| **retrieval (baseline)** | **0.564** | **0.555** | **74.2** | **0.630** |
-| docking rerank | 0.418 | 0.400 | 75.6 | 0.540 |
-| rank fusion | 0.536 | 0.527 | 72.3 | 0.615 |
+| **retrieval (baseline)** | **0.517** | **0.508** | **77.5** | **0.637** |
+| docking rerank | 0.342 | 0.325 | 88.3 | 0.507 |
+| rank fusion | 0.450 | 0.446 | 79.4 | 0.598 |
 
-Paired Wilcoxon against the baseline: **nothing significant** — P@10 p = 0.141,
-P@20 p = 0.094, mean rank p = 0.320, AUROC p = 0.278. Restricting to the 7 targets at
-coverage ≥ 0.99 does not change it (all p ≥ 0.19).
+Paired Wilcoxon against the baseline, n = 12: **P@20 −0.183 (p = 0.023)**, P@10
+−0.175 (p = 0.068), mean active rank +10.8 (p = 0.176), AUROC −0.131 (p = 0.151).
+On the 9 targets at coverage ≥ 0.99: P@20 −0.211 (p = 0.047), P@10 −0.211
+(p = 0.062), mean rank +9.3 (p = 0.426), AUROC −0.124 (p = 0.359).
+
+**One metric of four, and it would not survive correcting across them** —
+0.023 × 4 = 0.092. Read it as: docking rerank loses on every metric, and on the
+one metric the sample can resolve it makes the shortlist measurably worse.
 
 **What changed against the superseded run.** On the full L4 (n = 9) docking was
-significantly *worse* than retrieval (P@10 0.411 → 0.167, p = 0.031). On the
-correct target set the direction survives — docking still loses on every metric —
-but **the significance does not**. So the honest statement is weaker than the one
-we had: *docking rerank does not improve on retrieval, and we cannot show it
-actively hurts.*
+significantly worse on both precision metrics (P@10 0.411 → 0.167, p = 0.031).
+That run is superseded — only 5 of its 20 targets are in the published subset.
+On the correct target set the direction held but nothing was significant at
+n = 11; the re-dock's extra target and fuller coverage bring P@20 back to nominal
+significance. So the statement firms up from *"does not improve on retrieval, and
+we cannot show it hurts"* to *"does not improve on retrieval, and on P@20 it
+hurts"* — while P@10 and AUROC stay unresolvable at this n.
 
 ### Boltz-2 with recall fixed at 100%: physics cannot recover what retrieval missed
 

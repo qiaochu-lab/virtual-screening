@@ -351,13 +351,15 @@ already working in this area.
    familiarity — which is why testing one layer misled us.
    **A second, unrelated physics method reproduces the direction.** smina docking
    of a top-200 L4 shortlist loses to the retrieval order it was handed on every
-   metric — P@10 0.564 → 0.418, AUROC 0.630 → 0.540 — but on the final 350-quota
-   subset (n = 11) **none of it reaches significance** (p = 0.094–0.625). An
-   earlier run on the full L4 (n = 9) did reach it (P@10 0.411 → 0.167,
-   p = 0.031); only 5 of those 20 targets are in the published subset, so that
-   run is superseded and the weaker statement is the one that stands: *physics
-   rescoring does not improve on retrieval here, and we cannot show it actively
-   hurts.* Two methods sharing no code, no scoring idea and no shortlist depth,
+   metric — P@10 0.517 → 0.342, AUROC 0.637 → 0.507 — and after a re-dock that
+   lifted the per-target compute cap (2026-09-14; n = 12, 9 of them scoring all
+   200 ligands) **one metric of four is nominally significant**: P@20 −0.183
+   (p = 0.023), against P@10 p = 0.068, AUROC p = 0.151 and mean active rank
+   p = 0.176. Correcting across the four leaves none, so the claim stays modest:
+   *physics rescoring does not improve on retrieval here, and on the one metric
+   this sample resolves it makes the shortlist worse.* An earlier run on the full
+   L4 (n = 9) separated them further (P@10 0.411 → 0.167, p = 0.031), but only 5
+   of those 20 targets are in the published subset, so it is superseded. Two methods sharing no code, no scoring idea and no shortlist depth,
    same direction. **Nor is it a pose-quality artifact**: raising Boltz-2's
    structure sampling from 1 to 5 (best-of-5 by confidence, strictly paired over
    749 complexes) moves AUROC by 0.002, every p-value above 0.9. Structure
