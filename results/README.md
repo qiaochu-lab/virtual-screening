@@ -43,6 +43,8 @@
 | `T3_novelty_tiered_ef.csv` | enrichment computed separately per novelty tier |
 | `T3_target_mirroring.csv` | each T3 target's closest training-set homologue (mmseqs, cov ≥50%) |
 | `T3_target_redundancy.csv` | all-vs-all identity within the subset (pairs ≥20%) |
+| `T3_capability_map_subset.csv` | EF@1% per model over (homology-to-training band) × (ligand-similarity tier), with per-cell SE and a thin-cell flag |
+| `T3_capability_step_tests_subset.csv` | the two tests on that map, BH-corrected: in-training vs not, and across the three sequence-novel bands |
 
 ## HypSeek official weights — added 2026-09-08
 

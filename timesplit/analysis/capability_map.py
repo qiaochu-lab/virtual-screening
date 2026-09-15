@@ -120,8 +120,15 @@ def resolve_ef(eval_dir, quiet=False):
         try:
             sys.path.insert(0, cand)
             from metrics import enrichment_factor as ef
+            # Report the module's REAL file, never the candidate directory:
+            # once `metrics` is in sys.modules (this file lives two levels under
+            # the repo root, so import time already resolved it), a later
+            # `from metrics import ...` succeeds from cache whatever `cand` is,
+            # and printing `cand` would claim an origin that was never read.
+            import metrics as _m
             if not quiet:
-                print(f"EF implementation: {cand}/metrics.py (shared)")
+                print("EF implementation: %s (shared)"
+                      % getattr(_m, "__file__", f"{cand}/metrics.py"))
             return ef
         except Exception:
             sys.path.pop(0)
