@@ -956,6 +956,40 @@ at all. Wait on a **file** the job produces, or on a PID captured at launch.
 
 ---
 
+## Two sessions share one working tree, and `git add -A` put one session's files into the other's commit
+
+Two assistant sessions were working this repository at the same time, in the same
+checkout. One of them staged with `git add -A`. The other had just placed three
+finished but uncommitted files in the tree, waiting for approval to commit them.
+
+The result is not simply "files were committed early". It is that **two commit
+messages became wrong in opposite directions**:
+
+| Commit | Says | Also contains / actually contains |
+|---|---|---|
+| `a123dc6` | "The handed-out archive is corrected, not just documented" | plus `capability_map.py` (663 lines) and two result tables (222 lines) — a capability-map analysis the message never mentions |
+| `83291d2` | "A producing script for the capability map, and the two tables it makes" | 10 lines: two README rows and a nine-line fix, because the script was already in |
+
+Nothing was lost and no number changed — the content in the tree is correct. What
+was lost is the only durable explanation of where a 663-line analysis script came
+from. Ask `git log -- timesplit/analysis/capability_map.py` and it points at a
+commit about repacking an archive.
+
+**The detectable signal, before committing:** `git status --short` showed `M` for
+a file expected to be `??`, and two files that had definitely been placed did not
+appear at all. A file you put in the tree yourself going missing from `git status`
+means someone else has already committed it. `git log --diff-filter=A -- <path>`
+then names who.
+
+**The rule:** when more than one session may touch a checkout, stage explicit
+paths only, never `-A`, and read `git status --short` before staging to confirm
+every listed path is yours. Both sessions adopted this afterwards.
+
+**Why this was not repaired by rewriting history:** the branch was shared and in
+active use by the other session. Force-pushing to correct a misleading message
+would have been a second, larger instance of the same failure — one session taking
+unilateral action over shared state. The record goes here instead.
+
 ## Part 3 — a checkpoint replacement, and what it changed
 
 ### LigUnity-pocket was re-run on a newer screening weight (2026-09-14)
