@@ -599,11 +599,17 @@ of the four PocketAffDB models reach significance individually
 (p = 0.039, 0.041); the other two are directionally
 consistent but not significant. The evidence that survives is at **group** level
 — all four B models on one side of zero, all six others on the other, exact
-p = 0.0048 — not per model. Widening that cell needs a larger subset, not a better test. Its 7 records are
-the subset's 12 structure-half-only targets minus the 5 that not all ten models
-scored — the crossover keeps only (layer, target) records where every model has
-a result. Per-target membership for all 328 subset records, including those 12,
-is in [`results/T3_subset_train_membership.csv`](results/T3_subset_train_membership.csv).
+p = 0.0048 — not per model. **What thins that cell is model coverage, not subset size.** Its 7 records are
+the subset's 12 structure-half-only targets minus 5 that not all ten models
+scored — the crossover keeps only (layer, target) records every model has a
+result for. **All seven pocket models scored all 12**; the gaps are the three
+sequence models (P08519 missing from ConGLUDe, ConPLex and SPRINT; Q08211 and
+Q96GX5 from ConGLUDe and SPRINT; Q03164 and Q92794 from ConPLex), **and none of
+those three is in the group this finding compares**. So the cell goes 7 → 12 by
+covering five targets in three models, with the subset unchanged; whether that
+coverage can be extended to them is a separate question this page does not
+settle. Per-target membership for all 328 subset records, including those 12, is
+in [`results/T3_subset_train_membership.csv`](results/T3_subset_train_membership.csv).
 
 **Seen/unseen is decided by sequence, and sequence is the weakest layer of
 protein similarity.** Membership here means exact UniProt match, or ≥95%
