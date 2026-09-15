@@ -595,8 +595,13 @@ def main():
                     help="LigUnity-pocket's current-checkpoint .npz, if the "
                          "packaged one under --npz-dir is the first checkpoint")
     ap.add_argument("--subset", default=f"{B}/results/export/T3_vsds_matched.csv")
-    ap.add_argument("--index-glob",
-                    default=f"{B}/results/export/frozen/T3_index_{{layer}}.csv.gz")
+    ap.add_argument("--index-template", "--index-glob", dest="index_glob",
+                    default=f"{B}/results/export/frozen/T3_index_{{layer}}.csv.gz",
+                    help="per-layer frozen index. A TEMPLATE, not a glob: it must "
+                         "contain the literal {layer}, which is substituted with "
+                         "L1..L4. A shell pattern like T3_index_*.csv.gz does NOT "
+                         "work. (--index-glob is kept as an alias for the name "
+                         "this option shipped under.)")
     ap.add_argument("--molecules",
                     default=f"{B}/results/export/frozen/T3_molecules.csv.gz")
     ap.add_argument("--model-order",
@@ -631,6 +636,16 @@ def main():
                     help="skip reproducing the published tables. Only for "
                          "debugging -- never for producing numbers to report.")
     args = ap.parse_args()
+
+    # Fail here rather than deep inside a loader: passing a shell glob is the
+    # natural misreading of the old name, and it surfaced as FileNotFoundError
+    # on a path containing a literal '*', which points at the data rather than
+    # at the argument.
+    if "{layer}" not in args.index_glob:
+        ap.error("--index-template must contain the literal {layer}; it is a "
+                 "template, not a glob.\n  given:    %s\n  expected: %s"
+                 % (args.index_glob,
+                    ".../frozen/T3_index_{layer}.csv.gz  (L1..L4 substituted)"))
 
     global enrichment_factor
     enrichment_factor = resolve_ef(args.eval_dir)
