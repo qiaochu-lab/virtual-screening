@@ -994,12 +994,12 @@ next subsection.
 
 ### Cutting cells by the two label files
 
-([`train_set_crossover.py`](../timesplit/analysis/train_set_crossover.py), **237**
+([`train_set_crossover.py`](../timesplit/analysis/train_set_crossover.py), **239**
 (layer, target) records where all ten models have a result)
 
 | Cell | Meaning | Record count |
 |---|---|---|
-| P∩L | Both halves | 128 |
+| P∩L | Both halves | 130 |
 | **P-only** | Structure half only — **both A and B trained on it** | **7** |
 | **L-only** | Affinity half only — **only B trained on it** | 42 |
 | Neither | | 60 |

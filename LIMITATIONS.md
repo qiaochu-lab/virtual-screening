@@ -537,7 +537,7 @@ neither file contains the other. What nests is what each *group of models* saw:
 DrugCLIP and the BindCLIP pair saw the structure half; LigUnity ×2, LiTENCLIP
 and HypSeek saw that **plus** the affinity half. This distinction matters for
 reading the crossover below — the "affinity-only" cell is not empty, it holds
-36 targets in the 350-quota subset and 135 across all common targets.
+42 targets in the 350-quota subset and 191 across all common targets.
 
 The crossover that produced "2.4 rank places" compared cells defined as "in A
 only" and "in B only", which presumes the sets are disjoint. Recomputed against
@@ -592,14 +592,18 @@ the data directory.*
 [`tasks/T3-leakage.md` §6](tasks/T3-leakage.md) re-cuts the layers using each
 model's own training set. Two limits on how far that result reaches.
 
-**The A-only cell holds 13 targets.** The crossover that separates PocketAffDB
-membership from `train_no_test_af` membership compares targets only one set
-contains. B-only has 32; A-only has 13. Two of the four PocketAffDB models reach
-significance individually (p = 0.039, 0.044); the other two are directionally
+**The structure-half-only cell holds 7 targets.** The crossover that separates
+PocketAffDB membership from `train_no_test_af` membership compares targets only
+one set contains. Affinity-half-only holds 42; structure-half-only holds 7. Two
+of the four PocketAffDB models reach significance individually
+(p = 0.039, 0.041); the other two are directionally
 consistent but not significant. The evidence that survives is at **group** level
 — all four B models on one side of zero, all six others on the other, exact
-p = 0.0048 — not per model. Widening the A-only cell needs a larger subset, not
-a better test.
+p = 0.0048 — not per model. Widening that cell needs a larger subset, not a better test. Its 7 records are
+the subset's 12 structure-half-only targets minus the 5 that not all ten models
+scored — the crossover keeps only (layer, target) records where every model has
+a result. Per-target membership for all 328 subset records, including those 12,
+is in [`results/T3_subset_train_membership.csv`](results/T3_subset_train_membership.csv).
 
 **Seen/unseen is decided by sequence, and sequence is the weakest layer of
 protein similarity.** Membership here means exact UniProt match, or ≥95%
