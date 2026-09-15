@@ -17,6 +17,19 @@ checkpoint and reproduces every table on the 350-target convention;
 `T3_ligunity_pocket_ranking_ckpt1.npz` is the first checkpoint and reproduces the
 full 1,144-target auxiliary tables, which were not re-run
 ([`../MODELS.md`](../MODELS.md) records why).
+⚠️⚠️ **The archive handed out on 2026-09-13 does not match this description.**
+Its `T3_ligunity_pocket_ranking.npz` is the **first** checkpoint's scores under the
+current checkpoint's name — verified by sha256 (`d0034aaf294eca0b…`, which is this
+manifest's `_ckpt1` entry, where the current-checkpoint entry is
+`881f65efd7b205ec…`), and `_ckpt1.npz` is not in that archive at all. The archive
+is self-consistent — its own `manifest_T3.json` records the `_ckpt1` hash — so an
+external checksum check **passes** and the recomputed LigUnity-pocket numbers come
+out at the first checkpoint's values (L1 34.78 / L4 7.90 instead of 35.28 / 9.47).
+Cause: the archive was packed on 09-13 and the re-run landed on 09-15, so the CSVs
+moved and the score packages did not. **Not yet re-packed** — re-packing a
+published archive is a decision, not a cleanup, and it needs the scores under
+`results/t3_raw/ligunity_pocket_ranking/` on the run host.
+
 ⚠️ Scripts that take a `--raw` directory load `T3_ligunity_pocket_ranking.npz`
 **by name**, so they reproduce the 350-convention numbers as shipped. To re-derive
 a *full-set* LigUnity-pocket table (`T3_main.csv`, `T3_actives_gradient.csv`, the

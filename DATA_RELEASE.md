@@ -42,7 +42,12 @@ screening checkpoint on 2026-09-14, so its scores exist in two versions:
 paper's 350-target convention is computed from) and
 `T3_ligunity_pocket_ranking_ckpt1.npz` (first checkpoint — what the full
 1,144-target auxiliary tables are still computed from, since those were not
-re-run). The other ten packages: `drugclip`, `bindclip_randneg`, `bindclip_hardneg`,
+re-run). ⚠️ **This describes the release as it should be, not the copy already
+handed out**: in the 2026-09-13 archive the current-checkpoint filename carries
+the first checkpoint's scores and `_ckpt1.npz` is absent, with the archive's own
+manifest agreeing with the file — so a checksum check there passes on the wrong
+data. See [`results/RAW_SCORES.md`](results/RAW_SCORES.md). The other ten
+packages: `drugclip`, `bindclip_randneg`, `bindclip_hardneg`,
 `ligunity_pocket_ranking`, `ligunity_protein_ranking`, `litenclip`,
 `hypseek_official_vs`, `hypseek_rk`, `conglude`, `conplex`, `sprint`.
 
