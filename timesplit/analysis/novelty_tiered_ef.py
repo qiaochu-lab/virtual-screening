@@ -92,7 +92,8 @@ def main():
     ap.add_argument("--raw", default=f"{B}/results/t3_raw")
     ap.add_argument("--models", nargs="+",
                     default=["ligunity_protein_ranking", "ligunity_pocket_ranking",
-                             "hypseek_rk", "litenclip", "drugclip", "conglude"])
+                             "hypseek_official_vs", "litenclip", "drugclip",
+                             "conglude"])
     ap.add_argument("--layers", nargs="+", default=["L1", "L2", "L3", "L4"])
     ap.add_argument("--subset", default=None)
     ap.add_argument("--target-groups", default=None,
