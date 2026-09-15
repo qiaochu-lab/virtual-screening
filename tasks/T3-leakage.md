@@ -971,15 +971,15 @@ out ([`per_model_seen_effect.py`](../timesplit/analysis/per_model_seen_effect.py
 
 | Model | Set | P(seen&gt;unseen) | Rank seen | Rank unseen | Rank improvement |
 |---|---|---|---|---|---|
-| DrugCLIP | A | 0.693 | 5.66 | 5.77 | **+0.10** |
-| BindCLIP-randneg | A | 0.665 | 5.95 | 5.91 | **−0.04** |
-| BindCLIP-hardneg | A | 0.695 | 5.84 | 6.03 | **+0.19** |
-| LigUnity-pocket | B | 0.816 | 2.97 | 4.94 | **+1.98** |
-| LigUnity-protein | B | 0.823 | 2.74 | 4.47 | **+1.73** |
-| HypSeek `_vs` | B | 0.795 | 4.17 | 5.64 | **+1.47** |
-| LiTENCLIP | B | 0.776 | 4.16 | 5.03 | **+0.87** |
-| ConPLex | C | 0.625 | 7.48 | 7.25 | **−0.23** |
-| SPRINT | D | 0.450 | 7.00 | 7.92 | +0.92 *(p=0.78)* |
+| DrugCLIP | A | 0.693 | 5.65 | 5.72 | **+0.07** |
+| BindCLIP-randneg | A | 0.665 | 5.93 | 5.90 | **−0.03** |
+| BindCLIP-hardneg | A | 0.695 | 5.83 | 6.02 | **+0.19** |
+| LigUnity-pocket | B | 0.807 | 3.12 | 5.14 | **+2.02** |
+| LigUnity-protein | B | 0.823 | 2.71 | 4.43 | **+1.72** |
+| HypSeek `_vs` | B | 0.795 | 4.19 | 5.61 | **+1.42** |
+| LiTENCLIP | B | 0.776 | 4.15 | 5.02 | **+0.87** |
+| ConPLex | C | 0.625 | 7.48 | 7.22 | **−0.26** |
+| SPRINT | D | 0.450 | 7.00 | 7.90 | +0.90 *(p=0.78)* |
 
 **The two criteria conflict, and the conflict itself is the answer.** Absolute EF says
 group A is clearly higher on targets it has seen (P=0.67~0.70, p&lt;1e-4); within-target
@@ -1006,18 +1006,18 @@ next subsection.
 
 | Model | Group | P-only | L-only | L-only minus P-only | p |
 |---|---|---|---|---|---|
-| HypSeek `_vs` | B | 5.79 | 3.76 | **−2.02** | 0.039 |
-| LiTENCLIP | B | 5.93 | 4.23 | **−1.70** | 0.044 |
-| LigUnity-protein | B | 3.71 | 2.81 | **−0.90** | 0.150 |
-| LigUnity-pocket | B | 3.64 | 2.79 | **−0.86** | 0.084 |
-| ConGLUDe | ? | 7.14 | 7.19 | +0.05 | 0.49 |
-| BindCLIP-randneg | A | 6.21 | 6.70 | +0.49 | 0.76 |
-| ConPLex | C | 6.57 | 7.17 | +0.60 | 0.71 |
-| SPRINT | D | 6.79 | 7.75 | +0.96 | 0.69 |
-| BindCLIP-hardneg | A | 4.50 | 6.00 | +1.50 | 0.94 |
-| DrugCLIP | A | 4.71 | 6.61 | +1.89 | 0.94 |
+| HypSeek `_vs` | B | 5.71 | 3.77 | **−1.94** | 0.039 |
+| LiTENCLIP | B | 5.86 | 4.21 | **−1.64** | 0.041 |
+| LigUnity-pocket | B | 4.50 | 3.25 | **−1.25** | 0.090 |
+| LigUnity-protein | B | 3.64 | 2.75 | **−0.89** | 0.143 |
+| ConGLUDe | ? | 7.07 | 7.13 | +0.06 | 0.51 |
+| BindCLIP-randneg | A | 6.14 | 6.63 | +0.49 | 0.74 |
+| ConPLex | C | 6.50 | 7.14 | +0.64 | 0.72 |
+| SPRINT | D | 6.57 | 7.69 | +1.12 | 0.71 |
+| BindCLIP-hardneg | A | 4.29 | 5.93 | +1.64 | 0.96 |
+| DrugCLIP | A | 4.71 | 6.49 | +1.77 | 0.92 |
 
-The between-group mean difference is **2.29 places** (group B −1.37, non-B +0.92). Exact
+The between-group mean difference is **2.39 places** (group B −1.43, non-B +0.96). Exact
 permutation test: of all C(10,4)=210 ways of picking four of the ten models to call
 "group B", only **1** gives a between-group difference ≥ the observed value, **p =
 0.0048** — the four affinity-trained models are exactly the most extreme split of the
@@ -1026,7 +1026,7 @@ ten. Reproducible with
 re-derives the pre-2026-09-12 values from the archived CSVs.
 
 > **On targets covered only by the affinity half, models trained on that half rank about
-> 2.3 places stronger relative to the others.** On the structure half, which both groups
+> 2.4 places stronger relative to the others.** On the structure half, which both groups
 > trained on, no group stands out — which is exactly what should happen.
 
 ⚠️ **These are the `_vs` numbers.** HypSeek's row is the official screening weight, as in
@@ -1045,13 +1045,13 @@ models** grows that cell to 28 (`train_set_crossover.py --subset all` →
 | | 350 subset (n=237) | Full common set (n=840) |
 |---|---|---|
 | Four cells: P∩L / P-only / L-only / neither | 128 / **7** / 42 / 60 | 419 / **28** / 191 / 202 |
-| Group B's "L-only minus P-only" | −2.02, −1.70, −0.90, −0.86 | −1.60, −1.30, −1.10, −0.67 |
+| Group B's "L-only minus P-only" | −1.94, −1.64, −1.25, −0.89 | −1.60, −1.30, −1.10, −0.67 |
 | Is group B entirely negative | **Yes** | **Yes** |
-| Between-group difference | **2.29 places** | 1.95 places |
+| Between-group difference | **2.39 places** | 1.95 places |
 | Exact permutation p | **0.0048 (1/210)** | **0.0048 (1/210)** |
 
 **Across a threefold change in sample size the separation stays complete and p does not
-move**; the effect size settles from 2.29 to 1.95 places as the thin cell fills out.
+move**; the effect size settles from 2.39 to 1.95 places as the thin cell fills out.
 Nothing here rests on the small cell any more.
 
 ⚠️ **This section used to argue the other way round.** On `_rk`, group B was not entirely

@@ -544,11 +544,11 @@ already working in this area.
     two families: **49–58% decay for the three structure-only models against
     66–70% for the four with affinity labels**, where the shared L1→L4 labels had
     them overlapping. Ranking the ten models *within each target*, which cancels
-    target difficulty, the four gain **+0.87 to +1.98 rank places** on targets in
+    target difficulty, the four gain **+0.87 to +2.02 rank places** on targets in
     their own training set; the three structure-only models gain **−0.04 to
     +0.19**, i.e. nothing — though that null is weak evidence, since all seven
     trained on those same targets and none can stand out. Splitting by which half
-    a target came from, the four rank **2.29 places better** on targets only the
+    a target came from, the four rank **2.39 places better** on targets only the
     affinity half contains — a perfect ten-model separation, exact permutation
     p = 0.0048 (1 of 210 splits). Repeated on all 840 common records rather than
     the 350-quota subset — which grows the thin structure-only cell from 7 to 28
