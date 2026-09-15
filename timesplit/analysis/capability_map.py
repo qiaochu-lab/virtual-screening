@@ -344,18 +344,42 @@ def selfcheck(D):
           f"reproduced; direction {'OK' if not any('direction' in b for b in bad) else 'FAILED'}")
     # A failure signature worth naming, because it sends reviewers looking in the
     # wrong place: tiered cells off by a little while the target counts agree.
-    # That is not a rounding wobble and not a cohort difference -- the cohort is
-    # the target list, and it matched. It means the scores themselves came from a
-    # different package, most often one whose arrays are a different LENGTH, which
-    # moves ceil(1% * n) by one and flips a molecule across the cutoff.
+    # That is not a rounding wobble, not a cohort difference (the cohort is the
+    # target list, and it matched), and not a different package -- the inputs can
+    # be byte-identical and still produce it.
+    #
+    # Where the ties come from: five models were saved as float16 -- drugclip,
+    # bindclip_randneg, bindclip_hardneg, ligunity_pocket_ranking,
+    # ligunity_protein_ranking. Three decimal digits collapse scores that differ
+    # into scores that are exactly equal, so 8.6-12.7% of their targets carry a
+    # tie group sitting across the 1% cutoff; the six float32 models: 0.0-1.0%.
+    #
+    # How the tie is resolved is NOT a property of the data. `np.argsort` is not
+    # stable, and permuting the rows of an otherwise identical array changes which
+    # tied molecule lands inside the cutoff on 51 of 77 such targets. Two
+    # environments running identical inputs therefore land on different lawful
+    # answers; this was seen across numpy versions with the arrays' native dtypes
+    # restored, so dtype alone is not the switch and rebuilding the package does
+    # not settle it.
+    #
+    # So the cell has no single correct value. The published number is one lawful
+    # resolution and yours is another; the measured spread reaches 0.36,
+    # concentrated in thin tiers (L4 0.5-0.7, n=39). There is no free repair:
+    # kind="stable" is deterministic but reproduces only 67 of 80 published cells,
+    # so any deterministic rule changes published values rather than confirming
+    # them. Choosing between keeping them and regenerating them is a decision
+    # about published numbers, not a detail of this script.
     if tiered_gap and all(same_n for same_n, _ in tiered_gap) \
-            and max(g for _, g in tiered_gap) < 0.2:
+            and max(g for _, g in tiered_gap) < 0.4:
         bad.append(
             "^ every tiered failure above has the RIGHT number of targets and a "
-            "gap < 0.2. Compare the score arrays' LENGTHS per target between your "
-            "--npz-dir and the published package, not just their values: a length "
-            "equal to the frozen index's full row count (rather than to its rows "
-            "with lmdb_pos >= 0) shifts ceil(1% * n) and is the usual cause.")
+            "gap < 0.4. This is the tie signature, not a data error: fp16-stored "
+            "models carry exact ties across the 1% cutoff, and which tied "
+            "molecule falls inside is fixed by the sort kernel rather than by the "
+            "data -- row order alone changes it. Each resolution is equally "
+            "lawful (measured spread up to 0.36). Chasing it by changing dtype or "
+            "sort kind only selects a different lawful answer; rebuilding the "
+            "score package does not help either.")
     return bad
 
 
