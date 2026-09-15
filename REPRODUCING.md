@@ -163,7 +163,11 @@ from each model's own self-consistent `saved_preds.npy` / `saved_labels.npy`.
    is the newer one, which reads backwards and has caused mistakes — check the
    row count.
 9. **Scripts carry a hardcoded `B = "/data/work/..."`**. They are published as a
-   record of what was executed, not as a turnkey package.
+   record of what was executed, not as a turnkey package. ⚠️ **Copying one onto a
+   real tree without fixing `B` fails silently**: `model_order()` falls back to
+   `{B}/data/T3_6A/.../*_lig.lmdb`, every lookup misses, all targets fail the
+   order check, and the script writes a header-only table and **exits 0**. Seen
+   on 2026-09-15: 315 of 315 targets skipped, empty tiered table, no error.
 10. **LIT-PCBA was subsampled for ConPLex and SPRINT** (`--max-decoys`; actives
     never subsampled). EF must use the sampling ratio recorded in the output.
 11. **HypSeek T3 = pocket pathway only, 256-atom cap** (§2).
@@ -178,19 +182,38 @@ from each model's own self-consistent `saved_preds.npy` / `saved_labels.npy`.
     (`hypseek_official_vs` was missing from `freeze_t3.py`'s default list). Fixed;
     if you hold an older copy, that model has no ordering verdict in it.
 15. **"Structure half" has two non-equivalent derivations** (§6).
+16. ⚠️ **Subset and full-set tables are on different tie conventions since
+    2026-09-15.** The 350-subset tables were regenerated with the shared
+    `eval/metrics.py::top_weights` (a tie group straddling the top-1% cutoff is
+    counted proportionally). The auxiliary full-set tables — including
+    `T3_seq_vs_pocket_per_target.csv` — were **not** regenerated, per the
+    standing convention that the 1,144-target set is auxiliary. They remain
+    internally consistent under the older argsort-slicing convention. Do not
+    compare a subset cell against its full-set counterpart digit-for-digit, and
+    do not "fix" a full-set table by re-running the current script against a
+    newer score package: that silently folds a **checkpoint change** into what
+    looks like a tie-convention change (measured: 659 cells moving by up to
+    46.67, versus at most 0.71 for the convention alone).
 
 ---
 
 ## 6. Two calibration choices that are not settled
 
-**Which mirroring table decides `corrected` layering.** The main table reports
-`original` and `corrected` layers, where `corrected` relabels L4 targets whose
-homology to training exceeds 0.40. `score_subset.py --mirroring` defaults to
-`T3_target_mirroring.csv`, which compares against 2,196 targets where the union
-table compares against 4,847. Switching to the union table moves the subset's
-`corrected` counts (L3 26→33, L4 61→54) and the excess-over-random decay for 8
-of 11 models up, 3 down — so "fixing it can only make the headline stronger" is
-true for most models, not all. **Don't copy the default as if it were settled.**
+**Which mirroring table decides `corrected` layering — settled 2026-09-15 in
+favour of the union table.** The main table reports `original` and `corrected`
+layers, where `corrected` relabels L4 targets whose homology to training exceeds
+0.40. `score_subset.py --mirroring` now defaults to
+`T3_target_mirroring_union.csv`, which compares against 4,847 targets where the
+old default (`T3_target_mirroring.csv`) compared against only 2,196. **Seven subset L4 targets** that are in fact homologous to training were being
+scored as fully novel, and the switch relabels them to L3. Per-model
+`n_targets` therefore move by 7 (or by 6 for ConGLUDe, ConPLex and SPRINT,
+which have no score for one of the seven), from four different baselines
+depending on each model's target coverage — e.g. L3 26→33 / L4 61→54 for the
+five strongest, L3 26→33 / L4 62→55 for the DrugCLIP and BindCLIP family.
+**"26→33 / 61→54" is not a subset-level fact**; it is one model group's row.
+`original` layering is untouched. **This was not a free win** — it changes the
+`corrected` half of the main table for every model, raising L3 for most and
+lowering L4 for most, but not uniformly.
 
 The concrete case for the union table: **12 subset L3/L4 targets carry a 100%
 self-match under it and none under the default** — six of them have no identity

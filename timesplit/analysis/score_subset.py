@@ -48,7 +48,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--summary", default=f"{B}/results/t3/summary.json")
     ap.add_argument("--subset", default=f"{B}/results/export/T3_vsds_matched.csv")
-    ap.add_argument("--mirroring", default=f"{B}/results/export/T3_target_mirroring.csv",
+    ap.add_argument("--mirroring", default=f"{B}/results/export/T3_target_mirroring_union.csv",
                     help="mmseqs 查出的对训练集最高同源；用来做修正分层")
     ap.add_argument("--relabel-above", type=float, default=0.40,
                     help="L4 靶点对训练集同源 ≥该值时改判 L3")

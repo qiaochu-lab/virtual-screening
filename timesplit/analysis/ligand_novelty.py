@@ -33,8 +33,39 @@ import json
 import os
 import pickle
 
+import sys
+
 import numpy as np
 from rdkit import Chem, DataStructs, RDLogger
+
+# Top-1% membership must come from the shared evaluation layer: ties at the
+# cutoff have no unique answer, and counting members with argsort makes the
+# result depend on the sort implementation rather than on the data.
+for _c in (os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "eval"),
+           os.path.join(os.path.dirname(os.path.abspath(__file__)), "eval"),
+           os.path.join(os.getcwd(), "eval")):
+    if os.path.isfile(os.path.join(_c, "metrics.py")):
+        sys.path.insert(0, _c)
+        break
+else:
+    raise SystemExit("eval/metrics.py not found -- refusing to fall back to a "
+                     "private top-k implementation (see PATCHES.md finding 18)")
+from metrics import top_weights
+
+
+def _weighted_median(values, weights):
+    """Median of `values` weighted by `weights` (the 50% point of the weight mass).
+
+    Needed because a molecule in the tie group straddling the 1% cutoff counts
+    as a fraction of a molecule, so the recovered-novelty distribution is a
+    weighted sample rather than a plain list.
+    """
+    v = np.asarray(values, dtype=float)
+    w = np.asarray(weights, dtype=float)
+    o = np.argsort(v, kind="mergesort")
+    v, w = v[o], w[o]
+    c = np.cumsum(w)
+    return float(v[np.searchsorted(c, c[-1] / 2.0)])
 from rdkit.Chem import rdFingerprintGenerator
 RDLogger.DisableLog("rdApp.*")
 from concurrent.futures import ProcessPoolExecutor
@@ -229,17 +260,21 @@ def main():
                 if order is None:          # order failed validation: skip rather than guess
                     n_bad += 1
                     continue
-                k = int(np.ceil(0.01 * len(y)))
-                top = np.argsort(-p)[:k]
-                found += [nov[order[i]] for i in top
+                w, k = top_weights(p, 0.01)
+                found += [(nov[order[i]], w[i]) for i in np.nonzero(w > 0)[0]
                           if y[i] == 1 and nov.get(order[i], -1) >= 0]
             if len(found) < 20:
                 continue
-            c = collections.Counter(tier_of(x) for x in found)
-            n = len(found)
-            print("%-26s %-4s 捞回 %6d  中位 %.3f   " % (m, L, n, np.median(found))
+            vals = [x for x, _ in found]
+            wts = [wi for _, wi in found]
+            c = collections.Counter()
+            for x, wi in found:
+                c[tier_of(x)] += wi
+            n = float(sum(wts))          # weight mass, not a molecule count
+            med = _weighted_median(vals, wts)
+            print("%-26s %-4s 捞回 %8.2f  中位 %.3f   " % (m, L, n, med)
                   + "  ".join(f"{t[2]} {100*c[t[2]]/n:4.1f}%" for t in TIERS))
-            rows.append([m, L, n, f"{np.median(found):.4f}"]
+            rows.append([m, L, f"{n:.2f}", f"{med:.4f}"]
                         + [f"{100*c[t[2]]/n:.2f}" for t in TIERS])
             if n_bad:
                 print("%-26s %-4s ⚠️ 分子顺序校验未通过而跳过 %d 个靶点"

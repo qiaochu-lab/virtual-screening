@@ -88,6 +88,29 @@ def tier_of(v):
     return None
 
 
+def resolve_top_weights(eval_dir=None):
+    """The shared top-`frac` membership weights; never a private copy.
+
+    `tier_cells` counts how many of a tier's actives land in the top 1%, and
+    that count has no unique answer when scores tie at the cutoff -- relabelling
+    the rows alone moves it on 51 of drugclip's 77 tied L2 targets. The weights
+    from `eval/metrics.py` settle it the same way EF already does: a tie group
+    straddling the cutoff contributes its proportional share.
+    """
+    for cand in (eval_dir, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                        "..", "..", "eval")):
+        if not cand:
+            continue
+        try:
+            sys.path.insert(0, cand)
+            from metrics import top_weights
+            return top_weights
+        except Exception:
+            sys.path.pop(0)
+    raise SystemExit("eval/metrics.py not found -- refusing to fall back to a "
+                     "private top-k implementation (see PATCHES.md finding 18)")
+
+
 def _ef_fallback(scores, labels, fraction):
     """Byte-for-byte the convention of eval/metrics.py: ceil rounding, ties
     counted by expected value. Used ONLY when that module cannot be imported;
@@ -237,8 +260,7 @@ class Data:
         """(layer, uniprot, tier) -> EF_tier, plus per-target hit/total."""
         out = {}
         for (L, up), (mol, lab, p) in self.aligned(model).items():
-            k = int(math.ceil(FRAC * len(lab)))
-            top = set(np.argsort(-p)[:k].tolist())
+            w, k = resolve_top_weights()(p, FRAC)
             tot, hit = collections.Counter(), collections.Counter()
             for i in range(len(lab)):
                 if lab[i] != 1 or mol[i] is None or mol[i] not in self.sim:
@@ -247,8 +269,7 @@ class Data:
                 if t is None:
                     continue
                 tot[t] += 1
-                if i in top:
-                    hit[t] += 1
+                hit[t] += w[i]
             for t in tot:
                 if tot[t] >= MIN_T:
                     out[(L, up, t)] = (hit[t] / tot[t]) / FRAC
@@ -273,7 +294,11 @@ def selfcheck(D):
     for r in csv.DictReader(open(D.a.main_table)):
         pub[(r["layering"], r["model"])][r["layer"]] = (int(r["n_targets"]),
                                                         float(r["ef1"]))
-    relabel = {r["uniprot"] for r in csv.DictReader(open(D.a.mirroring_plain))
+    # The published `corrected` layering has used the union table since
+    # 2026-09-15 (see REPRODUCING.md §6). Reproducing it from the plain table
+    # fails all 22 corrected L3/L4 cells, because the plain table understates
+    # homology for seven subset L4 targets and files them as fully novel.
+    relabel = {r["uniprot"] for r in csv.DictReader(open(D.a.mirroring))
                if r["identity"] and float(r["identity"]) >= 0.40}
     n_ok = 0
     for m in MODELS:
@@ -656,10 +681,12 @@ def main():
                     help="max Tanimoto to a training ligand set -- a SIMILARITY")
     ap.add_argument("--mirroring",
                     default=f"{B}/results/export/T3_target_mirroring_union.csv",
-                    help="the union table; the plain one understates homology")
+                    help="the union table; decides the published `corrected` "
+                         "layering since 2026-09-15, and the protein bands")
     ap.add_argument("--mirroring-plain",
                     default=f"{B}/results/export/T3_target_mirroring.csv",
-                    help="used only to reproduce the published corrected layering")
+                    help="the superseded narrower table, kept only to "
+                         "reproduce pre-2026-09-15 numbers")
     ap.add_argument("--main-table",
                     default=f"{B}/results/export/T3_main_vsds_subset.csv")
     ap.add_argument("--tiered-table",

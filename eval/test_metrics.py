@@ -10,7 +10,7 @@ import pytest
 import math
 
 from metrics import (bedroc, bootstrap_ci, enrichment_factor, pr_auc,
-                     roc_auc, top_k_recall)
+                     roc_auc, top_k_recall, top_weights)
 
 
 # ---------- enrichment factor ----------
@@ -225,3 +225,57 @@ def test_pr_auc_matches_sklearn():
 def test_pr_auc_degenerate():
     assert math.isnan(pr_auc([1, 2, 3], [0, 0, 0]))
     assert math.isnan(pr_auc([1, 2, 3], [1, 1, 1]))
+
+
+def test_top_weights_sums_to_n_top():
+    """The weights must account for exactly n_top molecules, ties included."""
+    rng = np.random.default_rng(0)
+    for _ in range(200):
+        n = int(rng.integers(20, 2000))
+        # Coarse rounding manufactures the dense ties that float16 storage
+        # produces on real score arrays.
+        scores = rng.normal(size=n).round(int(rng.integers(0, 3)))
+        for frac in (0.01, 0.05):
+            w, n_top = top_weights(scores, frac)
+            assert n_top == max(1, math.ceil(n * frac))
+            assert abs(w.sum() - n_top) < 1e-9, (n, frac, w.sum(), n_top)
+            assert ((w >= 0) & (w <= 1)).all()
+
+
+def test_top_weights_agrees_with_enrichment_factor():
+    """(w * labels).sum() / n_top is enrichment_factor's numerator.
+
+    This is what keeps member-counting analyses (the tiered tables) on the same
+    tie convention as EF itself, instead of letting argsort pick arbitrarily.
+    """
+    rng = np.random.default_rng(1)
+    for _ in range(200):
+        n = int(rng.integers(50, 3000))
+        labels = np.zeros(n, dtype=int)
+        labels[rng.choice(n, max(1, n // 51), replace=False)] = 1
+        scores = rng.normal(size=n).round(int(rng.integers(0, 3)))
+        for frac in (0.01, 0.05):
+            w, n_top = top_weights(scores, frac)
+            mine = (float((w * labels).sum()) / n_top) / (labels.sum() / n)
+            assert abs(mine - enrichment_factor(scores, labels, frac)) < 1e-9
+
+
+def test_top_weights_is_permutation_invariant():
+    """Relabelling the rows must not change the answer.
+
+    The argsort-slicing this replaces fails exactly here: on real data, merely
+    permuting the rows moved top-1% membership on 51 of drugclip's 77 tied
+    L2 targets.
+    """
+    rng = np.random.default_rng(2)
+    for _ in range(100):
+        n = int(rng.integers(50, 1000))
+        labels = np.zeros(n, dtype=int)
+        labels[rng.choice(n, max(1, n // 51), replace=False)] = 1
+        scores = rng.normal(size=n).round(1)
+        w, n_top = top_weights(scores, 0.01)
+        base = float((w * labels).sum())
+        for _ in range(5):
+            p = rng.permutation(n)
+            wp, _ = top_weights(scores[p], 0.01)
+            assert abs(float((wp * labels[p]).sum()) - base) < 1e-9

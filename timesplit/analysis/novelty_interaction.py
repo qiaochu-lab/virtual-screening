@@ -52,8 +52,23 @@ import json
 import os
 import pickle
 
+import sys
+
 import numpy as np
 from sklearn.linear_model import LogisticRegression
+
+# Top-1% membership must come from the shared evaluation layer: ties at the
+# cutoff have no unique answer, and counting members with argsort makes the
+# result depend on the sort implementation rather than on the data.
+for _c in (os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "eval"),
+           os.path.join(os.getcwd(), "eval")):
+    if os.path.isfile(os.path.join(_c, "metrics.py")):
+        sys.path.insert(0, _c)
+        break
+else:
+    raise SystemExit("eval/metrics.py not found -- refusing to fall back to a "
+                     "private top-k implementation (see PATCHES.md finding 18)")
+from metrics import top_weights
 
 B = "/data/work/vs-benchmark"
 TIERS = [(0.0, 0.35), (0.35, 0.50), (0.50, 0.70), (0.70, 1.01)]
@@ -237,8 +252,7 @@ def main():
                 if order is None:
                     n_bad += 1
                     continue
-                k = max(1, int(np.ceil(FRAC * len(yv))))
-                top = set(np.argsort(-p)[:k].tolist())
+                w, k = top_weights(p, FRAC)
                 tot = collections.Counter()
                 hit = collections.Counter()
                 for i in range(len(yv)):
@@ -248,8 +262,7 @@ def main():
                     if t is None:
                         continue
                     tot[t] += 1
-                    if i in top:
-                        hit[t] += 1
+                    hit[t] += w[i]
                 seen = 1 if up in T else 0
                 for i in range(len(yv)):
                     if yv[i] == 1:

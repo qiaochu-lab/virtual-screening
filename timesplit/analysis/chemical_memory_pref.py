@@ -60,7 +60,25 @@ import json
 import os
 import pickle
 
+import sys
+
 import numpy as np
+
+# Top-1% membership must come from the shared evaluation layer: ties at the
+# cutoff have no unique answer, and counting members with argsort makes the
+# result depend on the sort implementation rather than on the data. This file
+# runs both from the repo (timesplit/analysis/) and from the server root, so
+# both relative positions of eval/ are tried.
+for _c in (os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "eval"),
+           os.path.join(os.path.dirname(os.path.abspath(__file__)), "eval"),
+           os.path.join(os.getcwd(), "eval")):
+    if os.path.isfile(os.path.join(_c, "metrics.py")):
+        sys.path.insert(0, _c)
+        break
+else:
+    raise SystemExit("eval/metrics.py not found -- refusing to fall back to a "
+                     "private top-k implementation (see PATCHES.md finding 18)")
+from metrics import top_weights
 
 B = "/data/work/vs-benchmark"
 THR = 0.70          # threshold for "familiar chemistry", consistent with the "very close" tier in SS3/SS4
@@ -160,13 +178,13 @@ def main():
                 if have.sum() < 50:
                     continue
                 pool = float((s[have] >= THR).mean())
-                k = max(1, int(np.ceil(FRAC * len(y))))
-                top = np.argsort(-p)[:k]
-                th = [i for i in top if s[i] >= 0]
+                w, k = top_weights(p, FRAC)
+                th = [i for i in np.nonzero(w > 0)[0] if s[i] >= 0]
                 if not th:
                     continue
+                tw = np.array([w[i] for i in th])
                 pp.append(pool)
-                pr.append(float(np.mean([s[i] >= THR for i in th])))
+                pr.append(float(np.average([s[i] >= THR for i in th], weights=tw)))
                 # This target's familiar fraction among actives / decoys
                 # separately, and the fraction of actives within top-1%
                 ai = [i for i in range(len(y)) if y[i] == 1 and s[i] >= 0]
@@ -174,12 +192,13 @@ def main():
                 if ai and di:
                     pd.append((float(np.mean([s[i] >= THR for i in ai])),
                                float(np.mean([s[i] >= THR for i in di])),
-                               float(np.mean([y[i] == 1 for i in th])),
+                               float(np.average([y[i] == 1 for i in th], weights=tw)),
                                pool))
-                ta = [i for i in top if y[i] == 1 and s[i] >= 0]
+                ta = [i for i in th if y[i] == 1]
                 aa = [i for i in range(len(y)) if y[i] == 1 and s[i] >= 0]
                 if ta and aa:
-                    pa.append(float(np.mean([s[i] >= THR for i in ta]))
+                    taw = np.array([w[i] for i in ta])
+                    pa.append(float(np.average([s[i] >= THR for i in ta], weights=taw))
                               - float(np.mean([s[i] >= THR for i in aa])))
             if len(pp) < 5:
                 continue

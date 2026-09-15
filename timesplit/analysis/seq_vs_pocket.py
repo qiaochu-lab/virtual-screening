@@ -34,8 +34,22 @@ import csv
 import math
 import os
 
+import sys
+
 import numpy as np
 from scipy import stats
+
+# EF and top-k membership come from the shared evaluation layer; see the
+# docstring of enrichment_factor below for what the private copy got wrong.
+for _c in (os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "eval"),
+           os.path.join(os.getcwd(), "eval")):
+    if os.path.isfile(os.path.join(_c, "metrics.py")):
+        sys.path.insert(0, _c)
+        break
+else:
+    raise SystemExit("eval/metrics.py not found -- refusing to fall back to a "
+                     "private EF implementation (see PATCHES.md finding 18)")
+from metrics import enrichment_factor as _shared_ef
 
 POCKET = "T3_ligunity_pocket_ranking"
 SEQ = "T3_ligunity_protein_ranking"
@@ -48,12 +62,17 @@ def load(raw_dir, name):
 
 
 def enrichment_factor(y, s, frac):
-    """EF@frac. Truncation uses math.ceil, consistent with RDKit's CalcEnrichment."""
-    n = len(y)
-    k = math.ceil(n * frac)
-    if k < 1 or y.sum() == 0:
+    """EF@frac, delegated to the shared evaluation layer.
+
+    This used to be a private reimplementation: `y[np.argsort(-s)][:k].sum()`.
+    It was wrong twice over -- it counted a tie group straddling the cutoff in
+    full (which is what let EF exceed its own ceiling, see metrics.py), and
+    which members landed inside the cut depended on the sort implementation
+    rather than on the data. Both are fixed by using the one implementation.
+    """
+    if len(y) == 0 or np.asarray(y).sum() == 0:
         return None
-    return (y[np.argsort(-s)][:k].sum() / k) / (y.sum() / n)
+    return _shared_ef(s, y, frac)
 
 
 def auroc(y, s):
