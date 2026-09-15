@@ -77,7 +77,8 @@ def main():
     ap.add_argument("--out-dir", default=f"{B}/results/frozen")
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--models", nargs="+", default=[
-        "hypseek_rk", "ligunity_pocket_ranking", "ligunity_protein_ranking",
+        "hypseek_rk", "hypseek_official_vs",
+        "ligunity_pocket_ranking", "ligunity_protein_ranking",
         "litenclip", "drugclip", "bindclip_randneg", "bindclip_hardneg",
         "conglude", "conplex", "sprint"])
     args = ap.parse_args()
