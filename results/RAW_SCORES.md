@@ -26,9 +26,14 @@ is self-consistent — its own `manifest_T3.json` records the `_ckpt1` hash — 
 external checksum check **passes** and the recomputed LigUnity-pocket numbers come
 out at the first checkpoint's values (L1 34.78 / L4 7.90 instead of 35.28 / 9.47).
 Cause: the archive was packed on 09-13 and the re-run landed on 09-15, so the CSVs
-moved and the score packages did not. **Not yet re-packed** — re-packing a
-published archive is a decision, not a cleanup, and it needs the scores under
-`results/t3_raw/ligunity_pocket_ranking/` on the run host.
+moved and the score packages did not.
+
+✅ **Fixed on 2026-09-15.** The archive now carries the current checkpoint under
+that name (`881f65ef…`), keeps the first checkpoint as
+`T3_ligunity_pocket_ranking_ckpt1.npz` (`d0034aaf…`), and both manifests were
+rewritten to match the files on disk. **A copy fetched before 2026-09-15 still
+has the old file under the current name** — re-fetch those two, nothing else
+changed.
 
 ⚠️ Scripts that take a `--raw` directory load `T3_ligunity_pocket_ranking.npz`
 **by name**, so they reproduce the 350-convention numbers as shipped. To re-derive

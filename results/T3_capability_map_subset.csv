@@ -1,0 +1,177 @@
+model,checkpoint,protein_band,ligand_tier,n_targets,ef_mean,ef_se,thin_n_lt_10
+ligunity_protein_ranking,as-published,in training,全新 <0.35,126,18.9729,1.9362,0
+ligunity_protein_ranking,as-published,in training,远 0.35–0.5,186,25.5609,1.4184,0
+ligunity_protein_ranking,as-published,in training,近 0.5–0.7,180,43.9451,1.9424,0
+ligunity_protein_ranking,as-published,in training,极近 ≥0.7,125,51.8951,2.5057,0
+ligunity_protein_ranking,as-published,>=60%,全新 <0.35,12,4.1848,2.9130,0
+ligunity_protein_ranking,as-published,>=60%,远 0.35–0.5,15,13.6487,6.2732,0
+ligunity_protein_ranking,as-published,>=60%,近 0.5–0.7,11,22.0043,8.3615,0
+ligunity_protein_ranking,as-published,>=60%,极近 ≥0.7,6,42.1545,13.2201,1
+ligunity_protein_ranking,as-published,20-60%,全新 <0.35,16,5.5323,3.4518,0
+ligunity_protein_ranking,as-published,20-60%,远 0.35–0.5,20,11.5382,3.4487,0
+ligunity_protein_ranking,as-published,20-60%,近 0.5–0.7,11,29.9088,8.6339,0
+ligunity_protein_ranking,as-published,20-60%,极近 ≥0.7,9,49.2740,10.8703,1
+ligunity_protein_ranking,as-published,no hit,全新 <0.35,21,1.9583,1.9025,0
+ligunity_protein_ranking,as-published,no hit,远 0.35–0.5,25,5.2812,3.4189,0
+ligunity_protein_ranking,as-published,no hit,近 0.5–0.7,17,8.6616,3.9847,0
+ligunity_protein_ranking,as-published,no hit,极近 ≥0.7,9,28.3012,9.9880,1
+ligunity_pocket_ranking,ckpt2,in training,全新 <0.35,126,14.7713,1.8179,0
+ligunity_pocket_ranking,ckpt2,in training,远 0.35–0.5,186,21.5323,1.4906,0
+ligunity_pocket_ranking,ckpt2,in training,近 0.5–0.7,180,37.1172,1.9434,0
+ligunity_pocket_ranking,ckpt2,in training,极近 ≥0.7,125,44.9547,2.7852,0
+ligunity_pocket_ranking,ckpt2,>=60%,全新 <0.35,12,1.0504,1.0504,0
+ligunity_pocket_ranking,ckpt2,>=60%,远 0.35–0.5,15,10.9688,3.7702,0
+ligunity_pocket_ranking,ckpt2,>=60%,近 0.5–0.7,11,25.2921,8.0462,0
+ligunity_pocket_ranking,ckpt2,>=60%,极近 ≥0.7,6,23.3131,12.4735,1
+ligunity_pocket_ranking,ckpt2,20-60%,全新 <0.35,16,4.7562,2.6806,0
+ligunity_pocket_ranking,ckpt2,20-60%,远 0.35–0.5,20,10.3032,3.6148,0
+ligunity_pocket_ranking,ckpt2,20-60%,近 0.5–0.7,11,20.9721,6.9353,0
+ligunity_pocket_ranking,ckpt2,20-60%,极近 ≥0.7,9,25.8312,7.3960,1
+ligunity_pocket_ranking,ckpt2,no hit,全新 <0.35,21,5.8111,2.6582,0
+ligunity_pocket_ranking,ckpt2,no hit,远 0.35–0.5,25,3.8216,1.8920,0
+ligunity_pocket_ranking,ckpt2,no hit,近 0.5–0.7,17,13.0751,5.4517,0
+ligunity_pocket_ranking,ckpt2,no hit,极近 ≥0.7,9,8.0129,5.2334,1
+litenclip,as-published,in training,全新 <0.35,126,7.8162,1.2306,0
+litenclip,as-published,in training,远 0.35–0.5,186,18.8173,1.3591,0
+litenclip,as-published,in training,近 0.5–0.7,180,33.8882,2.0066,0
+litenclip,as-published,in training,极近 ≥0.7,125,43.6145,2.7985,0
+litenclip,as-published,>=60%,全新 <0.35,12,4.9961,2.9264,0
+litenclip,as-published,>=60%,远 0.35–0.5,15,8.8880,4.6733,0
+litenclip,as-published,>=60%,近 0.5–0.7,11,16.1144,6.1348,0
+litenclip,as-published,>=60%,极近 ≥0.7,6,21.3995,10.4406,1
+litenclip,as-published,20-60%,全新 <0.35,16,7.3346,3.4500,0
+litenclip,as-published,20-60%,远 0.35–0.5,20,5.7309,2.5279,0
+litenclip,as-published,20-60%,近 0.5–0.7,11,11.8796,4.7850,0
+litenclip,as-published,20-60%,极近 ≥0.7,9,31.0922,10.4378,1
+litenclip,as-published,no hit,全新 <0.35,21,2.0899,1.3117,0
+litenclip,as-published,no hit,远 0.35–0.5,25,6.5924,3.0105,0
+litenclip,as-published,no hit,近 0.5–0.7,17,8.4361,3.7501,0
+litenclip,as-published,no hit,极近 ≥0.7,9,14.7501,5.1368,1
+hypseek_official_vs,as-published,in training,全新 <0.35,126,11.5551,1.6120,0
+hypseek_official_vs,as-published,in training,远 0.35–0.5,186,16.9417,1.3677,0
+hypseek_official_vs,as-published,in training,近 0.5–0.7,180,32.2386,1.9313,0
+hypseek_official_vs,as-published,in training,极近 ≥0.7,125,45.4826,2.6546,0
+hypseek_official_vs,as-published,>=60%,全新 <0.35,12,3.9534,2.1672,0
+hypseek_official_vs,as-published,>=60%,远 0.35–0.5,15,5.0454,2.0186,0
+hypseek_official_vs,as-published,>=60%,近 0.5–0.7,11,15.3109,6.1914,0
+hypseek_official_vs,as-published,>=60%,极近 ≥0.7,6,29.1659,12.6649,1
+hypseek_official_vs,as-published,20-60%,全新 <0.35,16,4.4031,3.0412,0
+hypseek_official_vs,as-published,20-60%,远 0.35–0.5,20,4.6462,2.0467,0
+hypseek_official_vs,as-published,20-60%,近 0.5–0.7,11,18.6060,6.7358,0
+hypseek_official_vs,as-published,20-60%,极近 ≥0.7,9,35.4272,10.0817,1
+hypseek_official_vs,as-published,no hit,全新 <0.35,21,4.0809,3.4809,0
+hypseek_official_vs,as-published,no hit,远 0.35–0.5,25,3.5215,1.8780,0
+hypseek_official_vs,as-published,no hit,近 0.5–0.7,17,7.9537,4.4009,0
+hypseek_official_vs,as-published,no hit,极近 ≥0.7,9,20.6345,9.9698,1
+hypseek_rk,as-published,in training,全新 <0.35,126,11.0891,1.3404,0
+hypseek_rk,as-published,in training,远 0.35–0.5,185,18.0985,1.3392,0
+hypseek_rk,as-published,in training,近 0.5–0.7,178,36.0888,1.8771,0
+hypseek_rk,as-published,in training,极近 ≥0.7,123,49.7098,2.4395,0
+hypseek_rk,as-published,>=60%,全新 <0.35,12,0.9104,0.9104,0
+hypseek_rk,as-published,>=60%,远 0.35–0.5,15,4.4973,1.7617,0
+hypseek_rk,as-published,>=60%,近 0.5–0.7,11,18.5683,7.0042,0
+hypseek_rk,as-published,>=60%,极近 ≥0.7,6,28.4413,12.2411,1
+hypseek_rk,as-published,20-60%,全新 <0.35,16,6.7845,3.1135,0
+hypseek_rk,as-published,20-60%,远 0.35–0.5,20,7.4345,3.0689,0
+hypseek_rk,as-published,20-60%,近 0.5–0.7,11,13.8305,5.6367,0
+hypseek_rk,as-published,20-60%,极近 ≥0.7,9,27.7462,9.0427,1
+hypseek_rk,as-published,no hit,全新 <0.35,21,2.5735,1.6440,0
+hypseek_rk,as-published,no hit,远 0.35–0.5,25,6.8102,2.5771,0
+hypseek_rk,as-published,no hit,近 0.5–0.7,17,8.0652,4.1780,0
+hypseek_rk,as-published,no hit,极近 ≥0.7,9,14.9269,5.0544,1
+drugclip,as-published,in training,全新 <0.35,127,6.8419,1.0834,0
+drugclip,as-published,in training,远 0.35–0.5,190,10.9959,1.0626,0
+drugclip,as-published,in training,近 0.5–0.7,184,16.9620,1.6184,0
+drugclip,as-published,in training,极近 ≥0.7,127,18.9162,2.1406,0
+drugclip,as-published,>=60%,全新 <0.35,12,2.0008,1.4125,0
+drugclip,as-published,>=60%,远 0.35–0.5,15,9.7918,4.8714,0
+drugclip,as-published,>=60%,近 0.5–0.7,11,12.0204,6.4068,0
+drugclip,as-published,>=60%,极近 ≥0.7,6,20.4353,8.8461,1
+drugclip,as-published,20-60%,全新 <0.35,16,6.4365,3.1536,0
+drugclip,as-published,20-60%,远 0.35–0.5,20,8.3864,4.0279,0
+drugclip,as-published,20-60%,近 0.5–0.7,11,9.4172,3.7919,0
+drugclip,as-published,20-60%,极近 ≥0.7,9,22.2643,7.2707,1
+drugclip,as-published,no hit,全新 <0.35,22,6.0817,2.9346,0
+drugclip,as-published,no hit,远 0.35–0.5,26,7.1390,2.7591,0
+drugclip,as-published,no hit,近 0.5–0.7,17,10.0275,3.8970,0
+drugclip,as-published,no hit,极近 ≥0.7,9,2.2222,2.2222,1
+bindclip_randneg,as-published,in training,全新 <0.35,127,5.3111,0.9663,0
+bindclip_randneg,as-published,in training,远 0.35–0.5,190,10.5088,1.0638,0
+bindclip_randneg,as-published,in training,近 0.5–0.7,184,18.1993,1.6577,0
+bindclip_randneg,as-published,in training,极近 ≥0.7,127,20.9656,2.0893,0
+bindclip_randneg,as-published,>=60%,全新 <0.35,12,4.6026,2.8079,0
+bindclip_randneg,as-published,>=60%,远 0.35–0.5,15,8.3161,3.6574,0
+bindclip_randneg,as-published,>=60%,近 0.5–0.7,11,10.8730,4.9713,0
+bindclip_randneg,as-published,>=60%,极近 ≥0.7,6,15.9384,7.3193,1
+bindclip_randneg,as-published,20-60%,全新 <0.35,16,4.0850,1.5881,0
+bindclip_randneg,as-published,20-60%,远 0.35–0.5,20,6.9497,2.5285,0
+bindclip_randneg,as-published,20-60%,近 0.5–0.7,11,11.3989,4.3843,0
+bindclip_randneg,as-published,20-60%,极近 ≥0.7,9,18.2344,4.9697,1
+bindclip_randneg,as-published,no hit,全新 <0.35,22,3.5314,1.7156,0
+bindclip_randneg,as-published,no hit,远 0.35–0.5,26,6.4471,2.4847,0
+bindclip_randneg,as-published,no hit,近 0.5–0.7,17,10.5392,4.2686,0
+bindclip_randneg,as-published,no hit,极近 ≥0.7,9,3.7409,2.3543,1
+bindclip_hardneg,as-published,in training,全新 <0.35,127,4.8136,0.8624,0
+bindclip_hardneg,as-published,in training,远 0.35–0.5,190,11.6754,1.2218,0
+bindclip_hardneg,as-published,in training,近 0.5–0.7,184,19.2595,1.6638,0
+bindclip_hardneg,as-published,in training,极近 ≥0.7,127,20.4092,2.1900,0
+bindclip_hardneg,as-published,>=60%,全新 <0.35,12,3.0411,1.9168,0
+bindclip_hardneg,as-published,>=60%,远 0.35–0.5,15,6.5869,3.1193,0
+bindclip_hardneg,as-published,>=60%,近 0.5–0.7,11,11.8410,5.0618,0
+bindclip_hardneg,as-published,>=60%,极近 ≥0.7,6,12.7324,6.9162,1
+bindclip_hardneg,as-published,20-60%,全新 <0.35,16,0.3059,0.2663,0
+bindclip_hardneg,as-published,20-60%,远 0.35–0.5,20,3.4244,1.5879,0
+bindclip_hardneg,as-published,20-60%,近 0.5–0.7,11,5.8408,3.3569,0
+bindclip_hardneg,as-published,20-60%,极近 ≥0.7,9,10.6061,5.2262,1
+bindclip_hardneg,as-published,no hit,全新 <0.35,22,4.3599,1.9740,0
+bindclip_hardneg,as-published,no hit,远 0.35–0.5,26,8.3495,3.1984,0
+bindclip_hardneg,as-published,no hit,近 0.5–0.7,17,11.6018,5.0911,0
+bindclip_hardneg,as-published,no hit,极近 ≥0.7,9,3.6508,3.3087,1
+conglude,as-published,in training,全新 <0.35,118,3.8010,0.8609,0
+conglude,as-published,in training,远 0.35–0.5,178,6.1010,0.6722,0
+conglude,as-published,in training,近 0.5–0.7,177,11.3890,1.2054,0
+conglude,as-published,in training,极近 ≥0.7,126,12.5661,1.5039,0
+conglude,as-published,>=60%,全新 <0.35,11,4.6982,3.1604,0
+conglude,as-published,>=60%,远 0.35–0.5,16,7.7132,3.8690,0
+conglude,as-published,>=60%,近 0.5–0.7,12,8.2095,4.3161,0
+conglude,as-published,>=60%,极近 ≥0.7,8,17.5776,8.5325,1
+conglude,as-published,20-60%,全新 <0.35,16,3.5705,2.8709,0
+conglude,as-published,20-60%,远 0.35–0.5,21,6.5200,3.7801,0
+conglude,as-published,20-60%,近 0.5–0.7,14,4.9572,2.1240,0
+conglude,as-published,20-60%,极近 ≥0.7,11,10.7696,3.8426,0
+conglude,as-published,no hit,全新 <0.35,21,1.6760,1.2760,0
+conglude,as-published,no hit,远 0.35–0.5,27,3.2675,1.8239,0
+conglude,as-published,no hit,近 0.5–0.7,19,5.4146,4.0907,0
+conglude,as-published,no hit,极近 ≥0.7,12,2.1759,1.4864,0
+conplex,as-published,in training,全新 <0.35,140,2.1618,0.6801,0
+conplex,as-published,in training,远 0.35–0.5,210,2.8013,0.4544,0
+conplex,as-published,in training,近 0.5–0.7,206,4.6869,0.6866,0
+conplex,as-published,in training,极近 ≥0.7,142,9.9771,1.4495,0
+conplex,as-published,>=60%,全新 <0.35,13,0.7458,0.5695,0
+conplex,as-published,>=60%,远 0.35–0.5,18,0.8499,0.5140,0
+conplex,as-published,>=60%,近 0.5–0.7,14,3.6761,2.0039,0
+conplex,as-published,>=60%,极近 ≥0.7,8,15.4416,7.9235,1
+conplex,as-published,20-60%,全新 <0.35,16,1.0719,1.0401,0
+conplex,as-published,20-60%,远 0.35–0.5,21,0.3830,0.2438,0
+conplex,as-published,20-60%,近 0.5–0.7,13,4.2177,1.8120,0
+conplex,as-published,20-60%,极近 ≥0.7,11,5.3310,2.7311,0
+conplex,as-published,no hit,全新 <0.35,23,0.3559,0.2256,0
+conplex,as-published,no hit,远 0.35–0.5,30,2.4462,1.0320,0
+conplex,as-published,no hit,近 0.5–0.7,20,0.8476,0.4361,0
+conplex,as-published,no hit,极近 ≥0.7,11,3.6620,2.1701,0
+sprint,as-published,in training,全新 <0.35,119,1.1429,0.3829,0
+sprint,as-published,in training,远 0.35–0.5,180,2.4053,0.4449,0
+sprint,as-published,in training,近 0.5–0.7,179,1.8695,0.3180,0
+sprint,as-published,in training,极近 ≥0.7,126,3.0206,0.6038,0
+sprint,as-published,>=60%,全新 <0.35,11,1.2159,0.9329,0
+sprint,as-published,>=60%,远 0.35–0.5,16,1.7267,0.7185,0
+sprint,as-published,>=60%,近 0.5–0.7,12,1.9578,1.0394,0
+sprint,as-published,>=60%,极近 ≥0.7,8,1.6652,0.8668,1
+sprint,as-published,20-60%,全新 <0.35,16,0.0998,0.0998,0
+sprint,as-published,20-60%,远 0.35–0.5,21,0.8199,0.4895,0
+sprint,as-published,20-60%,近 0.5–0.7,14,1.9128,0.9023,0
+sprint,as-published,20-60%,极近 ≥0.7,11,3.1907,1.7372,0
+sprint,as-published,no hit,全新 <0.35,21,0.9524,0.9524,0
+sprint,as-published,no hit,远 0.35–0.5,27,2.3938,1.1026,0
+sprint,as-published,no hit,近 0.5–0.7,19,2.2947,1.3890,0
+sprint,as-published,no hit,极近 ≥0.7,12,5.2434,3.3121,0

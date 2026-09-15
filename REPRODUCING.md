@@ -168,11 +168,12 @@ from each model's own self-consistent `saved_preds.npy` / `saved_labels.npy`.
     never subsampled). EF must use the sampling ratio recorded in the output.
 11. **HypSeek T3 = pocket pathway only, 256-atom cap** (§2).
 12. **Absolute numbers are not comparable to published values** (§1).
-13. ⚠️ **The archive handed out on 2026-09-13 carries the first checkpoint's
-    LigUnity-pocket scores under the current checkpoint's filename**, and its own
-    manifest agrees with the file — so an external checksum check passes on the
-    wrong data and LigUnity-pocket recomputes to L1 34.78 / L4 7.90 instead of
-    35.28 / 9.47. Not yet re-packed. See [`results/RAW_SCORES.md`](results/RAW_SCORES.md).
+13. ⚠️ **The archive handed out on 2026-09-13 carried the first checkpoint's
+    LigUnity-pocket scores under the current checkpoint's filename**, with its own
+    manifest agreeing with the file — so an external checksum check passed on the
+    wrong data and LigUnity-pocket recomputed to L1 34.78 / L4 7.90 instead of
+    35.28 / 9.47. **Corrected on 2026-09-15**; a copy fetched before that date
+    still has it. See [`results/RAW_SCORES.md`](results/RAW_SCORES.md).
 14. **`T3_model_order.csv` covered 10 of the 11 T3 packages** until 2026-09-15
     (`hypseek_official_vs` was missing from `freeze_t3.py`'s default list). Fixed;
     if you hold an older copy, that model has no ordering verdict in it.
