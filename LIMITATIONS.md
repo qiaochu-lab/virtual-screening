@@ -541,7 +541,7 @@ reading the crossover below — the "affinity-only" cell is not empty, it holds
 
 The crossover that produced "2.4 rank places" compared cells defined as "in A
 only" and "in B only", which presumes the sets are disjoint. Recomputed against
-the two label halves, the effect survives at **2.29 places, p = 0.0048** (exact
+the two label halves, the effect survives at **2.39 places, p = 0.0048** (exact
 permutation, 1 of C(10,4) = 210 splits — the four affinity-trained models are
 the most extreme of all 210 splits). The structure-only cell still holds only
 **7 records** in the 350-quota subset, and one model sits on the wrong side of
