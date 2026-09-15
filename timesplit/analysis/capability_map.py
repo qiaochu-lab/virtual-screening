@@ -37,8 +37,13 @@ mean rank-percentile that rises with the published EF.
 ----------------------------------------------
 * **EF needs no molecule-order alignment** (it uses only preds+labels), but
   every analysis that joins per-molecule information --- similarity, pAff ---
-  does. Alignment drops the ``FAIL`` targets, so the EF cohort and the
-  per-molecule cohort are **not the same set**. Mixing them silently changes n.
+  does. Be precise about what alignment does and does not change: it
+  **reconstructs the pool the model itself read** and therefore does **not**
+  change the pool's size (a score array is always exactly as long as the pool
+  its model saw --- lmdb length for an lmdb reader, jsonl length for a jsonl
+  reader, never a mix). What it changes is **which targets take part**: the
+  ``FAIL`` ones are dropped. So the EF cohort and the per-molecule cohort
+  differ in their *targets*, not in their *molecules*.
 * **"Label vector matches" does not prove molecules match.** Any permutation
   inside the active block and inside the decoy block reproduces the labels
   while scrambling every molecule. Order verdicts are therefore read from
@@ -294,6 +299,7 @@ def selfcheck(D):
                                                   float(r["ef_tier"]))
             for r in csv.DictReader(open(D.a.tiered_table))}
     n_tier = 0
+    tiered_gap = []          # (target count matched?, |value gap|) per failure
     for m in sorted({k[0] for k in pubt}):
         cells = D.tier_cells(m)
         byl = collections.defaultdict(lambda: collections.defaultdict(list))
@@ -308,6 +314,8 @@ def selfcheck(D):
                 if abs(float(np.mean(v)) - want[1]) > 5e-3 or len(v) != want[0]:
                     bad.append(f"tiered {m} {L} {t}: {np.mean(v):.2f}/{len(v)}"
                                f" != {want[1]:.2f}/{want[0]}")
+                    tiered_gap.append((len(v) == want[0],
+                                       abs(float(np.mean(v)) - want[1])))
                 else:
                     n_tier += 1
     # direction: mean rank-percentile must rise with the published EF.
@@ -334,6 +342,20 @@ def selfcheck(D):
                        f"distance rather than a similarity?")
     print(f"selfcheck: {n_ok} main-table cells and {n_tier} tiered cells "
           f"reproduced; direction {'OK' if not any('direction' in b for b in bad) else 'FAILED'}")
+    # A failure signature worth naming, because it sends reviewers looking in the
+    # wrong place: tiered cells off by a little while the target counts agree.
+    # That is not a rounding wobble and not a cohort difference -- the cohort is
+    # the target list, and it matched. It means the scores themselves came from a
+    # different package, most often one whose arrays are a different LENGTH, which
+    # moves ceil(1% * n) by one and flips a molecule across the cutoff.
+    if tiered_gap and all(same_n for same_n, _ in tiered_gap) \
+            and max(g for _, g in tiered_gap) < 0.2:
+        bad.append(
+            "^ every tiered failure above has the RIGHT number of targets and a "
+            "gap < 0.2. Compare the score arrays' LENGTHS per target between your "
+            "--npz-dir and the published package, not just their values: a length "
+            "equal to the frozen index's full row count (rather than to its rows "
+            "with lmdb_pos >= 0) shifts ceil(1% * n) and is the usual cause.")
     return bad
 
 
