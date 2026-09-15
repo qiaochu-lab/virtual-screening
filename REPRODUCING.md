@@ -1,0 +1,213 @@
+# Reproducing these numbers
+
+The route from raw data to every published figure, and the traps on it. Each
+stage links to the page that owns it rather than restating it; what this page
+adds is the **cross-cutting parts** — the conventions that apply everywhere, and
+the ways a careful person still gets a different number than we did.
+
+**The reporting convention is the 350-quota subset: 328 evaluation records over
+293 unique targets** (L1 56 · L2 178 · L3 19 · L4 75). The full 1,144-target set
+is an auxiliary check. Any table labelled "full set" is the auxiliary one.
+
+---
+
+## 1. The dataset
+
+Built rather than borrowed, because DUD-E / DEKOIS / LIT-PCBA have synthetic
+decoys, participated in checkpoint selection, and have no temporal holdout.
+
+| | |
+|---|---|
+| Cutoff | **2024-12**, read from LigUnity's own training labels (max `version` 34, 565 ChEMBL v34 assays) combined with BindingDB 2024m5 |
+| Sources | ChEMBL 37 + BindingDB 202608, post-cutoff records, set-differenced against the training sets, InChIKey-deduplicated |
+| Layers | L1 target seen / ligand new · L2 target seen / scaffold new · L3 target unseen / family seen · L4 both unseen. Family = CD-HIT 40% |
+| Actives | measured pAffinity ≥ 6, InChIKey-deduplicated, ≥ 10 per target |
+| Decoys | **cross-target, not property-matched**, 1:50; excludes the target's own actives, anything active on a target in the same mmseqs 40% cluster, and anything sharing a Bemis–Murcko scaffold with its actives |
+| Structures | experimental PDB where available, Boltz-2 otherwise; usable pocket coverage 95.4% |
+| Pockets | residue-level 6 Å, replicating DrugCLIP's `get_different_raid()`; validated at 100% coordinate overlap against the authors' own pockets on five DUD-E targets |
+
+Construction pipeline and the four things that are easy to get wrong:
+[`timesplit/README.md`](timesplit/README.md). Subset selection (iterative
+proportional fitting, the two ways it went wrong first, class deviations):
+[`tasks/T3-dataset-v2.md`](tasks/T3-dataset-v2.md).
+
+⚠️ **Absolute numbers here are not comparable to published values** — the decoys
+are drawn differently on purpose. Only the L1→L4 decay within one fixed setup
+means anything.
+
+---
+
+## 2. How each model was run
+
+**Official code, official weights; only the metric computation is unified.** One
+checkpoint per model across all tasks. Full checkpoint table, the reasons behind
+each variant, and the interface quirks: [`MODELS.md`](MODELS.md).
+
+The UniMol-family models (DrugCLIP, BindCLIP ×2, LigUnity ×2, LiTENCLIP,
+HypSeek) share one command skeleton, and **one deliberate departure from the
+official defaults**:
+
+```
+--batch-size 8          # official is 32 (DrugCLIP) / 256 (LigUnity, LiTENCLIP)
+--max-pocket-atoms 511  # HypSeek's T3 runs used 256 — see below
+--fp16 --seed 1 --num-workers 4
+```
+
+Batch size 8 because T3's molecules come from ChEMBL/BindingDB and reach **336
+atoms** where DEKOIS tops out at 50; UniMol's attention is O(n²), so the official
+setting OOMs on ~70% of targets. Everything else matches each model's own
+official DEKOIS branch, so inference paths differ only where the models do.
+
+Several upstream repositories print aggregate metrics and discard the
+per-molecule scores, which makes unified evaluation impossible. Every patch is
+either "make it save its raw output" or "make it run" — no modelling logic was
+touched, and DrugCLIP on DEKOIS reproduces the published baseline to 0.0%. The
+list, including the four bugs that cost the most time:
+[`PATCHES.md`](PATCHES.md).
+
+**Three model-side conventions that have to travel with the numbers:**
+
+1. **Every HypSeek T3 number is pocket-pathway only.** `test_t3_target` scores
+   with `pocket_reps @ mol_reps.T` and never computes the sequence pathway, so
+   `--alpha-prot` has no effect there. Stated convention, not a defect.
+2. **HypSeek's T3 runs used `--max-pocket-atoms 256`** while everything else used
+   511. At 6 Å, 19.7% of pockets exceed 256 atoms and get center-weighted
+   cropping. Re-run at 511 it changes nothing measurable (L1 AUROC 0.923→0.924),
+   but the asymmetry exists.
+3. **Screening tables use HypSeek `_vs`, ranking tables use `_rk`.** Analyses
+   built before that switch were computed with `_rk` and are labelled at each
+   appearance.
+
+⚠️ **LigUnity-pocket was re-run on a newer screening checkpoint on 2026-09-14**
+(md5 `f8ffada8…`). Everything on the 350-target convention uses it; the full
+1,144-target tables keep the first checkpoint's rows. Both score packages are
+published. What changed in the conclusions: [`PATCHES.md`](PATCHES.md) part 3.
+
+---
+
+## 3. The evaluation layer
+
+Published numbers for the same model on the same benchmark disagree across
+papers — DrugCLIP's DUD-E EF1% is 31.99 in its own paper and 30.52 re-run in
+BindCLIP's — because each ships its own metric code. Here the models keep their
+own inference and share one metric implementation
+([`eval/README.md`](eval/README.md)):
+
+| Convention | Value | Why it matters |
+|---|---|---|
+| EF cutoff rounding | **`ceil`, not `round`** | matches RDKit `CalcEnrichment`; synthetic test sizes pass under either convention, so this only shows up on real data |
+| EF ties | expected value — a tie group straddling the cutoff counts proportionally | counting such a group in full once put a baseline **above** the theoretical ceiling |
+| AUROC / BEDROC ties | average rank | |
+| BEDROC α | 80.5 | Truchon & Bayly (2007) |
+| R² | Pearson *r*², not `1 − SS_res/SS_tot` | scores and measured affinities are on different scales |
+| EF ceiling | `min(1/fraction, n_total/n_active)` | not `1/fraction` |
+
+Validated three ways: definitions from the literature, agreement with RDKit
+within 1e-6, and reproduction of each model's published values within 2%.
+Comparisons are paired per target, and bootstraps resample **targets, not
+molecules**.
+
+---
+
+## 4. What you need to recompute a number
+
+Three tiers, indexed in [`DATA_RELEASE.md`](DATA_RELEASE.md):
+
+- **Tier 1 (in this repository)** — `results/frozen/`: the molecule table, the
+  per-target index with **both** position columns, and `T3_model_order.csv`.
+- **Tier 2 (on request)** — one `.npz` per model per task, keys
+  `"<task>/<layer>/<uniprot>/{preds,labels}"`, with sha256 manifests.
+  Format and a worked example: [`results/RAW_SCORES.md`](results/RAW_SCORES.md).
+- **Tier 3 (on request)** — 6 Å pockets and ligand lmdbs for the subset.
+
+**The two position columns are the important part.** A model reading an lmdb sees
+lexicographic cursor order (0, 1, 10, 100, …); the eval-set jsonl is in a
+different order. Joining scores to labels by the wrong one silently mislabels
+every molecule — that bug cost this project two retracted conclusions, so the
+mapping ships rather than being left to be re-derived. Any script that joins
+scores to information **outside** the score array must first call
+`eval/order_guard.py::assert_cursor_order()`.
+
+`order_used` in `T3_model_order.csv` is decided per (model, target)
+(`freeze_t3.py`): try the jsonl order — array length must match **and** the
+actives implied by the labels must match — then the lmdb cursor order under the
+same two tests, else `FAIL`. Every UniMol-family model has 116–119 FAIL targets;
+45 of the 309 scored subset targets are FAIL. **`FAIL` limits re-layering from
+the frozen index; it does not affect any published metric**, which is computed
+from each model's own self-consistent `saved_preds.npy` / `saved_labels.npy`.
+
+---
+
+## 5. Traps
+
+1. **EF rounding uses `ceil`** (§3). Invisible on synthetic sizes.
+2. **fp16 makes LIT-PCBA wobble ~1e-3** at the top-5% boundary on its two
+   largest targets (`VDR` 356k molecules, `ALDH1` 145k); 13 of 15 targets
+   reproduce to the last digit. DUD-E and DEKOIS agree to 5e-5. **The published
+   table is the original run and was not changed.**
+3. **Molecule order**: lmdb cursor order vs jsonl order (§4).
+4. **Don't recompute from embeddings.** Recomputing dot products from float16
+   embeddings lands different molecules at the EF@1% boundary. Use the published
+   score arrays.
+5. **`summary.json` is rewritten whole.** `score_t3.py` and `score_t2_v2.py`
+   start from `summary = {}`, so passing a subset of models silently drops the
+   rest. Pass all of them, or write to a temp file and diff.
+6. **T3 has two result trees**: `results/t3_raw/<model>/T3/<layer>/<uniprot>/`
+   and `results/t3/<model>/<layer>/<uniprot>/` (no `T3/` level). A packaging
+   script that walked only the first silently omitted two models.
+7. **Subset filters must key on `(layer, uniprot)`**, never uniprot alone — 35
+   targets appear in more than one layer, because L1/L2 are split by ligand
+   scaffold.
+8. **`T3_vsds_matched.csv` is the current 350 quota (328 records);
+   `T3_vsds_matched_q250.csv` is the superseded 250 quota.** The unsuffixed file
+   is the newer one, which reads backwards and has caused mistakes — check the
+   row count.
+9. **Scripts carry a hardcoded `B = "/data/work/..."`**. They are published as a
+   record of what was executed, not as a turnkey package.
+10. **LIT-PCBA was subsampled for ConPLex and SPRINT** (`--max-decoys`; actives
+    never subsampled). EF must use the sampling ratio recorded in the output.
+11. **HypSeek T3 = pocket pathway only, 256-atom cap** (§2).
+12. **Absolute numbers are not comparable to published values** (§1).
+13. ⚠️ **The archive handed out on 2026-09-13 carries the first checkpoint's
+    LigUnity-pocket scores under the current checkpoint's filename**, and its own
+    manifest agrees with the file — so an external checksum check passes on the
+    wrong data and LigUnity-pocket recomputes to L1 34.78 / L4 7.90 instead of
+    35.28 / 9.47. Not yet re-packed. See [`results/RAW_SCORES.md`](results/RAW_SCORES.md).
+14. **`T3_model_order.csv` covered 10 of the 11 T3 packages** until 2026-09-15
+    (`hypseek_official_vs` was missing from `freeze_t3.py`'s default list). Fixed;
+    if you hold an older copy, that model has no ordering verdict in it.
+15. **"Structure half" has two non-equivalent derivations** (§6).
+
+---
+
+## 6. Two calibration choices that are not settled
+
+**Which mirroring table decides `corrected` layering.** The main table reports
+`original` and `corrected` layers, where `corrected` relabels L4 targets whose
+homology to training exceeds 0.40. `score_subset.py --mirroring` defaults to
+`T3_target_mirroring.csv`, which compares against 2,196 targets where the union
+table compares against 4,847. Switching to the union table moves the subset's
+`corrected` counts (L3 26→33, L4 61→54) and the excess-over-random decay for 8
+of 11 models up, 3 down — so "fixing it can only make the headline stronger" is
+true for most models, not all. **Don't copy the default as if it were settled.**
+
+The concrete case for the union table: **12 subset L3/L4 targets carry a 100%
+self-match under it and none under the default** — six of them have no identity
+recorded there at all, so the default files them under "no hit". Those same 12
+are exactly the targets `LIMITATIONS.md` §25 counts as seen through the structure
+half (4 L3 + 8 L4): one set of targets, two symptoms. Per-target membership for
+all 328 subset records is in
+[`results/T3_subset_train_membership.csv`](results/T3_subset_train_membership.csv)
+(producing script:
+[`timesplit/analysis/subset_train_membership.py`](timesplit/analysis/subset_train_membership.py)).
+
+**Which derivation of "the structure half".** Two exist and they do not agree:
+
+| Derivation | Source | UniProts | Subset L4 hits |
+|---|---|---|---|
+| the label file's `uniprot` field | `train_label/train_label_pdbbind_seq.json` (`train_set_crossover.py`) | 3,468 | **8** |
+| lmdb pockets mapped through PDB→UniProt | `train_no_test_af/train.lmdb` + `drugclip_pdb2uniprot.json` (`build_train_union.py`) | 3,551 | 15 |
+
+Published counts use the first and reproduce exactly under it. State which one
+any statement about structure-half membership used, or the same sentence yields
+two answers.

@@ -34,6 +34,9 @@ these models work, what each task did, and what the results mean — with no
 assumed background. It is the recommended entry point for readers who are not
 already working in this area.
 
+**Trying to reproduce a number?** [`REPRODUCING.md`](REPRODUCING.md) is the
+route from raw data to every published figure, and the traps on it.
+
 **Reviewing rather than running?** Three pages carry the caveats:
 
 | | |
@@ -579,6 +582,10 @@ tasks own no code of their own: T2 re-scores arrays that T1 and T3 already
 produced, and T5 is the T3 pipeline re-run at other pocket cutoffs.
 
 ```
+REPRODUCING.md      how the dataset was built, how each model was run, and what
+               the evaluation layer standardises — plus the fifteen traps
+               between the published packages and the published numbers
+
 WALKTHROUGH-zh.md   Understand the whole project from scratch (Chinese) — a
                complete walkthrough that assumes no prior background
 
