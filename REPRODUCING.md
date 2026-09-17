@@ -65,7 +65,7 @@ touched, and DrugCLIP on DEKOIS reproduces the published baseline to 0.0%. The
 list, including the four bugs that cost the most time:
 [`PATCHES.md`](PATCHES.md).
 
-**Three model-side conventions that have to travel with the numbers:**
+**Model-side conventions that have to travel with the numbers:**
 
 1. **Every HypSeek T3 number is pocket-pathway only.** `test_t3_target` scores
    with `pocket_reps @ mol_reps.T` and never computes the sequence pathway, so
@@ -77,6 +77,26 @@ list, including the four bugs that cost the most time:
 3. **Screening tables use HypSeek `_vs`, ranking tables use `_rk`.** Analyses
    built before that switch were computed with `_rk` and are labelled at each
    appearance.
+4. **LiTENCLIP 2.0 is a different architecture, not LiTENCLIP with new weights.**
+   Easy to misread, so stated plainly: the main model file was replaced
+   (`LiTENCLIP.py`, 447 lines → `three_hybrid_model.py` 392 + `lorentz.py` 269,
+   Lorentz hyperbolic geometry adapted from Meta's MERU), the checkpoint went
+   654 MB → 331 MB, and a **third tower** was added — a protein-sequence pathway
+   on `facebook/esm2_t12_35M_UR50D`. It is built inside HypSeek's codebase
+   (the package calls itself HypLiTEN), which is where its T1 behaviour comes
+   from: DUD-E 50.57 sits beside HypSeek's 51.41, while v1 scored 43.95.
+   Scoring is `alpha_poc * max(pocket @ mol) + alpha_prot * max(protein @ mol)`,
+   both alphas 1.0 here. ⚠️ Porting the T3 path from v1 verbatim **silently
+   disables the sequence tower** — v1 calls
+   `pocket_forward(protein_sequences=seq, ...)` and v2's `pocket_forward` takes
+   no such argument, so it vanishes into `**kwargs`. Pocket radius is 6 Å, as
+   for every other model. **Its training data is unknown**: the package ships no
+   training config or log, and while the run is named
+   `hypliten_..._litpcba_dude`, every `DUDE`/`PCBA` reference in it sits in
+   *evaluation* scripts — that name is not evidence either way about whether
+   DUD-E or LIT-PCBA were trained on. A pocket-tower-only variant
+   (`litenclip_v2poc`) is kept as a like-for-like control against v1, which has
+   no sequence tower; it is a diagnostic, not a published model.
 
 ⚠️ **LigUnity-pocket was re-run on a newer screening checkpoint on 2026-09-14**
 (md5 `f8ffada8…`). Everything on the 350-target convention uses it; the full
