@@ -71,7 +71,8 @@ for what is and is not known about its training data.
 Its rows were **appended** to the existing tables — no published row was
 recomputed. Tables that now carry a `litenclip_v2` row: `T1_main.csv`,
 `T3_main.csv`, `T3_main_ci.csv`, `T3_main_vsds_subset.csv`,
-`T3_novelty_tiered_ef.csv`, `T3_recall_at_k.csv`, `T3_chemical_memory_pref.csv`,
+`T3_novelty_tiered_ef_subset.csv`, `T3_recall_at_k.csv`,
+`T3_chemical_memory_pref.csv`,
 `T3_target_swap.csv`, `T3_target_swap_family.csv`, `T5_structure_source.csv`,
 `T2_on_T3_subset.csv`.
 
@@ -101,3 +102,10 @@ Read these as a **sensitivity analysis, not as tuning**: picking the best cell
 while looking at the test layers would make the published numbers no longer
 held-out. Selecting the ratio on L1 and applying it unchanged to L4 moves L4's
 EF@1% by +0.26 and its AUROC by -0.008.
+
+Note the name collision recorded as trap 17 in `REPRODUCING.md`: in this repo
+`T3_novelty_tiered_ef.csv` is the **full 1,144-target** table and the subset
+version carries the `_subset` suffix, while on the working machine the
+unsuffixed name holds subset numbers. v2's rows went into the subset table,
+which is the paper's convention; the full-set table does not carry v2, and
+regenerating it would fold the newer tie convention into numbers README cites.

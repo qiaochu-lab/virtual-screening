@@ -214,6 +214,15 @@ from each model's own self-consistent `saved_preds.npy` / `saved_labels.npy`.
     newer score package: that silently folds a **checkpoint change** into what
     looks like a tie-convention change (measured: 659 cells moving by up to
     46.67, versus at most 0.71 for the convention alone).
+17. ⚠️ **`T3_novelty_tiered_ef.csv` means different things in this repo and on
+    the working machine.** Here it is the **full 1,144-target** table from
+    2026-09-07 — the one README and `tasks/T3-leakage.md` cite for "27.1 on
+    chemistry it has seen, 4.5 on chemistry it has not" — and the 350-subset
+    version lives beside it as `T3_novelty_tiered_ef_subset.csv`. On the working
+    machine the unsuffixed name holds the **subset** numbers instead, and its
+    own `_subset.csv` is an older pre-tie-fix copy. The two are easy to tell
+    apart by `n_targets`: the novel tier at L1 has 18 targets on the full set
+    and 7 on the subset. Check that column before copying either file across.
 
 ---
 
