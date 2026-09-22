@@ -60,6 +60,39 @@
 |---|---|
 | `T3_target_swap.csv` | 10 models × L1/L4 × 3 metrics, correct vs swapped target, paired p |
 
+## DrugJEPA — added 2026-09-22
+
+A fourth-party model (`github.com/Saoge123/DrugJEPA`, MIT, under submission),
+built on Uni-Mol like most of this table: contrastive learning plus a Joint
+Embedding Predictive Architecture and a Mixture-of-Experts encoder. It is the
+only model here with prospective wet-lab validation — TYK2, TAAR1 and PUS1,
+hit rates 40% / 20% / 30%.
+
+**It shares its training corpus with four models already here.** Verified by
+sha256, not by reading the paper: see model-side convention 5 in
+[`REPRODUCING.md`](../REPRODUCING.md). That makes it a controlled architecture
+comparison, and it means the exposure figures below are a property of the
+corpus, not of this model.
+
+Its rows were **appended** to the existing tables; no published row was
+recomputed. Seventeen tables now carry a `drugjepa` row, including four that
+LiTENCLIP 2.0 cannot appear in (`T3_per_model_layers.csv`, its `_ctrl` and
+`_seen_effect` variants, and `T3_train_set_crossover.csv`) because those
+stratify by *the model's own* training set, which for LiTENCLIP 2.0 is unknown
+and for DrugJEPA is established byte for byte.
+
+**Where it lands.** On the public benchmarks it is third on DUD-E (EF@1% 47.09,
+behind HypSeek `_vs` 51.41 and LiTENCLIP 2.0 50.57) and unremarkable on
+LIT-PCBA (6.34). On the time split it is second overall and **first on L4
+AUROC (0.707)**, the layer with no training homologue. It is the only model in
+this table whose public-benchmark rank is *worse* than its time-split rank —
+which is the shape the wet-lab result would predict, and the opposite of what
+the rest of the table does.
+
+Target swap behaves as for every other model: replacing the pocket with a
+random target's destroys performance (L1 35.79 → 0.14, p = 2.4e-10), replacing
+it with a same-family target's changes nothing (L1 35.01 → 36.73, p = 0.59).
+
 ## LiTENCLIP 2.0 — added 2026-09-17
 
 A third-party model handed over mid-project. It is a **different architecture**,

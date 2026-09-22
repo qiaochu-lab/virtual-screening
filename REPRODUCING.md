@@ -98,6 +98,25 @@ list, including the four bugs that cost the most time:
    (`litenclip_v2poc`) is kept as a like-for-like control against v1, which has
    no sequence tower; it is a diagnostic, not a published model.
 
+5. **DrugJEPA trains on the same corpus as four models already in these tables.**
+   Verified by hash, not by reading the paper: its
+   `pocket_name2idx_train_blend.json` (sha256 `1d3d707d…`, 3,393,961 B) and
+   `mol_smi2idx_train_blend.json` (sha256 `431f8068…`, 31,913,119 B) are
+   **byte-identical** to this project's figshare copies of the affinity half —
+   the corpus behind LigUnity ×2, HypSeek and LiTENCLIP. Only its PDBbind label
+   file differs. Two consequences. First, DrugJEPA is a **controlled
+   architecture comparison**: same training data, different architecture (JEPA +
+   MoE against contrastive). Second, its benchmark-exposure figures are **not
+   specific to it** — 52.4% of DUD-E actives, 39.4% of DEKOIS, 34.0% of
+   LIT-PCBA and 60.0% of CASF-2016 complexes sit in that corpus, and that
+   applies to all five models equally. Scoring is
+   `(pocket @ mol.T).max(0)` with the sequence fused inside `pocket_forward`,
+   so it is single-tower like LiTENCLIP v1, not three-tower like v2, and has no
+   alpha to set. Pocket radius 6 Å, batch 8 (T3) / 128 (T1) as for every other
+   model; the upstream defaults are `--max-pocket-atoms 2048` and a batch size
+   hardcoded to 64 inside `test_dude_target`, both overridden here. Its scores
+   come out as float16.
+
 ⚠️ **LigUnity-pocket was re-run on a newer screening checkpoint on 2026-09-14**
 (md5 `f8ffada8…`). Everything on the 350-target convention uses it; the full
 1,144-target tables keep the first checkpoint's rows. Both score packages are
@@ -166,9 +185,18 @@ from each model's own self-consistent `saved_preds.npy` / `saved_labels.npy`.
    reproduce to the last digit. DUD-E and DEKOIS agree to 5e-5. **The published
    table is the original run and was not changed.**
 3. **Molecule order**: lmdb cursor order vs jsonl order (§4).
-4. **Don't recompute from embeddings.** Recomputing dot products from float16
-   embeddings lands different molecules at the EF@1% boundary. Use the published
-   score arrays.
+4. **Don't recompute from embeddings** — unless the saved embeddings are the
+   very arrays the model multiplied. Recomputing dot products from float16
+   embeddings generally lands different molecules at the EF@1% boundary, so the
+   published score arrays are the safe input. The exception is worth knowing,
+   because it was measured on DrugJEPA's DUD-E run (2026-09-22): there the
+   model saves `saved_mols_embed.npy` and `saved_target_embed.npy` immediately
+   after computing `res = pocket_reps @ mol_reps.T` from those same fp16 arrays,
+   and reconstructing the product reproduces the native scores **bit for bit on
+   all 102 targets** (max absolute difference 0.0, and the top-1% set identical
+   on every target). The trap is not fp16 as such — it is reconstructing from
+   embeddings that were cast or recomputed somewhere between the score and the
+   save. Check which case you are in before trusting either.
 5. **`summary.json` is rewritten whole.** `score_t3.py` and `score_t2_v2.py`
    start from `summary = {}`, so passing a subset of models silently drops the
    rest. Pass all of them, or write to a temp file and diff.
@@ -233,13 +261,17 @@ favour of the union table.** The main table reports `original` and `corrected`
 layers, where `corrected` relabels L4 targets whose homology to training exceeds
 0.40. `score_subset.py --mirroring` now defaults to
 `T3_target_mirroring_union.csv`, which compares against 4,847 targets where the
-old default (`T3_target_mirroring.csv`) compared against only 2,196. **Seven subset L4 targets** that are in fact homologous to training were being
-scored as fully novel, and the switch relabels them to L3. Per-model
-`n_targets` therefore move by 7 (or by 6 for ConGLUDe, ConPLex and SPRINT,
-which have no score for one of the seven), from four different baselines
-depending on each model's target coverage — e.g. L3 26→33 / L4 61→54 for the
-five strongest, L3 26→33 / L4 62→55 for the DrugCLIP and BindCLIP family.
-**"26→33 / 61→54" is not a subset-level fact**; it is one model group's row.
+old default (`T3_target_mirroring.csv`) compared against only 2,196.
+**Fourteen subset L4 targets** that are in fact homologous to training were
+being scored as fully novel, and the switch relabels them to L3. At the subset
+level that is L3 19→33 and L4 75→61 (recomputed 2026-09-22 directly from
+`T3_vsds_matched.csv` and the union table; the counts hold for the subset as a
+whole, independent of any model). Per-model `n_targets` move by less, because
+no model covers all 75 original L4 targets: typically by 7 — e.g. L3 26→33 /
+L4 61→54 for the five strongest, L3 26→33 / L4 62→55 for the DrugCLIP and
+BindCLIP family. **Neither "7" nor "26→33 / 61→54" is a subset-level fact**;
+both are per-model rows. An earlier revision of this section called the 7 a
+subset figure, which it is not.
 `original` layering is untouched. **This was not a free win** — it changes the
 `corrected` half of the main table for every model, raising L3 for most and
 lowering L4 for most, but not uniformly.
