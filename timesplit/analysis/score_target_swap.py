@@ -1,49 +1,40 @@
-"""Target-swap results, aggregated: how much discriminative power the model
-retains after swapping the target identity.
+"""Target swap 的结果汇总：换掉靶点身份之后，模型还剩多少区分力。
 
-Pairing
-------
-The swap result's directory name is the **substitute target T'**, because
-the model's protein sequence is looked up by directory name (the comment in
-build_target_swap.py explains why it has to be wired this way). So the
-pairing is:
+配对关系
+--------
+swap 结果的目录名是**替身靶点 T'**，因为模型的蛋白序列按目录名查
+（build_target_swap.py 的注释解释了为什么必须这样搭）。所以配对是：
 
-    correct: results/t3_raw/{model}/T3/{layer}/{T}       T's pocket + T's ligand pool
-    swap:    results/t3_raw/swap_{model}_r{N}/T3/{layer}/{T'}   T''s pocket + T's ligand pool
+    正确： results/t3_raw/{模型}/T3/{层}/{T}        T 的口袋 + T 的配体池
+    swap： results/t3_raw/swap_{模型}_r{N}/T3/{层}/{T'}   T' 的口袋 + T 的配体池
 
-Both sides are scored on the same batch of molecules; the only variable is
-target identity.
+两边打的是同一批分子，唯一变量是靶点身份。
 
-⚠️ Labels must be verified to match
+⚠️ 必须校验标签一致
 ------------------
-During a trial run, I looked up the swap directory by T and got back "T's
-pocket + someone else's ligands" — the molecule counts were completely
-different on the two sides and it went unnoticed, nearly reporting an
-invalid comparison as a result. So every pair here has its label arrays
-compared, and a mismatch is dropped and reported.
+试跑时我按 T 去查 swap 目录，取到的是「T 的口袋 + 别人的配体」，
+两边分子数完全不同却没被发现，差点把无效比较当成结果报出去。
+所以这里对每一对都比标签数组，不一致就剔除并报出来。
 
-Multiple rounds
+多轮
 ----
-Random swap draws several substitutes per target (round1/2/3); the
-per-target median across rounds is taken before the paired test, to wash
-out the luck of any single draw.
+random swap 每个靶点抽多个替身（round1/2/3），逐靶点取各轮中位数再做配对检验，
+压掉单次抽样的运气。
 """
 import argparse, csv, json, os, sys
 import numpy as np
 
-B = "/data/work/vs-benchmark"
+B = "/data/yicheng/xqc/vs-benchmark"
 LAYERS = ["L1", "L4"]
 METRICS = ["ef1", "bedroc", "auroc"]
 
 
 def find_dir(base_candidates, layer, target):
-    """The results directory layout isn't uniform; try each candidate in turn.
+    """结果目录的布局不统一，按候选依次找。
 
-    Pocket-family models (UniMol / LigUnity / HypSeek) write
-    results/t3_raw/{m}/T3/{layer}/{target}; sequence-family models
-    (ConPLex / ConGLUDe / SPRINT) are missing the T3 level, and their
-    baseline lives under results/t3/. Rather than scattering ifs across
-    every call site, list every candidate path here once.
+    口袋类模型（UniMol / LigUnity / HypSeek）写 results/t3_raw/{m}/T3/{层}/{靶点}；
+    序列类模型（ConPLex / ConGLUDe / SPRINT）少一层 T3，而且基线在 results/t3/ 下。
+    与其在调用处到处写 if，不如在这里一次性把候选路径列全。
     """
     for b in base_candidates:
         for mid in (f"/T3/{layer}/{target}", f"/{layer}/{target}"):
@@ -74,12 +65,21 @@ def main():
                          "同家族 swap 是 swapfam_{模型}_r{N}")
     ap.add_argument("--raw", default=f"{B}/results/t3_raw")
     ap.add_argument("--metrics-dir", default=f"{B}/eval")
+    ap.add_argument("--subset", default=None,
+                    help="靶点子集 CSV（含 layer/uniprot 列）；只统计其中的靶点")
     ap.add_argument("--out", default=f"{B}/results/export/T3_target_swap.csv")
     args = ap.parse_args()
 
     sys.path.insert(0, args.metrics_dir)
     from metrics import enrichment_factor, bedroc, roc_auc
     from scipy import stats
+
+    keep = None
+    if args.subset:
+        import csv as _csv
+        keep = {(r["layer"], r["uniprot"]) for r in
+                _csv.DictReader(open(args.subset))}
+        print(f"子集过滤：{len(keep)} 条（{len({u for _, u in keep})} 个唯一靶点）")
 
     man = json.load(open(args.manifest))
     rows = [["model", "layer", "n_targets", "metric",
@@ -90,8 +90,8 @@ def main():
     for m in args.models:
         printed = False
         for L in LAYERS:
-            # Collect this round's swap metrics, per target
-            per = {}          # original target -> {"correct": (...), "swap": [per round]}
+            # 逐靶点收集各轮的 swap 指标
+            per = {}          # 原靶点 -> {"correct": (...), "swap": [各轮]}
             skipped = 0
             for rnd in range(1, args.rounds + 1):
                 key = f"round{rnd}/{L}"
@@ -99,6 +99,8 @@ def main():
                     continue
                 for pr in man[key]["pairs"]:
                     o, s = pr["ligand_pool_from"], pr["identity_from"]
+                    if keep is not None and (L, o) not in keep:
+                        continue      # 原靶点不在子集里
                     base = os.path.dirname(args.raw)   # .../results
                     dc = find_dir([f"{args.raw}/{m}", f"{base}/t3/{m}"], L, o)
                     ds = find_dir([f"{args.raw}/{args.prefix}_{m}_r{rnd}"], L, s)
@@ -143,7 +145,7 @@ def main():
                 rows.append([m, L, len(per), nm,
                              f"{A[:, i].mean():.4f}", f"{Sw[:, i].mean():.4f}",
                              f"{d.mean():.4f}", f"{pct:.1f}", f"{p:.4g}"])
-            # Look separately at targets with signal: the ones where EF>0 under the correct pocket
+            # 有信号的靶点单独看：正确口袋下 EF>0 的那批
             has = A[:, 0] > 0
             if has.sum() >= 3:
                 lost = ((Sw[has, 0] == 0)).sum()
