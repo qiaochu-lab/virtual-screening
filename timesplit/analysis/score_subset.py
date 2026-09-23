@@ -33,7 +33,7 @@ import os
 
 import numpy as np
 
-B = "/data/work/vs-benchmark"
+B = "/data/yicheng/xqc/vs-benchmark"
 METRICS = ["ef1", "ef5", "bedroc", "auroc"]
 LAYERS = ["L1", "L2", "L3", "L4"]
 
@@ -50,6 +50,9 @@ def main():
     ap.add_argument("--subset", default=f"{B}/results/export/T3_vsds_matched.csv")
     ap.add_argument("--mirroring", default=f"{B}/results/export/T3_target_mirroring_union.csv",
                     help="mmseqs 查出的对训练集最高同源；用来做修正分层")
+    ap.add_argument("--exposure",
+                    default=f"{B}/results/export/T3_target_exposure.csv",
+                    help="逐靶点训练集曝光表；用于 strict 分层")
     ap.add_argument("--relabel-above", type=float, default=0.40,
                     help="L4 靶点对训练集同源 ≥该值时改判 L3")
     ap.add_argument("--out", default=f"{B}/results/export/T3_main_vsds_subset.csv")
@@ -70,10 +73,21 @@ def main():
         print(f"修正分层：子集里 {n} 个 L4 靶点对训练集同源 ≥{args.relabel_above:.0%}，"
               f"改判 L3")
 
+    # strict 分层：在 corrected 基础上，把「被任何一组训练集见过」的 L3/L4 靶点
+    # 排除掉。四组 = A 结构半 / B 亲和力半 / C ConPLex / D SPRINT。
+    # ⚠️ ConGLUDe 的训练清单未获得，不在四组内。
+    seen_any = set()
+    if os.path.exists(args.exposure):
+        for r in csv.DictReader(open(args.exposure)):
+            if r.get("seen_any") == "1":
+                seen_any.add(r["uniprot"])
+        print(f"严格分层：{len(seen_any)} 个子集靶点被至少一组训练集见过，"
+              f"其中落在 L3/L4 的将被排除")
+
     rows = [["model", "layer", "n_targets", "ef1", "ef5", "bedroc", "auroc",
              "layering"]]
     out = {}
-    for mode in ("original", "corrected"):
+    for mode in ("original", "corrected", "strict"):
         for m in sorted(s):
             agg = collections.defaultdict(list)
             for L in LAYERS:
@@ -81,8 +95,12 @@ def main():
                     if (L, t["uniprot"]) not in keep:
                         continue
                     lay = L
-                    if mode == "corrected" and L == "L4" and t["uniprot"] in relabel:
+                    if mode in ("corrected", "strict") and L == "L4" \
+                            and t["uniprot"] in relabel:
                         lay = "L3"
+                    if mode == "strict" and lay in ("L3", "L4") \
+                            and t["uniprot"] in seen_any:
+                        continue   # 被某组训练集见过，不算新靶点
                     agg[lay].append([t[k] for k in METRICS])
             for L in LAYERS:
                 if not agg[L]:
@@ -91,9 +109,10 @@ def main():
                 out[(mode, m, L)] = (len(agg[L]), v)
                 rows.append([m, L, len(agg[L])] + [f"{x:.4f}" for x in v] + [mode])
 
-    for mode in ("original", "corrected"):
-        title = "原分层" if mode == "original" else \
-                f"修正分层（L4 中对训练集同源 ≥{args.relabel_above:.0%} 的改判 L3）"
+    for mode in ("original", "corrected", "strict"):
+        title = {"original": "原分层",
+                 "corrected": f"修正分层（L4 中对训练集同源 ≥{args.relabel_above:.0%} 的改判 L3）",
+                 "strict": "严格分层（再排除被任一训练集见过的 L3/L4 靶点）"}[mode]
         print(f"\n{'=' * 78}\n{title}\n{'=' * 78}")
         print("%-26s %8s %8s %8s %8s %10s %10s" %
               ("模型", "L1", "L2", "L3", "L4", "EF衰减", "AUROC衰减"))
