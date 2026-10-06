@@ -1,5 +1,13 @@
 # Result tables
 
+The release boundary is [`CANONICAL_TABLES.md`](CANONICAL_TABLES.md). Cite the
+files under `release-2026-10-06/`; the remaining files in this directory are
+supporting analyses and research intermediates with broader model panels.
+
+The canonical release includes DrugJEPA, excludes LiTENCLIP v2 / HypLiTEN, and
+uses the strict L1–L4 target convention (56 / 178 / 20 / 41 before
+model-specific missing targets).
+
 ## Dataset v2 (≥50 actives, VSDS-vd-matched) — added 2026-09-06
 
 | File | What |
@@ -58,7 +66,7 @@
 
 | File | What |
 |---|---|
-| `T3_target_swap.csv` | 10 models × L1/L4 × 3 metrics, correct vs swapped target, paired p |
+| `T3_target_swap.csv` | task-specific model panel × L1/L4 × 3 metrics, correct vs swapped target, paired p |
 
 ## DrugJEPA — added 2026-09-22
 
@@ -74,16 +82,13 @@ sha256, not by reading the paper: see model-side convention 5 in
 comparison, and it means the exposure figures below are a property of the
 corpus, not of this model.
 
-Its rows were **appended** to the existing tables; no published row was
-recomputed. Seventeen tables now carry a `drugjepa` row, including four that
-LiTENCLIP 2.0 cannot appear in (`T3_per_model_layers.csv`, its `_ctrl` and
-`_seen_effect` variants, and `T3_train_set_crossover.csv`) because those
-stratify by *the model's own* training set, which for LiTENCLIP 2.0 is unknown
-and for DrugJEPA is established byte for byte.
+Its rows were **appended** to the existing tables; no other model row was
+recomputed. Seventeen supporting tables carry a `drugjepa` row, including the
+per-model training-set stratifications for which its training corpus is
+established byte for byte.
 
-**Where it lands.** On the public benchmarks it is third on DUD-E (EF@1% 47.09,
-behind HypSeek `_vs` 51.41 and LiTENCLIP 2.0 50.57) and unremarkable on
-LIT-PCBA (6.34). On the time split it is second overall and **first on L4
+**Where it lands.** On the public benchmarks its DUD-E EF@1% is 47.09 and its
+LIT-PCBA EF@1% is 6.34. On the time split it is second overall and **first on L4
 AUROC (0.707)**, the layer with no training homologue. It is the only model in
 this table whose public-benchmark rank is *worse* than its time-split rank —
 which is the shape the wet-lab result would predict, and the opposite of what
@@ -93,52 +98,10 @@ Target swap behaves as for every other model: replacing the pocket with a
 random target's destroys performance (L1 35.79 → 0.14, p = 2.4e-10), replacing
 it with a same-family target's changes nothing (L1 35.01 → 36.73, p = 0.59).
 
-## LiTENCLIP 2.0 — added 2026-09-17
+## Excluded historical model
 
-A third-party model handed over mid-project. It is a **different architecture**,
-not LiTENCLIP with new weights: three towers (molecule / pocket / protein
-sequence), Lorentz hyperbolic embeddings, built inside HypSeek's codebase. See
-convention 4 in [`REPRODUCING.md`](../REPRODUCING.md) for the porting hazard and
-for what is and is not known about its training data.
-
-Its rows were **appended** to the existing tables — no published row was
-recomputed. Tables that now carry a `litenclip_v2` row: `T1_main.csv`,
-`T3_main.csv`, `T3_main_ci.csv`, `T3_main_vsds_subset.csv`,
-`T3_novelty_tiered_ef_subset.csv`, `T3_recall_at_k.csv`,
-`T3_chemical_memory_pref.csv`,
-`T3_target_swap.csv`, `T3_target_swap_family.csv`, `T5_structure_source.csv`,
-`T2_on_T3_subset.csv`.
-
-Two of those tables were missing `hypseek_official_vs` entirely; that gap was
-filled in the same pass (`T3_chemical_memory_pref.csv`, `T3_recall_at_k.csv`,
-`T2_on_T3_subset.csv`).
-
-| File | What |
-|---|---|
-| `T1_litenclip_v2_alpha_sweep.csv` | the two tower weights swept on DUD-E / DEKOIS / LIT-PCBA, 9 ratios x 4 metrics |
-| `T3_litenclip_v2_alpha_sweep.csv` | the same sweep on T3 L1-L4 (350-target subset, corrected layering) |
-| `T3_L4_per_target_ef1.csv` | per-target EF@1% on L4 across 12 models, with target metadata |
-
-**On the alpha sweep.** Scoring is
-`alpha_poc * max(pocket @ mol) + alpha_prot * max(protein @ mol)`. Every metric
-here is rank-based, so scaling both alphas by the same positive constant changes
-nothing — only the **ratio** matters, which makes a 2x2 grid over {0,1}^2
-over-parameterised: `(0,0)` is degenerate (all scores tied, which under this
-project's proportional tie convention lands exactly on the random baseline,
-EF = 1.0 and AUROC = 0.5), and `(1,1)` is identical to `(0.5,0.5)`. The files
-therefore sweep the ratio instead. Cost was zero GPU: T3 stores both tower
-scores separately at inference time, and T1 stores float32 embeddings from which
-both towers reconstruct exactly (worst relative error 3.4e-07 over 36 sampled
-targets; ratio 1 reproduces the published v2 row digit for digit).
-
-Read these as a **sensitivity analysis, not as tuning**: picking the best cell
-while looking at the test layers would make the published numbers no longer
-held-out. Selecting the ratio on L1 and applying it unchanged to L4 moves L4's
-EF@1% by +0.26 and its AUROC by -0.008.
-
-Note the name collision recorded as trap 17 in `REPRODUCING.md`: in this repo
-`T3_novelty_tiered_ef.csv` is the **full 1,144-target** table and the subset
-version carries the `_subset` suffix, while on the working machine the
-unsuffixed name holds subset numbers. v2's rows went into the subset table,
-which is the paper's convention; the full-set table does not carry v2, and
-regenerating it would fold the newer tie convention into numbers README cites.
+LiTENCLIP v2 / HypLiTEN was evaluated during development but is not part of the
+2026-10-06 release. Its training-data provenance and stable public checkpoint
+did not meet the release requirement. Its code, checkpoint, alpha sweeps and
+rows were removed from the current tree; Git history retains the audit trail.
+`LiTENCLIP` in current tables means v1.

@@ -5,9 +5,14 @@ stage links to the page that owns it rather than restating it; what this page
 adds is the **cross-cutting parts** — the conventions that apply everywhere, and
 the ways a careful person still gets a different number than we did.
 
-**The reporting convention is the 350-quota subset: 328 evaluation records over
-293 unique targets** (L1 56 · L2 178 · L3 19 · L4 75). The full 1,144-target set
-is an auxiliary check. Any table labelled "full set" is the auxiliary one.
+**The canonical reporting convention is the strict 350-quota subset:** L1 56 ·
+L2 178 · L3 20 · L4 41 before model-specific missing targets. It starts from
+328 evaluation records over 293 unique targets, applies the corrected family
+assignment, and then removes L3/L4 targets seen by any of the four known
+training-set groups. The full 1,144-target set and the unfiltered 328-record
+subset are auxiliary analyses. See
+[`results/CANONICAL_TABLES.md`](results/CANONICAL_TABLES.md) for the exact
+release files and task-specific checkpoint policy.
 
 ---
 
@@ -39,13 +44,15 @@ means anything.
 
 ## 2. How each model was run
 
-**Official code, official weights; only the metric computation is unified.** One
-checkpoint per model across all tasks. Full checkpoint table, the reasons behind
-each variant, and the interface quirks: [`MODELS.md`](MODELS.md).
+**Official code, official weights; only the metric computation is unified.** A
+model uses one checkpoint across tasks unless its upstream release provides
+separate task-selected weights: HypSeek uses `_vs` for screening and `_rk` for
+affinity ranking and labelled historical controls. Full checkpoint table, the
+reasons behind each variant, and the interface quirks: [`MODELS.md`](MODELS.md).
 
 The UniMol-family models (DrugCLIP, BindCLIP ×2, LigUnity ×2, LiTENCLIP,
-HypSeek) share one command skeleton, and **one deliberate departure from the
-official defaults**:
+HypSeek and DrugJEPA) share one command skeleton, and **one deliberate departure
+from the official defaults**:
 
 ```
 --batch-size 8          # official is 32 (DrugCLIP) / 256 (LigUnity, LiTENCLIP)
@@ -77,26 +84,11 @@ list, including the four bugs that cost the most time:
 3. **Screening tables use HypSeek `_vs`, ranking tables use `_rk`.** Analyses
    built before that switch were computed with `_rk` and are labelled at each
    appearance.
-4. **LiTENCLIP 2.0 is a different architecture, not LiTENCLIP with new weights.**
-   Easy to misread, so stated plainly: the main model file was replaced
-   (`LiTENCLIP.py`, 447 lines → `three_hybrid_model.py` 392 + `lorentz.py` 269,
-   Lorentz hyperbolic geometry adapted from Meta's MERU), the checkpoint went
-   654 MB → 331 MB, and a **third tower** was added — a protein-sequence pathway
-   on `facebook/esm2_t12_35M_UR50D`. It is built inside HypSeek's codebase
-   (the package calls itself HypLiTEN), which is where its T1 behaviour comes
-   from: DUD-E 50.57 sits beside HypSeek's 51.41, while v1 scored 43.95.
-   Scoring is `alpha_poc * max(pocket @ mol) + alpha_prot * max(protein @ mol)`,
-   both alphas 1.0 here. ⚠️ Porting the T3 path from v1 verbatim **silently
-   disables the sequence tower** — v1 calls
-   `pocket_forward(protein_sequences=seq, ...)` and v2's `pocket_forward` takes
-   no such argument, so it vanishes into `**kwargs`. Pocket radius is 6 Å, as
-   for every other model. **Its training data is unknown**: the package ships no
-   training config or log, and while the run is named
-   `hypliten_..._litpcba_dude`, every `DUDE`/`PCBA` reference in it sits in
-   *evaluation* scripts — that name is not evidence either way about whether
-   DUD-E or LIT-PCBA were trained on. A pocket-tower-only variant
-   (`litenclip_v2poc`) is kept as a like-for-like control against v1, which has
-   no sequence tower; it is a diagnostic, not a published model.
+4. **LiTENCLIP v2 / HypLiTEN is not part of this release.** Its training data
+   and stable public checkpoint provenance could not be established to the same
+   standard as the canonical models. Historical rows and alpha sweeps were
+   removed from the release tree. `LiTENCLIP` without a suffix always means the
+   public v1 checkpoint recorded in `MODELS.md`.
 
 5. **DrugJEPA trains on the same corpus as four models already in these tables.**
    Verified by hash, not by reading the paper: its
@@ -154,10 +146,10 @@ Three tiers, indexed in [`DATA_RELEASE.md`](DATA_RELEASE.md):
 
 - **Tier 1 (in this repository)** — `results/frozen/`: the molecule table, the
   per-target index with **both** position columns, and `T3_model_order.csv`.
-- **Tier 2 (on request)** — one `.npz` per model per task, keys
+- **Tier 2 (companion package)** — one `.npz` per model per task, keys
   `"<task>/<layer>/<uniprot>/{preds,labels}"`, with sha256 manifests.
   Format and a worked example: [`results/RAW_SCORES.md`](results/RAW_SCORES.md).
-- **Tier 3 (on request)** — 6 Å pockets and ligand lmdbs for the subset.
+- **Tier 3 (companion package)** — 6 Å pockets and ligand lmdbs for the subset.
 
 **The two position columns are the important part.** A model reading an lmdb sees
 lexicographic cursor order (0, 1, 10, 100, …); the eval-set jsonl is in a

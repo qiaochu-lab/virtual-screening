@@ -1,8 +1,12 @@
 # Models and checkpoints
 
-Nine retrieval models plus one co-folding model, all run with **official code and
-official weights**. This page records exactly which weight was used, where it
-came from, and what to know about each before reading its numbers.
+Eleven canonical retrieval entries plus one co-folding model, all run with
+**official code and official weights**. This page records exactly which weight
+was used, where it came from, and what to know about each before reading its
+numbers. The panel is task-specific; HypSeek `_vs` is canonical for screening
+and `_rk` for affinity ranking and the labelled historical controls.
+Official download locations and package paths are in
+[`CHECKPOINT_DOWNLOADS.md`](CHECKPOINT_DOWNLOADS.md).
 
 | Model | Input on the protein side | Ligand side | Training data | Weight used |
 |---|---|---|---|---|
@@ -12,7 +16,8 @@ came from, and what to know about each before reading its numbers.
 | LigUnity-pocket | 3D pocket | 3D conformer | PocketAffDB | `LigUnity_VS/pocket_ranking_vs_v2/checkpoint_avg_41_50.pt` ⁽¹⁾ |
 | LigUnity-protein | sequence | 3D conformer | PocketAffDB | `LigUnity_VS/protein_ranking_vs/checkpoint_avg_41-50.pt` |
 | LiTENCLIP | 3D pocket | 3D conformer | PocketAffDB (same files) | `checkpoint.best_valid_bedroc_0.50.pt` |
-| HypSeek | 3D pocket, hyperbolic embedding space | 3D conformer | PocketAffDB | `checkpoint_avg_41-50_rk.pt` |
+| HypSeek | 3D pocket, hyperbolic embedding space | 3D conformer | PocketAffDB | `official_checkpoint_avg_41-50_vs.pt` (T1/T3 screening); `official_checkpoint_avg_41-50_rk.pt` (T2 ranking/labelled controls) |
+| DrugJEPA | 3D pocket, JEPA + MoE | 3D conformer | PocketAffDB (same files) | `checkpoint_best.pt` |
 | ConGLUDe | sequence + structure graph (`.pdb`) | graph | own (undisclosed list) | shipped with the repo |
 | ConPLex | sequence (protein LM) | fingerprint | BindingDB | `BindingDB_ExperimentalValidModel.pt` |
 | SPRINT | **SaProt structure-aware sequence** (AA + foldseek 3Di) | SMILES | own (`MERGED`) | `sprint.ckpt` |
@@ -35,19 +40,19 @@ score packages are published (`T3_ligunity_pocket_ranking.npz` for the current
 numbers, `..._ckpt1.npz` for the auxiliary ones). What changed in the conclusions
 is recorded in [`PATCHES.md`](PATCHES.md).
 
-## One training set across seven models, and half of them also get affinity labels
+## One training set across eight entries, and five also get affinity labels
 
-The seven pocket-family models are **not** trained on rival corpora. LigUnity's
+The eight pocket-family entries are **not** trained on rival corpora. LigUnity's
 training task reads two label files (`unimol/tasks/train_task.py:523-524`):
 
 | Half | Size | Trained on by |
 |---|---|---|
-| `train_label_pdbbind_seq.json` — structures only | **16,744 PDB entries** → 3,468 UniProt | all seven |
-| `train_label_blend_seq_full.json` — with pAff | **2,196 UniProt**, 26,748 assays | LigUnity ×2, LiTENCLIP, HypSeek |
+| `train_label_pdbbind_seq.json` — structures only | **16,744 PDB entries** → 3,468 UniProt | all eight |
+| `train_label_blend_seq_full.json` — with pAff | **2,196 UniProt**, 26,748 assays | LigUnity ×2, LiTENCLIP, HypSeek, DrugJEPA |
 
 **The structure half is the same data as DrugCLIP's `train_no_test_af`**:
 16,744 PDB entries on each side, intersection 16,744, neither exclusive.
-So DrugCLIP and the BindCLIP pair see the structure half; the other four see
+So DrugCLIP and the BindCLIP pair see the structure half; the other five see
 that *plus* affinity labels for 2,196 targets. Union at UniProt level: 4,847.
 ([`standard/build_train_union.py`](standard/build_train_union.py))
 
@@ -60,7 +65,7 @@ LiTENCLIP's `test_datasets/` are symlinks into LigUnity's, so the two share the
 training files byte-for-byte — which is why T3's cutoff date is valid for both
 without adjustment.
 
-**This is the basis of a finding**, not just bookkeeping: the four models that
+**This is the basis of a finding**, not just bookkeeping: the five entries that
 get affinity labels land at L1 EF1% 32–39, and the three with structures only
 land at 17–19, across substantial architectural differences. Because the
 structures are identical between the groups, the comparison isolates **what the
@@ -68,7 +73,7 @@ labels add**, not how much data each had.
 
 ## What the other three models trained on
 
-The seven pocket-family models publish their training sets as target lists. The
+The eight pocket-family entries publish their training sets as target lists. The
 three sequence-family models do not, which is why they sat outside the audit for
 so long. What is actually obtainable, and how:
 
@@ -100,26 +105,13 @@ Training data separates the tiers better than architecture does.
 ## Checkpoint choices worth knowing
 
 **HypSeek ships two weights from one training run** — `_vs` selected on CASF
-BEDROC (screening) and `_rk` selected on FEP (ranking). This is itself evidence
-for T2's premise: the authors found one weight could not do both jobs well.
-
-Only `_rk` was public when this benchmark was built, so that is what every
-HypSeek number here was measured with. The author released `_vs` on 2026-09-07
-in [issue #4](https://github.com/jianhuiwemi/HypSeek/issues/4); both are now
-measured side by side in
-[`results/T1_hypseek_official.md`](results/T1_hypseek_official.md). The released
-`_rk` is byte-identical to the copy used throughout
-(md5 `02d7574254bc…`), and `_rk` outscores `_vs` on every screening
-measurement — so reporting `_rk` did not inflate HypSeek's numbers relative to
-its own screening weight, though it does mean **the screening tables report a
-ranking-selected checkpoint**.
-
-Using `_rk` also turns out to matter: it is **the best ranker in the benchmark**
-(T3 Spearman +0.260 at L1, ahead of LigUnity-protein's +0.230 and DrugCLIP's
-+0.091) *and* the best screener on all three standard benchmarks. An earlier
-version of this file said the opposite — that the ranking weight gave only
-+0.028 — which was a bug in our analysis code, not a property of the checkpoint
-([`PATCHES.md`](PATCHES.md)).
+BEDROC (screening) and `_rk` selected on FEP (ranking). Both were released by
+the author in [issue #4](https://github.com/jianhuiwemi/HypSeek/issues/4) and
+both exact files are recorded in the companion checkpoint manifest. The
+canonical T1 and T3 screening tables use `_vs`; T2 affinity ranking uses `_rk`.
+Target-swap and several older controls were completed with `_rk` before `_vs`
+was released and remain explicitly labelled. The side-by-side measurements are
+in [`results/T1_hypseek_official.md`](results/T1_hypseek_official.md).
 
 **LigUnity publishes more variants than were used.** `_vs` (evaluated), plus
 `_0.3` and `_0.8`, which filter the training set by sequence distance to the test
@@ -171,9 +163,10 @@ Full detail, and what breaks without each fix, in [`PATCHES.md`](PATCHES.md).
 
 ## Status by task, and which checkpoint each ran
 
-Every model was evaluated with **one** checkpoint across all tasks — we did not
-swap weights per task. The selection criterion behind that checkpoint differs
-between models, and that asymmetry is worth seeing in one place.
+Each named model/checkpoint entry uses one fixed checkpoint. HypSeek is the one
+explicit task-specific exception: `_vs` is the canonical screening entry and
+`_rk` is the canonical affinity-ranking entry. The table makes that split
+explicit rather than silently swapping weights under one label.
 
 | Model | Checkpoint selected on | T1 | T2 | T3 | T5 | T6 |
 |---|---|---|---|---|---|---|
@@ -182,6 +175,7 @@ between models, and that asymmetry is worth seeing in one place.
 | LigUnity-pocket | screening (`_vs`) | ✅ | ✅ (T3 + FEP + CASF) | ✅ | — | shortlist source |
 | LigUnity-protein | screening (`_vs`) | ✅ | ✅ (T3 + FEP + CASF) | ✅ | — | shortlist source |
 | LiTENCLIP | screening (`best_valid_bedroc`) | ✅ | ✅ (T3 + FEP + CASF) | ✅ | — | — |
+| DrugJEPA | screening (`checkpoint_best`) | ✅ | ✅ (T3) | ✅ | ✅ | — |
 | **HypSeek `_vs`** (official) | **screening** | ✅ | — | ✅ main table | — | — |
 | **HypSeek `_rk`** (official) | **FEP ranking** | — | ✅ | ✅ derived analyses | ✅ (256 vs 511 cap) | — |
 | HypSeek `_vs` (collaborator) | screening | ✅ | ✅ | ✅ | — | — |
@@ -230,4 +224,3 @@ Table 1, and the paper never mentions two checkpoints at all.
 Where a model's own paper reports no metric for a task, that is a property of
 the model's scope rather than of this benchmark, and the cell above says so
 rather than implying the run failed.
-

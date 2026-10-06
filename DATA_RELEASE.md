@@ -6,11 +6,13 @@ different question, and you only need the one that matches what you want to do.
 | Tier | Where | Size | What it lets you do |
 |---|---|---|---|
 | **1. Index** | this repository | 66 MB | see every molecule, label and affinity; re-derive the layering |
-| **2. Raw scores** | on request | 380 MB | **recompute every metric we report**, under any cutoff or layering, without a GPU |
-| **3. Structures** | on request | 3.1 GB | re-run the models, or run your own |
+| **2. Raw scores** | companion data package | 380 MB | **recompute every metric we report**, under any cutoff or layering, without a GPU |
+| **3. Structures** | companion data package | 3.1 GB | re-run the models, or run your own |
 
-Tier 1 alone tells you what the benchmark *is*. Tier 1 + 2 lets you check every
-T3 number in this repository on a laptop, and T1 for seven of the ten models. Tier 3 is needed only to run inference.
+Tier 1 alone tells you what the benchmark *is*. Tier 1 + 2 lets you check the
+canonical T1 and T3 numbers on a laptop. Tier 3 is needed only to run inference.
+The companion delivery includes restore instructions and official checkpoint
+download locations.
 
 ## Tier 1 — index (in this repository)
 
@@ -28,15 +30,16 @@ different order. Joining scores to labels by the wrong one silently mislabels
 every molecule — that bug cost this project two retracted conclusions, so the
 mapping is shipped rather than left to be re-derived.
 
-## Tier 2 — raw per-molecule scores (on request)
+## Tier 2 — raw per-molecule scores (companion package)
 
 One `.npz` per model per task, keys `"<task>/<layer>/<uniprot>/{preds,labels}"`,
 scores `float32`, labels `int8`. Rebuild with
 [`eval/pack_raw.py`](eval/pack_raw.py); verify against `manifest_T3.json` /
 `manifest_T1.json`, which carry a sha256 per package.
 
-**T3 — 12 packages, 256.9 MB.** All ten published models, both HypSeek weights,
-and a second LigUnity-pocket package. LigUnity-pocket was re-run on a newer
+**T3 — 13 packages.** Eleven canonical screening models, the HypSeek `_rk`
+ranking/labelled-control package, and a second LigUnity-pocket package.
+LigUnity-pocket was re-run on a newer
 screening checkpoint on 2026-09-14, so its scores exist in two versions:
 `T3_ligunity_pocket_ranking.npz` (current checkpoint — what every table on the
 paper's 350-target convention is computed from) and
@@ -47,12 +50,12 @@ re-run). ⚠️ **The 2026-09-13 archive shipped this wrong and was corrected on
 scores, with the archive's own manifest agreeing with the file, so a checksum
 check there passed on the wrong data. The archive now holds both packages under
 their right names. **A copy fetched before 2026-09-15 needs those two files
-re-fetched.** See [`results/RAW_SCORES.md`](results/RAW_SCORES.md). The other ten
-packages: `drugclip`, `bindclip_randneg`, `bindclip_hardneg`,
+re-fetched.** See [`results/RAW_SCORES.md`](results/RAW_SCORES.md). The packages
+include `drugclip`, `drugjepa`, `bindclip_randneg`, `bindclip_hardneg`,
 `ligunity_pocket_ranking`, `ligunity_protein_ranking`, `litenclip`,
 `hypseek_official_vs`, `hypseek_rk`, `conglude`, `conplex`, `sprint`.
 
-✅ **T1 — 10 packages, 123.5 MB.** All ten models now have per-molecule T1
+✅ **T1 — 11 packages.** All eleven canonical models have per-molecule T1
 scores across all three benchmarks (102 DUD-E, 80–81 DEKOIS, 13–15 LIT-PCBA).
 
 ⚠️ The per-target score *files* were completed on 2026-09-13, but the three
@@ -80,7 +83,7 @@ you recompute from the files — see the caveat in
 placing a few molecules differently at the top-5% boundary on the two largest
 targets, and 13 of 15 LIT-PCBA targets still reproduce to the last digit.
 
-So **T1 and T3 can both be independently recomputed for all ten models.**
+So **T1 and T3 can both be independently recomputed for all canonical models.**
 
 ⚠️ Two corrections worth keeping visible. An earlier version of this page said
 3 of 10 could be recomputed and named the wrong cause: that came from checking
@@ -89,7 +92,7 @@ under `results/<model>/<benchmark>/` — the same failure `eval/pack_raw.py`
 documents for T3, one root checked, several in use. The true count before the
 re-run was 7 of 10.
 
-## Tier 3 — pockets and ligands (on request)
+## Tier 3 — pockets and ligands (companion package)
 
 The 350-quota subset only, split by layer. 6 Å pockets and the ligand lmdbs.
 
@@ -114,14 +117,18 @@ Rebuild with [`eval/pack_dataset_subset.sh`](eval/pack_dataset_subset.sh).
 
 ## ⚠️ Which subset file is which
 
-The quota is a parameter, not a target count. **350 quota yields 328 records
-over 293 unique targets** (L1 56 · L2 178 · L3 19 · L4 75) — 35 targets appear
-in more than one layer, which is why any subset filter must key on
-`(layer, uniprot)` and never on `uniprot` alone.
+The quota is a parameter, not a target count. The pre-strict 350-quota subset
+contains 328 records over 293 unique targets (L1 56 · L2 178 · L3 19 · L4 75).
+The canonical release relabels and filters it to **L1 56 · L2 178 · L3 20 · L4
+41**. Use `results/release-2026-10-06/T3_targets_strict.csv`; it carries the
+final labels explicitly. Targets can occur in more than one original layer, so
+compatibility filters must key on `(layer, uniprot)` and never on `uniprot`
+alone.
 
 | File | Records / targets | Status |
 |---|---|---|
-| `results/T3_vsds_matched.csv` | 328 / 293 | **current** — the 350 quota |
+| `results/release-2026-10-06/T3_targets_strict.csv` | 295 / 263 | **canonical release** — final strict labels |
+| `results/T3_vsds_matched.csv` | 328 / 293 | supporting — pre-strict 350 quota |
 | `results/T3_vsds_matched_q250.csv` | 242 / 222 | superseded — the earlier 250 quota |
 
 The unsuffixed file is the newer one. This reads backwards and has caused

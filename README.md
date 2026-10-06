@@ -3,9 +3,15 @@
 A head-to-head benchmark of large-scale pocket–ligand retrieval models
 (DrugCLIP-family), across six tasks, under one unified metric implementation.
 
-Nine models are evaluated with their **own official code and official weights**.
-Only the metric computation is shared, so differences in the tables are
-attributable to the models.
+The final release uses a **task-specific model panel** with each model's own
+official code and official weights. Only the metric computation is shared, so
+differences in the tables are attributable to the models.
+
+> **Canonical release (2026-10-06).** Cite and reproduce the files listed in
+> [`results/CANONICAL_TABLES.md`](results/CANONICAL_TABLES.md). They use the
+> strict L1–L4 target convention (**56 / 178 / 20 / 41**), include DrugJEPA,
+> use HypSeek `_vs` for screening and `_rk` for ranking, and exclude LiTENCLIP
+> v2 / HypLiTEN. Other result files are supporting analyses or intermediates.
 
 **New here?** Start with [`tasks/`](tasks/) — one document per task, each stating
 what question it asks, what data it uses, how it was run, and what came out.
@@ -16,11 +22,11 @@ what question it asks, what data it uses, how it was run, and what came out.
 
 | Task | Question | Status | Doc |
 |---|---|---|---|
-| **T1** Enrichment | Do published enrichment numbers reproduce on standard benchmarks? | ✅ complete — 10 models × 3 benchmarks | [T1](tasks/T1-enrichment.md) |
+| **T1** Enrichment | Do published enrichment numbers reproduce on standard benchmarks? | ✅ complete — 11 canonical models × 3 benchmarks | [T1](tasks/T1-enrichment.md) |
 | **T2** Affinity ranking | Can these models rank binding strength, not just separate binders from non-binders? | ✅ answered — **weakly, and it decays with novelty**; the CASF/T3 gap is explained | [T2](tasks/T2-affinity-ranking.md) 🔬 |
-| **T3** Time-split | Do they generalise to targets that appeared after training? | ✅ main result, 10 models × 4 layers | [T3](tasks/T3-time-split.md) |
+| **T3** Time-split | Do they generalise to targets that appeared after training? | ✅ main result, 11 canonical screening models × 4 strict layers | [T3](tasks/T3-time-split.md) |
 | **T3 v2** Dataset revision | ≥50 actives, class composition matched to VSDS-vd | ✅ 328 entries / 293 targets (quota 350); every downstream analysis re-aggregated | [T3 v2](tasks/T3-dataset-v2.md) |
-| **T5** Target swap | Do the models use the protein at all, or only the ligand? | ✅ 10 models × L1/L4 × 3 rounds — **AUROC collapses to 0.500** | [Target swap](tasks/T5-target-swap.md) |
+| **T5** Target swap | Do the models use the protein at all, or only the ligand? | ✅ 11 models × L1/L4 × 3 rounds — **AUROC collapses to 0.500** | [Target swap](tasks/T5-target-swap.md) |
 | **T3** Leakage audit | Is the benchmark actually solvable without the protein? Are the "novel" targets novel? | ✅ three diagnostics — **L1 is largely a memorisation test for the affinity-half models, L3/L4 are clean** | [Leakage](tasks/T3-leakage.md) |
 | **T4** Target fishing | Run retrieval backwards: molecule → target | not started (deprioritised) | [T4](tasks/T4-target-fishing.md) |
 | **T5** Structure robustness | Do the conclusions survive changing structure source, pocket definition, and apo conformation? | ✅ three controls done | [T5](tasks/T5-structure-robustness.md) 🔬 |
@@ -44,6 +50,7 @@ route from raw data to every published figure, and the traps on it.
 | [`LIMITATIONS.md`](LIMITATIONS.md) | every known reason a number here could be wrong, ordered by how much it moves the headline claims |
 | [`PATCHES.md`](PATCHES.md) | what had to be changed in third-party code, and the bugs in **our own** code — including two that produced a wrong conclusion before being caught |
 | [`MODELS.md`](MODELS.md) | exact checkpoints, why each variant, interface quirks |
+| [`CHECKPOINT_DOWNLOADS.md`](CHECKPOINT_DOWNLOADS.md) | official/author download locations and the two weights that must come from the companion supplement |
 
 ## Headline findings
 
@@ -55,7 +62,7 @@ route from raw data to every published figure, and the traps on it.
    and reorders nothing, so the decay below is not an artefact of the metric.
    → [`results/T3_recall_at_k.csv`](results/T3_recall_at_k.csv)
 
-1. **All ten models lose 56–83% of their above-random enrichment on post-cutoff
+1. **All canonical screening models lose substantial above-random enrichment on post-cutoff
    targets** on the 350-quota subset the paper reports, where L4 targets carry ≥50
    actives each; 68–84% on the full 1,144-target set.
    ⚠️ The subset figure is read off the **corrected** layering. This line used to
@@ -539,15 +546,15 @@ route from raw data to every published figure, and the traps on it.
     16,744 PDB entries) and an affinity half (`train_label_blend_seq_full.json`,
     2,196 UniProt with pAff). **The structure half is byte-for-byte the same PDB
     set as DrugCLIP's `train_no_test_af`** — 16,744 on each side, intersection
-    16,744, neither exclusive. So the seven pocket models are not trained on
-    rival corpora: four of them trained on what the other three saw, *plus*
+    16,744, neither exclusive. So the eight pocket-family entries are not trained on
+    rival corpora: five of them trained on what the other three saw, *plus*
     affinity labels for 2,196 targets.
 
     Re-cutting L1–L4 per model against the corrected union still separates the
     two families: **49–58% decay for the three structure-only models against
-    66–70% for the four with affinity labels**, where the shared L1→L4 labels had
+    66–70% for the affinity-labelled group**, where the shared L1→L4 labels had
     them overlapping. Ranking the ten models *within each target*, which cancels
-    target difficulty, the four gain **+0.87 to +2.02 rank places** on targets in
+    target difficulty, the affinity-labelled models gain **+0.87 to +2.02 rank places** on targets in
     their own training set; the three structure-only models gain **−0.04 to
     +0.19**, i.e. nothing — though that null is weak evidence, since all seven
     trained on those same targets and none can stand out. Splitting by which half
@@ -616,11 +623,10 @@ physics/       🔬 FEP benchmark and Boltz-2 — the physics arm behind T2 and 
 eval/          unified metric layer (80 tests)
 env/           per-model environment construction, with the version traps
 results/       machine-readable CSVs
-├── T1_main.csv                 10 models × 3 standard benchmarks × 4 metrics
-├── T3_main.csv                 10 models × 4 layers × 5 metrics
-│                                (11 model rows: HypSeek appears twice — `_vs`
-│                                 is the benchmark row, `_rk` is kept alongside
-│                                 for the checkpoint comparison. See MODELS.md.)
+├── CANONICAL_TABLES.md         release boundary and task-specific model policy
+├── release-2026-10-06/         canonical strict tables and SHA-256 manifest
+├── T1_main.csv                 source table for standard benchmarks
+├── T3_main.csv                 supporting table with checkpoint comparisons
 ├── T3_main_clean.csv           the same, with training-set contamination removed
 ├── T3_main_ci.csv              bootstrap confidence intervals
 ├── T3_targets.csv              per-target detail (class, layer, structure source)
@@ -631,7 +637,7 @@ results/       machine-readable CSVs
 ├── T2_on_FEP.csv               affinity ranking on the 16 FEP systems
 ├── T2_range_restriction.csv    why CASF and T3 disagree — spread, not models
 ├── T5_apo.csv                  apo vs holo pockets
-├── T5_structure_source.csv     experimental vs predicted structures, all ten models
+├── T5_structure_source.csv     experimental vs predicted structures
 ├── T5_pocket_threshold.csv     4 / 6 / 8 Å comparison
 ├── T6_FEP_boltz.csv            Boltz-2 affinity on the FEP systems
 ├── T6_rerank{,2,3}.csv         three cascade-rerank runs
@@ -652,20 +658,20 @@ Which task each directory serves:
 
 ## Models evaluated
 
-Nine retrieval models plus Boltz-2 as the physics arm, all with official code and
-official weights. Which exact checkpoint, why that variant, and the interface
-quirks of each: **[`MODELS.md`](MODELS.md)**.
+Eleven canonical retrieval entries plus Boltz-2 as the physics arm, all with
+official code and official weights. Which exact checkpoint, why that variant,
+and the interface quirks of each: **[`MODELS.md`](MODELS.md)**.
 
 | Model | Protein side | Training data |
 |---|---|---|
 | DrugCLIP, BindCLIP-randneg, BindCLIP-hardneg | 3D pocket | 16,744 PDB structures |
-| LigUnity-pocket / -protein, LiTENCLIP, HypSeek | 3D pocket / sequence / hyperbolic | the **same** 16,744 + pAff for 2,196 UniProt |
+| LigUnity-pocket / -protein, LiTENCLIP, HypSeek, DrugJEPA | 3D pocket / sequence / hyperbolic | the **same** 16,744 + pAff for 2,196 UniProt |
 | ConGLUDe | sequence + structure graph | own |
 | ConPLex | sequence only — **negative control on T3 only** ⚠️ | BindingDB + DUD-E contrastive |
 | SPRINT | SaProt structure-aware sequence | own |
 | Boltz-2 | co-folding + affinity head | own |
 
-The seven pocket-family models share **one** structure corpus; four of them
+The eight pocket-family entries share **one** structure corpus; five of them
 additionally get affinity labels, and that difference predicts the performance
 tiers better than architecture does. Detail in [`MODELS.md`](MODELS.md).
 
