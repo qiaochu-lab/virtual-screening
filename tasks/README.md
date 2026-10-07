@@ -20,6 +20,11 @@ moves the headline claims, and the first two affect the main result directly.
 
 ## For physics collaborators
 
+**Independent AIMNet2 reproduction:** [upstream experiment reruns and our T3 test](AIMNet2-reproduction.md)
+covers FEP, KIN66/PLA15, CASF retrieval/reranking, old and new T3 workflows,
+and screening smoke experiments. This supplementary report includes explicit
+reference-versus-rerun tables and the remaining numerical differences.
+
 Read in this order:
 
 1. **[T2](T2-affinity-ranking.md)** — the problem. Retrieval models produce
