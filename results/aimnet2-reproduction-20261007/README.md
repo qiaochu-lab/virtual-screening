@@ -1,6 +1,6 @@
 # AIMNet2 reproduction result supplement — 2026-10-07
 
-Read the [Chinese standalone report](../../tasks/AIMNet2-xianyang-reproduction.md)
+Read the [standalone report](../../tasks/AIMNet2-xianyang-reproduction.md)
 for experiment scope, methods, reference-versus-rerun comparisons and caveats.
 This supplement documents independently executed calculations; it is separate
 from the October 6 canonical screening model tables.
