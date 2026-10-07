@@ -1,6 +1,6 @@
-# AIMNet2: Reproducing xianyang's Experiments and Testing on Our T3 Data
+# AIMNet2: Experiment Reproduction and Testing on Our T3 Data
 
-**Date: 2026-10-07.** This page documents two tasks: independently rerunning the main experiments with traceable inputs in xianyang's repository, and applying its latest pipeline to our frozen T3 data. This is a supplementary analysis; the project's primary results should still be cited from the [2026-10-06 canonical tables](../results/CANONICAL_TABLES.md).
+This page documents two tasks: independently rerunning the main experiments with traceable inputs in the linked source repository, and applying its latest pipeline to our frozen T3 data. This is a supplementary analysis; the project's primary results should still be cited from the [canonical tables](../results/CANONICAL_TABLES.md).
 
 The main findings are: **the FEP affinity-ranking signal was reproduced; CASF energy reranking did not improve the retrieval-selected candidates; most original T3 layer metrics were close, although fresh docking and some optimization endpoints differed. Our own T3 sample also showed no consistent affinity-ranking advantage.**
 
@@ -11,7 +11,7 @@ Agreement has two distinct meanings here:
 
 ## 1. Original Work and Reproduction Coverage
 
-The source is [xianyang123-bit/aimnet_score_pipelines](https://github.com/xianyang123-bit/aimnet_score_pipelines), pinned to its latest commit [`e6a598bf80f5`](https://github.com/xianyang123-bit/aimnet_score_pipelines/tree/e6a598bf80f5e284e8a6515b507a2b3192546b62). Deleted inputs and earlier results were recovered from historical commit [`18072caf3d3d`](https://github.com/xianyang123-bit/aimnet_score_pipelines/tree/18072caf3d3db434f328f44ca3e5e39366382f5b), with Git blob identities verified during download.
+The source is [the upstream AIMNet2 scoring repository](https://github.com/xianyang123-bit/aimnet_score_pipelines), pinned to its latest commit [`e6a598bf80f5`](https://github.com/xianyang123-bit/aimnet_score_pipelines/tree/e6a598bf80f5e284e8a6515b507a2b3192546b62). Deleted inputs and earlier results were recovered from historical commit [`18072caf3d3d`](https://github.com/xianyang123-bit/aimnet_score_pipelines/tree/18072caf3d3db434f328f44ca3e5e39366382f5b), with Git blob identities verified during download.
 
 The original repository constructs two scores from public AIMNet2 potential-energy models. The latest protocol uses fixed-receptor interaction energy, `Eint = Ecomplex − Epocket − Eligand`; the earlier composite score also includes desolvation and local ligand strain. Lower energies rank higher. This reconstructs publicly described scoring expressions and should not be presented as the official affinity-trained AIMNet2(Score) model.
 
@@ -20,13 +20,13 @@ The original repository constructs two scores from public AIMNet2 potential-ener
 | KIN66 / PLA15 reference energies | 81 systems, two geometries, seven members or computational variants; 1,134 records | Complete |
 | Latest FEP fixed-receptor Eint | 16 requested systems, 14 supported systems, 403 successful ligands; pockets prepared again and ligands optimized | Complete |
 | CASF LigUnity retrieval | Embeddings regenerated; 24 supported pockets × 285 molecules, 6,840 score pairs | Complete |
-| CASF 2025 energy reranking | 24 pockets, 480 ligands, 47,896 available poses; a separate 2,000-pose example | Complete |
+| CASF revised energy reranking | 24 pockets, 480 ligands, 47,896 available poses; a separate 2,000-pose example | Complete |
 | Latest original T3 pipeline | Pocket preparation and fresh docking rerun; separate energy rerun with published poses held fixed | Both complete: 41 systems / 403 ligands |
-| Earlier original T3 composite | Old wB97M and 2025 protocols, each with 93 systems / 917 ligands, using the corresponding archived scientific code | Complete |
-| Nonrandom smoke set | 250 molecules, 58 actives / 192 decoys; old and 2025 protocols independently calculated | Complete |
+| Earlier original T3 composite | Old wB97M and revised protocols, each with 93 systems / 917 ligands, using the corresponding archived scientific code | Complete |
+| Nonrandom smoke set | 250 molecules, 58 actives / 192 decoys; old and revised protocols independently calculated | Complete |
 | Our T3 data | Frozen sample of 92 target-layer combinations / 920 active ligands | Complete: 67 systems / 547 ligands scored successfully |
 
-The old and 2025 archived protocols each comprised 134 execution cases, totaling 268. Input and weight checks, molecule IDs, and energy-component identities were verified. The first 2025 pass produced one nonfinite result; one retry with the same parameters returned a finite value. The old protocol had no scoring errors. Finite scores were not replaced based on their similarity to the reference results.
+The old and revised archived protocols each comprised 134 execution cases, totaling 268. Input and weight checks, molecule IDs, and energy-component identities were verified. The first pass with the revised model produced one nonfinite result; one retry with the same parameters returned a finite value. The old protocol had no scoring errors. Finite scores were not replaced based on their similarity to the reference results.
 
 ## 2. How the Original Results Agree
 
@@ -73,22 +73,22 @@ With the published inputs held fixed, the mean absolute energy difference before
 
 Both earlier T3 composite experiments were also independently rerun, each on the same 93 systems / 917 ligands:
 
-| Layer | 2025 reference composite ρ | 2025 rerun ρ | Old reference composite ρ | Old rerun ρ |
+| Layer | Revised reference composite ρ | Revised rerun ρ | Old reference composite ρ | Old rerun ρ |
 | --- | --- | --- | --- | --- |
 | L1 | −0.0877 | −0.0939 | −0.0165 | 0.0018 |
 | L2 | 0.1018 | 0.1058 | 0.0441 | 0.0466 |
 | L3 | 0.2174 | 0.2121 | 0.0698 | 0.0650 |
 | L4 | 0.1169 | 0.1186 | 0.0177 | 0.0160 |
 
-The earlier 2025 L3 result does show some positive correlation; it would be inaccurate to say that all T3 experiments have no signal. Pocket chemistry, sample coverage, and pose selection changed between protocols, so these tables cannot isolate the effect of a single model or pipeline change. See the [186 system-version records](../results/aimnet2-reproduction-20261007/composite_t3_per_target_comparison.csv).
+The earlier L3 result with the revised model does show some positive correlation; it would be inaccurate to say that all T3 experiments have no signal. Pocket chemistry, sample coverage, and pose selection changed between protocols, so these tables cannot isolate the effect of a single model or pipeline change. See the [186 system-version records](../results/aimnet2-reproduction-20261007/composite_t3_per_target_comparison.csv).
 
 ### Smoke and Quantum References: Independently Recomputed
 
 | AUROC on the nonrandom 250-molecule smoke set | Published reference | Independent rerun |
 | --- | --- | --- |
-| 2025 interaction before optimization | 0.5796 | 0.5796 |
-| 2025 interaction after optimization | 0.5422 | 0.5427 |
-| 2025 composite | 0.5216 | 0.5224 |
+| Revised interaction before optimization | 0.5796 | 0.5796 |
+| Revised interaction after optimization | 0.5422 | 0.5427 |
+| Revised composite | 0.5216 | 0.5224 |
 | Old interaction after optimization | 0.4543 | 0.4497 |
 | Old composite | 0.4472 | 0.4486 |
 
@@ -99,14 +99,14 @@ Both geometries and all seven variants for KIN66 / PLA15 were recomputed. The ta
 | Model | KIN66 RMSE | PLA15 RMSE |
 | --- | --- | --- |
 | Old wB97M | 62.6472 | 31.0367 |
-| 2025 member 0 | 3.4937 | 5.3966 |
-| 2025 four-member average | 3.2245 | 4.7693 |
+| Revised member 0 | 3.4937 | 5.3966 |
+| Revised four-member average | 3.2245 | 4.7693 |
 
 All 1,134 individual model predictions matched corresponding reference entries. The largest individual rerun energy difference was below 0.009 kcal/mol. Improved quantum interaction-energy accuracy was reproduced, but this does not establish improved experimental affinity or screening rankings. See the [complete reference metrics and geometry definitions](../results/aimnet2-reproduction-20261007/kin_reference_metrics.csv).
 
 ## 3. Testing on Our Frozen T3 Data
 
-We sampled from the normalized T3 final-quota subset frozen on 2026-10-06. Under the strict L1–L4 definitions, we selected up to 24 targets per layer and randomly selected 10 active ligands per target, using seed `20260904`. L3 had only 20 available targets. The sample comprised 92 target-layer combinations, 90 distinct UniProt IDs, and 920 requested cases. Failed or chemically excluded cases were not replaced.
+We sampled from our frozen normalized T3 final-quota subset. Under the strict L1–L4 definitions, we selected up to 24 targets per layer and randomly selected 10 active ligands per target, using a fixed random seed recorded in the protocol summary. L3 had only 20 available targets. The sample comprised 92 target-layer combinations, 90 distinct UniProt IDs, and 920 requested cases. Failed or chemically excluded cases were not replaced.
 
 We retained the original scientific preparation and scoring modules: exact residue-source structures, one-residue padding, ACE/NME caps, and Amber14 hydrogen addition at pH 7.4; fresh ETKDGv3 / MMFF94s conformations; SMINA exhaustiveness 8, seed 1, cpu 4, and one mode; and FIRE ligand optimization with a fixed receptor, at most 1,000 steps, and fmax 0.002 eV/Å. An adapter replaced filesystem paths. The original docking stage was invoked per ligand so that other valid molecules could proceed; molecule-identity rejection checks were retained.
 
@@ -128,7 +128,7 @@ These tests evaluate affinity ranking among active ligands. They do not provide 
 The evidence supports the original work's main metrics and conclusions. It does not establish that every input, conformation, and value is identical, or that AIMNet2 has no signal in any task.
 
 - The latest protocol and FEP both used the original safe neighbor-list implementation; the legacy protocol retained full-range Coulomb neighbors. Independent checks on three systems, using NumPy neighbor matrices and direct TorchScript calls, passed with a maximum interaction-energy difference of 0.00158 kcal/mol.
-- Across the 268 old and 2025 archived cases, energy-component identity errors were below 1e−6 kcal/mol. For every finite result, the complex energy after optimization did not exceed its initial value.
+- Across the 268 old and revised archived cases, energy-component identity errors were below 1e−6 kcal/mol. For every finite result, the complex energy after optimization did not exceed its initial value.
 - Earlier PDB charge parsing followed the original rule, defaulting to 0 when the field was missing. Latest T3 / FEP used the prepared net charges. These protocol differences were retained for their respective reproductions and should not be attributed solely to model weights.
 - A few CASF optimization endpoints had large energy differences, with a maximum interaction-energy difference of about 289 kcal/mol. Single-point recalculation of both runs' saved structures agreed closely with their respective stored values. This supports an explanation involving optimization trajectories or endpoints, but does not prove that every discrepancy has the same cause.
 - Original nonfinite results, preparation failures, chemistry exclusions, and identity rejections were retained in the audit. A first-finite retry was used only for the originally failed molecule; optimization results were not selected based on similarity to the reference.
@@ -148,6 +148,6 @@ python3 physics/verify_aimnet_reproduction_summary.py
 
 The script uses only the Python standard library. It checks equally weighted reference and rerun means from the included per-system records, and recomputes T3 Spearman correlations with tied ranks, energy decomposition, and convergence counts from the 547 new scores. It does not rerun molecular energy calculations or recompute screening AUROC where the underlying molecule scores are not included.
 
-## Suggested Brief Reply to the Collaborator
+## Summary for Sharing
 
-> We independently reran the main traceable experiments in your GitHub repository. The mean FEP correlation was 0.5002, compared with your reported 0.4992. CASF EF1 after optimization was 0.9722 for both interaction and composite scores, confirming that energy reranking did not improve the retrieval-selected candidates. The main trends in the original T3 and smoke experiments were also similar. We additionally tested the pipeline on our frozen T3 sample, where affinity-ranking signals remained weak with no consistent advantage over the paired baselines. Some fresh docking conformations and optimization endpoints differed, so the agreement is in the main metrics and conclusions rather than every individual value.
+> We independently reran the main traceable experiments in the linked source repository. The mean FEP correlation was 0.5002, compared with the reported 0.4992. CASF EF1 after optimization was 0.9722 for both interaction and composite scores, confirming that energy reranking did not improve the retrieval-selected candidates. The main trends in the original T3 and smoke experiments were also similar. We additionally tested the pipeline on our frozen T3 sample, where affinity-ranking signals remained weak with no consistent advantage over the paired baselines. Some fresh docking conformations and optimization endpoints differed, so the agreement is in the main metrics and conclusions rather than every individual value.

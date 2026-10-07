@@ -34,8 +34,8 @@ what question it asks, what data it uses, how it was run, and what came out.
 
 🔬 = has a **"where physics fits"** section with concrete entry points.
 
-**AIMNet2 collaborator reproduction (2026-10-07).** A [standalone report](tasks/AIMNet2-xianyang-reproduction.md)
-covers independent reruns of xianyang's FEP, KIN66/PLA15, CASF retrieval and
+**AIMNet2 experiment reproduction.** A [standalone report](tasks/AIMNet2-reproduction.md)
+covers independent reruns of the upstream FEP, KIN66/PLA15, CASF retrieval and
 reranking, both T3 protocols, and the smoke set, plus a test on our frozen T3
 data. It distinguishes agreement in metrics from differences in docking poses
 and optimization endpoints, with [auditable result tables](results/aimnet2-reproduction-20261007/).

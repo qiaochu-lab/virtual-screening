@@ -1,9 +1,9 @@
-# AIMNet2 reproduction result supplement — 2026-10-07
+# AIMNet2 Reproduction Result Supplement
 
-Read the [standalone report](../../tasks/AIMNet2-xianyang-reproduction.md)
+Read the [standalone report](../../tasks/AIMNet2-reproduction.md)
 for experiment scope, methods, reference-versus-rerun comparisons and caveats.
 This supplement documents independently executed calculations; it is separate
-from the October 6 canonical screening model tables.
+from the canonical screening model tables.
 
 | Files | What they substantiate |
 | --- | --- |
@@ -11,7 +11,7 @@ from the October 6 canonical screening model tables.
 | `fep_system_comparison.csv` | All 14 paired systems / 403 ligands, before/after correlations and energy differences |
 | `casf_metrics_comparison.csv` | Conditional shortlist EF1 reference and independent rerun results |
 | `latest_t3_*comparison.csv` | Original latest T3 versus fixed-pose and fresh-docking reruns; 41 systems / 403 ligands |
-| `composite_t3_*comparison.csv` | Old and 2025 composite protocols; 93 systems / 917 ligands each |
+| `composite_t3_*comparison.csv` | Old and revised composite protocols; 93 systems / 917 ligands each |
 | `smoke_metrics_comparison.csv` | Reference and rerun AUROC on the same nonrandom 250-ligand smoke set |
 | `kin_reference_metrics.csv` | Every reference, geometry and model variant in the 81-system quantum-energy test |
 | `own_t3_scores.csv` | 547 newly computed successful scores, pAffinity labels, component energies and convergence flags |
