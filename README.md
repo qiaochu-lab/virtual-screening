@@ -34,6 +34,12 @@ what question it asks, what data it uses, how it was run, and what came out.
 
 🔬 = has a **"where physics fits"** section with concrete entry points.
 
+**AIMNet2 collaborator reproduction (2026-10-07).** A [standalone report](tasks/AIMNet2-xianyang-reproduction.md)
+covers independent reruns of xianyang's FEP, KIN66/PLA15, CASF retrieval and
+reranking, both T3 protocols, and the smoke set, plus a test on our frozen T3
+data. It distinguishes agreement in metrics from differences in docking poses
+and optimization endpoints, with [auditable result tables](results/aimnet2-reproduction-20261007/).
+
 **New to virtual screening?** [`WALKTHROUGH-zh.md`](WALKTHROUGH-zh.md) (Chinese)
 explains the whole project from first principles — what virtual screening is, how
 these models work, what each task did, and what the results mean — with no

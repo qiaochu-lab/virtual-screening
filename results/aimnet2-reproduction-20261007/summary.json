@@ -1,0 +1,492 @@
+{
+  "date": "2026-10-07",
+  "role": "Supplementary analysis; independent of the 2026-10-06 canonical benchmark tables",
+  "source_repository": "https://github.com/xianyang123-bit/aimnet_score_pipelines",
+  "commits": {
+    "latest": "e6a598bf80f5e284e8a6515b507a2b3192546b62",
+    "pre_cleanup": "18072caf3d3db434f328f44ca3e5e39366382f5b"
+  },
+  "fep": {
+    "n_reference_success": 403,
+    "n_rerun_success": 403,
+    "n_matched": 403,
+    "n_missing_reference_success": 0,
+    "n_new_rerun_success": 0,
+    "mean_post_rho_reference_on_matched": 0.49918347289536663,
+    "mean_post_rho_rerun": 0.5002232594961404,
+    "mean_pre_rho_reference_on_matched": 0.2712888112539564,
+    "mean_pre_rho_rerun": 0.2712888112539564,
+    "energy_mae_kcal_mol": 0.03198662888949151,
+    "energy_max_abs_delta_kcal_mol": 4.382808684204221,
+    "pre_energy_max_abs_delta_kcal_mol": 0.006090592261429606,
+    "max_abs_system_rho_delta": 0.006495615802151855
+  },
+  "casf_pose_audit": {
+    "n_main_poses": 47896,
+    "n_example_poses": 2000,
+    "n_main_selected": 480,
+    "n_selection_changed_vs_published": 0,
+    "n_selection_changed_vs_legacy": 320,
+    "singlepoint_mae_kcal_mol": 0.0023848881464520683,
+    "singlepoint_max_abs_kcal_mol": 0.09824308017414296
+  },
+  "casf_retrieval": {
+    "n_targets": 24,
+    "n_score_pairs": 6840,
+    "max_score_delta": 0.001134374999999993,
+    "mean_score_mae": 0.00016156137007774686,
+    "n_same_top20": 23
+  },
+  "latest_t3_energy_comparisons": {
+    "fixed_poses": {
+      "n_reference": 403,
+      "n_rerun": 403,
+      "n_common": 403,
+      "missing": 0,
+      "added": 0,
+      "energies": {
+        "aimnet_interaction_kcal_mol": {
+          "n": 403,
+          "mae": 0.054634115785739845,
+          "max_abs": 8.087695875935822
+        },
+        "pre_minimization_interaction_kcal_mol": {
+          "n": 403,
+          "mae": 0.0013943732084342134,
+          "max_abs": 0.009448541146738876
+        }
+      }
+    },
+    "fresh_docking": {
+      "n_reference": 403,
+      "n_rerun": 403,
+      "n_common": 403,
+      "missing": 0,
+      "added": 0,
+      "energies": {
+        "aimnet_interaction_kcal_mol": {
+          "n": 403,
+          "mae": 8.346331662429249,
+          "max_abs": 119.24725341912654
+        },
+        "pre_minimization_interaction_kcal_mol": {
+          "n": 403,
+          "mae": 11.703230726839573,
+          "max_abs": 1736.7250930533721
+        }
+      }
+    }
+  },
+  "latest_t3_docking": {
+    "n_common_poses": 403,
+    "n_exact_heavy_coordinates": 0,
+    "median_heavy_rmsd_A": 1.1878138644866316,
+    "max_heavy_rmsd_A": 30.955913860661514,
+    "note": "No alignment: receptor coordinate frame fixed; atom order and atomic-number sequence asserted"
+  },
+  "composite_t3_energy_comparisons": {
+    "member2025": {
+      "n_reference": 917,
+      "n_rerun": 917,
+      "n_common": 917,
+      "missing": 0,
+      "added": 0,
+      "energies": {
+        "aimnet_interaction_kcal_mol": {
+          "n": 917,
+          "mae": 0.15220264766541083,
+          "max_abs": 59.50437724175195
+        },
+        "aimnet2_composite_kcal_mol": {
+          "n": 917,
+          "mae": 0.13127654805027908,
+          "max_abs": 34.87865326836537
+        }
+      }
+    },
+    "legacy": {
+      "n_reference": 917,
+      "n_rerun": 917,
+      "n_common": 917,
+      "missing": 0,
+      "added": 0,
+      "energies": {
+        "aimnet_interaction_kcal_mol": {
+          "n": 917,
+          "mae": 0.42432334176425374,
+          "max_abs": 191.7780800948298
+        },
+        "aimnet2_composite_kcal_mol": {
+          "n": 917,
+          "mae": 0.2248867116040558,
+          "max_abs": 42.06863390723987
+        }
+      }
+    }
+  },
+  "kin": {
+    "n_reference": 1134,
+    "n_rerun": 1134,
+    "missing": 0,
+    "added": 0,
+    "per_model": {
+      "aimnet2_2025_default": {
+        "n": 162,
+        "mae": 0.0012638987994387715,
+        "max_abs": 0.005574634078513441
+      },
+      "aimnet2_2025_ensemble": {
+        "n": 162,
+        "mae": 0.0010739940752010305,
+        "max_abs": 0.004245571214028132
+      },
+      "aimnet2_2025_full_coulomb": {
+        "n": 162,
+        "mae": 0.0011395819117049988,
+        "max_abs": 0.005586680554785062
+      },
+      "aimnet2_2025_member1": {
+        "n": 162,
+        "mae": 0.0024972356768938513,
+        "max_abs": 0.008793774992930992
+      },
+      "aimnet2_2025_member2": {
+        "n": 162,
+        "mae": 0.0020918507807825147,
+        "max_abs": 0.006545836344884037
+      },
+      "aimnet2_2025_member3": {
+        "n": 162,
+        "mae": 0.0013350859073884497,
+        "max_abs": 0.006575837936658502
+      },
+      "current_wb97m": {
+        "n": 162,
+        "mae": 0.00024741495828539684,
+        "max_abs": 0.0010789948729907906
+      }
+    }
+  },
+  "own_t3": {
+    "n_requested_systems": 92,
+    "n_requested_ligands": 920,
+    "n_scored_systems": 67,
+    "n_scored_ligands": 547,
+    "layers": [
+      {
+        "layer": "L1",
+        "n_requested_systems": 24,
+        "n_scored_systems": 16,
+        "n_evaluable": 15,
+        "n_ligands": 129,
+        "mean_eint_rho": -0.020410698034855238,
+        "mean_pre_eint_rho": -0.06585218643491988,
+        "mean_smina_rho": -0.010588264661187756
+      },
+      {
+        "layer": "L2",
+        "n_requested_systems": 24,
+        "n_scored_systems": 17,
+        "n_evaluable": 17,
+        "n_ligands": 139,
+        "mean_eint_rho": -0.14450495915424674,
+        "mean_pre_eint_rho": -0.2323054899024867,
+        "mean_smina_rho": -0.09478857919098593
+      },
+      {
+        "layer": "L3",
+        "n_requested_systems": 20,
+        "n_scored_systems": 14,
+        "n_evaluable": 14,
+        "n_ligands": 122,
+        "mean_eint_rho": 0.06674183064408938,
+        "mean_pre_eint_rho": 0.08998749497755519,
+        "mean_smina_rho": 0.21653595993707844
+      },
+      {
+        "layer": "L4",
+        "n_requested_systems": 24,
+        "n_scored_systems": 20,
+        "n_evaluable": 19,
+        "n_ligands": 157,
+        "mean_eint_rho": -0.036290679051726095,
+        "mean_pre_eint_rho": 0.08800517822821108,
+        "mean_smina_rho": 0.1161887273353555
+      }
+    ],
+    "preparation_status": {
+      "prepared": 67,
+      "excluded_chemistry": 20,
+      "preparation_failed": 5
+    },
+    "n_target_execution_errors": 0,
+    "n_docking_errors": 123,
+    "validation": {
+      "n_scoring_errors": 0,
+      "n_converged": 502,
+      "n_nonconverged": 45,
+      "max_decomposition_error_kcal_mol": 2.684600985958241e-09,
+      "n_final_complex_energy_increases": 0,
+      "minimum_initial_heavy_contact_A": 2.464467423075256,
+      "minimum_final_heavy_contact_A": 2.462263243605592
+    }
+  },
+  "own_t3_convergence_sensitivity": {
+    "all": {
+      "L1": {
+        "n_ligands": 129,
+        "n_evaluable": 15,
+        "mean_rho": -0.020410698034855224
+      },
+      "L2": {
+        "n_ligands": 139,
+        "n_evaluable": 17,
+        "mean_rho": -0.14450495915424671
+      },
+      "L3": {
+        "n_ligands": 122,
+        "n_evaluable": 14,
+        "mean_rho": 0.06674183064408938
+      },
+      "L4": {
+        "n_ligands": 157,
+        "n_evaluable": 19,
+        "mean_rho": -0.03629067905172613
+      }
+    },
+    "converged": {
+      "L1": {
+        "n_ligands": 121,
+        "n_evaluable": 15,
+        "mean_rho": -0.019661673375941612
+      },
+      "L2": {
+        "n_ligands": 123,
+        "n_evaluable": 17,
+        "mean_rho": -0.13688585448543017
+      },
+      "L3": {
+        "n_ligands": 115,
+        "n_evaluable": 14,
+        "mean_rho": 0.04615832387125203
+      },
+      "L4": {
+        "n_ligands": 143,
+        "n_evaluable": 18,
+        "mean_rho": 0.04882610428403074
+      }
+    }
+  },
+  "own_t3_protocol": {
+    "dataset": "own 2026-10-06 frozen normalized T3, final quota subset, strict exposure layers",
+    "selection": "At most 24 targets per strict layer, ten random actives per target; no replacement after chemistry or preparation failure",
+    "selection_seed": 20260904,
+    "n_requested_systems": 92,
+    "n_requested_ligands": 920,
+    "model_sha256": "043ed5418a104e31f79462f8e5ebeca64a2d24422174f5d29f894d32271981b5",
+    "frozen_input_code_sha256": {
+      "code/prepare_aimnet_pocket.py": "7403a49915d970ca7b949d17c96f20ff9c9b09cf13603d490a016ffca7f8ee73",
+      "code/source_inventory.py": "5c2c903c90babf667254a6f27c1eb3a0593d6cf8ba79c8a3a706ae592738566b",
+      "code/aggregate.py": "6063e8d6890b3ccf42d1cfd356674841586592c7b3ebd87a1a0ab5105d20dc0a",
+      "code/run.py": "5a7c64267916135786ddbf07a614c4b62c5f9768631713ae22cb54c9107acac3",
+      "code/pocket_geometry.py": "d5a357189bef3510f106b3a42fae8a1f5dd7a7da6d23e69255632cecee08491d",
+      "code/aimnet_interaction_calculator.py": "109a0487d1a6ee215aa0e223774c6d9293b1d67128d8e03ef57c9f8dee3b232f",
+      "code/docking.py": "8fbe149756cd12a4def2486f94bdc864fd101a47c174cfb6185edb012bfd1d64",
+      "code/energy.py": "64ca8f237cd7919a12eb536d0134a0d17a8163349593c6a9c2dfc1b6bf7d8ce1",
+      "code/stages.py": "118886778d265e2f30aaac8433a9872ae9f12dbf1c774e817304af1e3eda403d",
+      "code/fep.py": "682c4f4de653bfafc4cabee9dfdbb2939e7aaf915b70090eec4ffa3a72eed701",
+      "code/prepared_pocket.py": "6e5af7c1bbd61d82c582483977e05b2ad988c6620b98fbbbe9faa907063fd2d7",
+      "code/aimnet_safe_calculator.py": "bfe1d5034d6d010f796b2b47de02c97647447b88db5311b365005bb7d653e534",
+      "input/pockets_6A.tar.gz": "5ef454cbfc7d097662081531276a447eb0114bcc3228e1819e1748a603761164",
+      "input/molecules.csv.gz": "530155b217a809ff3472e462af73b7b273db06b7acf79e905afd8498eb254773",
+      "input/T3_vsds_matched.csv": "29a3fed0b89b929c84b7ad1de4f2c6264661d30519f2f4e9f136f7a7b1afaec6",
+      "input/T3_target_exposure.csv": "7c0389eac222452bd2e83211673ed14c6d45f617c509c270a385d59395fa0362",
+      "input/manifest.json": "c676d88a08cb1820d339c75cfb752d20394456b8bf3a0a3be4ef9fc752221f09",
+      "input/actives.csv.gz": "9a624483e0913bb0a5da3515756a63a232ec1af93b3bc4c4f73979ac2ebda971",
+      "input/targets.csv.gz": "adac2654b8e52adf0b3ecafab47bf721daedeed471aca553da93545e48d52656"
+    }
+  },
+  "existing_boltz_comparison": {
+    "scope": "Same successfully AIMNet-scored ligands, paired by system/mol_id, exact benchmark SMILES and affinity; Boltz predictions already existed and were not newly generated",
+    "score_direction": "Negative AIMNet interaction energy and negative Boltz affinity_pred_value correlate with pAffinity",
+    "n_aimnet_success": 403,
+    "n_matched_ligands": 403,
+    "n_matched_systems": 14,
+    "missing": [],
+    "mean_aimnet_rho": 0.5002232594961404,
+    "mean_existing_boltz_rho": 0.6391277546890832,
+    "per_system": [
+      {
+        "system": "bace",
+        "n_matched_ligands": 36,
+        "aimnet_rho": 0.18826865565294748,
+        "existing_boltz_rho": -0.08125685479959635,
+        "delta": 0.2695255104525438
+      },
+      {
+        "system": "cdk2",
+        "n_matched_ligands": 13,
+        "aimnet_rho": 0.8351648351648352,
+        "existing_boltz_rho": 0.6923076923076923,
+        "delta": 0.1428571428571429
+      },
+      {
+        "system": "cdk8",
+        "n_matched_ligands": 32,
+        "aimnet_rho": 0.33961344501425644,
+        "existing_boltz_rho": 0.7988634445221714,
+        "delta": -0.45924999950791495
+      },
+      {
+        "system": "cmet",
+        "n_matched_ligands": 24,
+        "aimnet_rho": 0.5769656167329016,
+        "existing_boltz_rho": 0.8830839779126977,
+        "delta": -0.3061183611797961
+      },
+      {
+        "system": "eg5",
+        "n_matched_ligands": 28,
+        "aimnet_rho": 0.5023988166959582,
+        "existing_boltz_rho": 0.49390216458598835,
+        "delta": 0.00849665210996986
+      },
+      {
+        "system": "hif2a",
+        "n_matched_ligands": 41,
+        "aimnet_rho": 0.25595889471347194,
+        "existing_boltz_rho": 0.43322154089910425,
+        "delta": -0.1772626461856323
+      },
+      {
+        "system": "jnk1",
+        "n_matched_ligands": 21,
+        "aimnet_rho": 0.7255602851003632,
+        "existing_boltz_rho": 0.8061059210470463,
+        "delta": -0.08054563594668307
+      },
+      {
+        "system": "mcl1",
+        "n_matched_ligands": 41,
+        "aimnet_rho": 0.6051657307887657,
+        "existing_boltz_rho": 0.8803519325394078,
+        "delta": -0.2751862017506421
+      },
+      {
+        "system": "p38",
+        "n_matched_ligands": 34,
+        "aimnet_rho": 0.44716336303919935,
+        "existing_boltz_rho": 0.5032881763891945,
+        "delta": -0.056124813349995195
+      },
+      {
+        "system": "ptp1b",
+        "n_matched_ligands": 23,
+        "aimnet_rho": 0.770906341670855,
+        "existing_boltz_rho": 0.822860876892575,
+        "delta": -0.05195453522172
+      },
+      {
+        "system": "shp2",
+        "n_matched_ligands": 24,
+        "aimnet_rho": 0.6965217391304348,
+        "existing_boltz_rho": 0.37565217391304345,
+        "delta": 0.32086956521739135
+      },
+      {
+        "system": "syk",
+        "n_matched_ligands": 43,
+        "aimnet_rho": 0.5425302982686391,
+        "existing_boltz_rho": 0.7968437352301947,
+        "delta": -0.2543134369615556
+      },
+      {
+        "system": "tnks2",
+        "n_matched_ligands": 27,
+        "aimnet_rho": -0.06838650667372113,
+        "existing_boltz_rho": 0.7366814312664692,
+        "delta": -0.8050679379401904
+      },
+      {
+        "system": "tyk2",
+        "n_matched_ligands": 16,
+        "aimnet_rho": 0.5852941176470589,
+        "existing_boltz_rho": 0.8058823529411765,
+        "delta": -0.22058823529411764
+      }
+    ]
+  },
+  "fep_paired_uncertainty": {
+    "paired_delta": {
+      "n": 14,
+      "mean": -0.13890449519294282,
+      "ci95": [
+        -0.2914497190829454,
+        0.007861256650086081
+      ],
+      "bootstrap_iterations": 10000
+    },
+    "sign_randomization": {
+      "n_pairs": 14,
+      "two_sided_p": 0.0960693359375,
+      "n_sign_patterns": 16384,
+      "null": "Equal paired methods; target differences sign symmetric"
+    },
+    "interpretation": "Paired differences across the 14 supported FEP systems; excludes 7 failed AIMNet ligand cases from both methods"
+  },
+  "component_validation": {
+    "2025": {
+      "n_completed_cases": 134,
+      "n_scored": 1666,
+      "n_errors": 1,
+      "max_arithmetic_error_kcal_mol": 0.0
+    },
+    "legacy": {
+      "n_completed_cases": 134,
+      "n_scored": 1667,
+      "n_errors": 0,
+      "max_arithmetic_error_kcal_mol": 0.0
+    }
+  },
+  "execution_provenance": {
+    "n_completed_cases": 268,
+    "runtime": {
+      "python": "3.11.15",
+      "torch": "2.14.0+cu126",
+      "cuda_runtime": "12.6",
+      "rdkit": "2026.03.5",
+      "aimnet": "0.2.0",
+      "scipy": "1.13.1",
+      "numpy": "1.26.4",
+      "pandas": "2.3.3",
+      "gpu_name": "NVIDIA GeForce RTX 3090",
+      "model_sha256": {
+        "aimnet2_wb97m_0.jpt": "e62f73566f28e84f2c75c38d93b1dbecf3a868eeab8df05150bdcd0d650432dc",
+        "wb97m_cpcms_v2_0.jpt": "32f73fcd68e76f67a6e088841304ca0adc96066cca83216dd9ed992e9e4dec87"
+      }
+    },
+    "model_identity_evidence": {
+      "case_alias_plus_global_resolved_alias_and_retained_cache": 75,
+      "per_case_resolved_path_and_sha256": 193
+    }
+  },
+  "t3_input_integrity": [
+    {
+      "run": "t3-ours-20261007/run",
+      "n_initialized_input_hashes_verified": 552,
+      "n_selected_source_hashes_verified": 92
+    },
+    {
+      "run": "all-experiments-20261007/original-t3-run",
+      "n_initialized_input_hashes_verified": 474,
+      "n_selected_source_hashes_verified": 73
+    },
+    {
+      "run": "all-experiments-20261007/original-t3-published-poses",
+      "n_initialized_input_hashes_verified": 287,
+      "n_selected_source_hashes_verified": 0
+    }
+  ],
+  "retry_rule": "Only originally nonfinite scores retried with identical science; first finite result retained; no finite-score replacements",
+  "n_retry_recoveries": 1
+}
